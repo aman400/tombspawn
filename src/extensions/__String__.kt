@@ -9,9 +9,6 @@ fun String.runCommand(workingDir: File = File("."),
                       timeoutUnit: TimeUnit = TimeUnit.MINUTES): String? {
     return try {
         val strings = split(Regex("\\s+"))
-        strings.forEach {
-            println(it)
-        }
         ProcessBuilder(strings)
             .directory(workingDir)
             .redirectOutput(ProcessBuilder.Redirect.INHERIT)
