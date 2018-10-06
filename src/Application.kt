@@ -1,5 +1,6 @@
 package com.ramukaka
 
+import com.ramukaka.extensions.copyToSuspend
 import com.ramukaka.extensions.runCommand
 import com.ramukaka.network.RamukakaApi
 import com.ramukaka.network.ServiceGenerator
@@ -16,11 +17,17 @@ import io.ktor.locations.*
 import io.ktor.features.*
 import org.slf4j.event.*
 import io.ktor.gson.*
+import io.ktor.http.content.PartData
+import io.ktor.http.content.forEachPart
+import io.ktor.http.content.streamProvider
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.util.url
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.launch
+import okhttp3.MediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -64,7 +71,7 @@ fun Application.module(testing: Boolean = false) {
     }
 
     routing {
-//        get<MyLocation> {
+        //        get<MyLocation> {
 //            call.respondText("Location: name=${it.name}, arg1=${it.arg1}, arg2=${it.arg2}")
 //        }
 //        // Register nested routes
@@ -80,17 +87,25 @@ fun Application.module(testing: Boolean = false) {
                 "cd /Users/aman/git/LazySocket && ./gradlew -q assembleWithArgs -Purl=abc.com -PfilePath=./public/ && cd - && rm -rf ./public && mv /Users/aman/git/LazySocket/app/public".runCommand()
 
                 val file = File("/Users/aman/IdeaProjects/Ramukaka/public/App-debug.apk")
-                if(file.exists()) {
-                    println("File exists with length: ${file.length()}")
+                if (file.exists()) {
+                    val requestBody = RequestBody.create(MediaType.parse(ServiceGenerator.MULTIPART_FORM_DATA), file)
+                    val multipartBody = MultipartBody.Part.createFormData("Apk", "App-debug.apk", requestBody)
+
+                    val descriptionString = "This is actual build file"
+                    val description = RequestBody.create(
+                        okhttp3.MultipartBody.FORM, descriptionString
+                    )
+
+                    val api = ServiceGenerator.createService(RamukakaApi::class.java)
+                    val call = api.pushApp(description, multipartBody)
+                    val response = call.execute()
+                    if (response.isSuccessful) {
+                        println(response.body()!!.message)
+                    } else {
+                        println(response.errorBody().toString())
+                    }
                 }
-                val api = ServiceGenerator.createService(RamukakaApi::class.java)
-                val call = api.get(1)
-                val response = call.execute()
-                if(response.isSuccessful) {
-                    println(response.body().toString())
-                } else {
-                    println(response.errorBody().toString())
-                }
+
             }
             call.respond(it.url)
         }
@@ -100,13 +115,30 @@ fun Application.module(testing: Boolean = false) {
         }
 
         post<App> {
-            if (!call.request.isMultipart()) {
-                call.receiveMultipart()
-                call.respondTextWriter {
-                    appendln("This is a multipart request")
+            val multipart = call.receiveMultipart()
+            var description: String
+            multipart.forEachPart { part ->
+                when (part) {
+                    is PartData.FormItem -> {
+                        if (part.name == "description") {
+                            description = part.value
+                            println(description)
+                        }
+                    }
+                    is PartData.FileItem -> {
+                        val ext = File(part.originalFileName).extension
+                        val name = File(part.originalFileName).name
+                        val file = File("/Users/aman/IdeaProjects/Ramukaka/public", "upload-app.$ext")
+                        part.streamProvider().use { input ->
+                            file.outputStream().buffered().use { output ->
+                                input.copyToSuspend(output)
+                                call.respond(mapOf("message" to "Upload Complete"))
+                            }
+                        }
+                    }
                 }
-            } else {
-                call.respond("This is not a multipart request")
+
+                part.dispose()
             }
         }
 
@@ -131,15 +163,4 @@ class App {
     data class Get(val id: String)
 }
 
-@Location("/location/{name}")
-class MyLocation(val name: String, val arg1: Int = 42, val arg2: String = "default")
-
-@Location("/type/{name}")
-data class Type(val name: String) {
-    @Location("/edit")
-    data class Edit(val type: Type)
-
-    @Location("/list/{page}")
-    data class List(val type: Type, val page: Int)
-}
 
