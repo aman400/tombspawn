@@ -73,9 +73,11 @@ fun Application.module(testing: Boolean = false) {
     routing {
         post<App.Build> {
             launch {
-                "cd /Users/aman/git/LazySocket && ./gradlew -q assembleWithArgs -Purl=abc.com -PfilePath=./public/ && cd - && rm -rf ./public && mv /Users/aman/git/LazySocket/app/public".runCommand()
+                "/usr/local/bin/gradle assembleWithArgs -PFLAVOUR=paid -PBUILD_TYPE=release -PFILE_PATH=/Users/aman/IdeaProjects/Ramukaka/public/".runCommand(File("/Users/aman/git/LazySocket/"))
 
-                val file = File("/Users/aman/IdeaProjects/Ramukaka/public/App-debug.apk")
+                val directory = File("/Users/aman/IdeaProjects/Ramukaka/public/")
+                val file = directory.listFiles { dir, name -> println(name)
+                    name.endsWith("apk", true) }.first()
                 if (file.exists()) {
                     val requestBody = RequestBody.create(MediaType.parse(ServiceGenerator.MULTIPART_FORM_DATA), file)
                     val multipartBody = MultipartBody.Part.createFormData("Apk", "App-debug.apk", requestBody)
