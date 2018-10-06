@@ -71,17 +71,6 @@ fun Application.module(testing: Boolean = false) {
     }
 
     routing {
-        //        get<MyLocation> {
-//            call.respondText("Location: name=${it.name}, arg1=${it.arg1}, arg2=${it.arg2}")
-//        }
-//        // Register nested routes
-//        get<Type.Edit> {
-//            call.respondText("Inside $it")
-//        }
-//        get<Type.List> {
-//            call.respondText("Inside $it")
-//        }
-
         post<App.Build> {
             launch {
                 "cd /Users/aman/git/LazySocket && ./gradlew -q assembleWithArgs -Purl=abc.com -PfilePath=./public/ && cd - && rm -rf ./public && mv /Users/aman/git/LazySocket/app/public".runCommand()
@@ -145,10 +134,6 @@ fun Application.module(testing: Boolean = false) {
         get("/") {
             call.respondText { "HELLO WORLD!" }
         }
-//
-//        get("/json/gson") {
-//            call.respond(mapOf("hello" to "world"))
-//        }
     }
 }
 
