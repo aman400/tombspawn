@@ -40,8 +40,8 @@ private var DEFAULT_BUILD_TYPE = "release"
 
 
 private val randomWaitingMessages = listOf(
-    "Try Holding your Breath",
-    "Hold your horses",
+    "Try Holding your Breath!!",
+    "Hold your horses!!",
     "Adding Randomly Mispeled Words Into Text",
     "Adding Vanilla Flavor to Ice Giants",
     "All races of Norrath will learn to work together",
