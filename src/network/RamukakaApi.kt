@@ -8,10 +8,14 @@ import retrofit2.http.*
 
 interface RamukakaApi {
 
-    @GET("/get/{id}")
-    fun get(@Path("id") appId: Int): Call<String>
-
     @Multipart
-    @POST("/app")
-    fun pushApp(@Part("description") description: RequestBody, @Part body: MultipartBody.Part) : Call<Response>
+    @POST("/api/files.upload")
+    fun pushApp(
+        @Part("token") token: RequestBody,
+        @Part("title") title: RequestBody,
+        @Part("filename") filename: RequestBody,
+        @Part("filetype") filetype: RequestBody,
+        @Part("channels") channels: RequestBody,
+        @Part body: MultipartBody.Part
+    ): Call<Response>
 }

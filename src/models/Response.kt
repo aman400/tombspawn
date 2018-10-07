@@ -1,3 +1,5 @@
 package com.ramukaka.models
 
-data class Response(val message: String)
+import com.google.gson.annotations.SerializedName
+
+data class Response(@SerializedName("ok") val delivered: Boolean)

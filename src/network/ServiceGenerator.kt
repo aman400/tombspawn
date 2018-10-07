@@ -19,7 +19,7 @@ class ServiceGenerator {
         private val retrofitBuilder = Retrofit.Builder()
 
         init {
-            retrofitBuilder.baseUrl("http://0.0.0.0:8080/")
+            retrofitBuilder.baseUrl("https://slack.com/")
         }
 
         fun <T> createService(
