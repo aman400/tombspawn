@@ -26,7 +26,6 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import org.slf4j.event.Level
 import java.io.File
-import java.net.URLEncoder
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.DevelopmentEngine.main(args)
 private var UPLOAD_DIR_PATH = "/Users/aman/IdeaProjects/Ramukaka/public/"
