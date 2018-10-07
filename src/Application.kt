@@ -26,6 +26,7 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import org.slf4j.event.Level
 import java.io.File
+import java.net.URLEncoder
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.DevelopmentEngine.main(args)
 private var UPLOAD_DIR_PATH = "/Users/aman/IdeaProjects/Ramukaka/public/"
@@ -149,31 +150,32 @@ fun Application.module(testing: Boolean = false) {
             val userId = params["user_id"]
             val text = params["text"]
 
-            if (!text.isNullOrEmpty()) {
-                text?.let { textCommand ->
-                    val buildData = textCommand.toMap()
+            text?.trim()?.toMap()?.let { buildData ->
+                var executableCommand = "$GRADLE_PATH assembleWithArgs -PFILE_PATH=$UPLOAD_DIR_PATH"
 
-                    var executableCommand = "$GRADLE_PATH assembleWithArgs -PFILE_PATH=$UPLOAD_DIR_PATH"
+                val branch = buildData["BRANCH"] ?: DEFAULT_BRANCH
+                executableCommand += " -PBRANCH=$branch"
 
-                    val branch = buildData["BRANCH"] ?: DEFAULT_BRANCH
-                    executableCommand += " -PBRANCH=$branch"
+                val flavor = buildData["FLAVOUR"]
 
-                    val flavor = buildData["FLAVOUR"]
+                if (flavor != null) {
+                    executableCommand += " -PFLAVOUR=$flavor"
+                }
 
-                    if(flavor != null) {
-                        executableCommand += " -PFLAVOUR=$flavor"
-                    }
+                val appUrl = buildData["URL"]
+                if (appUrl != null) {
+                    executableCommand += " -PURL=$appUrl"
+                }
 
-                    val buildType = buildData["TYPE"] ?: DEFAULT_BUILD_TYPE
-                    executableCommand += " -PBUILD_TYPE=$buildType"
+                val buildType = buildData["TYPE"] ?: DEFAULT_BUILD_TYPE
+                executableCommand += " -PBUILD_TYPE=$buildType"
 
-                    launch {
-                        println(executableCommand)
-                        executableCommand.execute(
-                            File(APP_DIR)
-                        )
+                launch {
+                    println(executableCommand)
+                    executableCommand.execute(File(APP_DIR))
 
-                        val tempDirectory = File(UPLOAD_DIR_PATH)
+                    val tempDirectory = File(UPLOAD_DIR_PATH)
+                    if (tempDirectory.exists()) {
                         val file = tempDirectory.listFiles { dir, name ->
                             println(name)
                             name.endsWith("apk", true)
@@ -203,13 +205,11 @@ fun Application.module(testing: Boolean = false) {
                             }
                             tempDirectory.cleanup()
                         }
-
                     }
-                    call.respond(randomWaitingMessages.random()!!)
                 }
-            } else {
-                call.respond("Invalid build command use '/build consumer <url>'. <url> is optional parameter.")
+                call.respond(randomWaitingMessages.random()!!)
             }
+                ?: call.respond("Invalid command. Usage: '/build BRANCH=<git-branch-name>(optional)  TYPE=<master>(optional)  FLAVOUR=<flavour>(optional)'.")
         }
 
         post<Apk> {
