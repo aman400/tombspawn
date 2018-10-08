@@ -143,9 +143,6 @@ fun Application.module(testing: Boolean = false) {
         }
         post<App> {
             val params = call.receiveParameters()
-            params.entries().forEach { param ->
-                println("${param.key}, ${param.value}")
-            }
 
             val channelName = params["channel_name"]
             val text = params["text"]
