@@ -6,7 +6,7 @@ import java.util.concurrent.TimeUnit
 
 fun String.execute(
     workingDir: File = File("."),
-    timeoutAmount: Long = 5,
+    timeoutAmount: Long = 60,
     timeoutUnit: TimeUnit = TimeUnit.MINUTES
 ): String? {
     return try {
