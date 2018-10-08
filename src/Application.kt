@@ -168,7 +168,7 @@ fun Application.module(testing: Boolean = false) {
 
                             val appToken = RequestBody.create(
                                 okhttp3.MultipartBody.FORM,
-                                TOKEN!!
+                                TOKEN
                             )
                             val title = RequestBody.create(okhttp3.MultipartBody.FORM, file.nameWithoutExtension)
                             val filename = RequestBody.create(okhttp3.MultipartBody.FORM, file.name)
