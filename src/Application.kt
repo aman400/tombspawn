@@ -14,6 +14,7 @@ import io.ktor.http.content.streamProvider
 import io.ktor.locations.Location
 import io.ktor.locations.Locations
 import io.ktor.locations.post
+import io.ktor.request.header
 import io.ktor.request.path
 import io.ktor.request.receiveMultipart
 import io.ktor.request.receiveParameters
@@ -134,6 +135,10 @@ fun Application.module(testing: Boolean = false) {
     }
 
     routing {
+        get("/") {
+            println("User-Agent ${call.request.header("User-Agent")}")
+            call.respond("")
+        }
         post<App> {
             val params = call.receiveParameters()
             params.entries().forEach { param ->
