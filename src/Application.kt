@@ -116,10 +116,10 @@ fun Application.module(testing: Boolean = false) {
         }
     }
 
-    install(CallLogging) {
-        level = Level.INFO
-        filter { call -> call.request.path().startsWith("/") }
-    }
+//    install(CallLogging) {
+//        level = Level.INFO
+//        filter { call -> call.request.path().startsWith("/") }
+//    }
 
 
     install(DataConversion)
@@ -137,7 +137,11 @@ fun Application.module(testing: Boolean = false) {
     routing {
         get("/") {
             println("User-Agent ${call.request.header("User-Agent")}")
-            call.respond("")
+            call.respond(mapOf("status" to "OK"))
+        }
+        get("/health") {
+            println("User-Agent ${call.request.header("User-Agent")}")
+            call.respond(mapOf("status" to "OK"))
         }
         post<App> {
             val params = call.receiveParameters()
