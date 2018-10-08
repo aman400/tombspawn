@@ -136,11 +136,9 @@ fun Application.module(testing: Boolean = false) {
 
     routing {
         get("/") {
-            println("User-Agent ${call.request.header("User-Agent")}")
             call.respond(mapOf("status" to "OK"))
         }
         get("/health") {
-            println("User-Agent ${call.request.header("User-Agent")}")
             call.respond(mapOf("status" to "OK"))
         }
         post<App> {
