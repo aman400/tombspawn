@@ -98,7 +98,7 @@ private val randomWaitingMessages = listOf(
 @Suppress("unused") // Referenced in application.conf
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
-    if(GRADLE_PATH == null || APP_DIR == null || TOKEN == null) {
+    if (GRADLE_PATH == null || APP_DIR == null || TOKEN == null) {
         throw Exception("Gradle variables GRADLE_PATH, APP_DIR and SLACK_TOKEN not set")
     }
     val loadingMessages =
