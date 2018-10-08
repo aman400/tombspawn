@@ -28,15 +28,10 @@ import org.slf4j.event.Level
 import java.io.File
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.DevelopmentEngine.main(args)
-private var UPLOAD_DIR_PATH = "/Users/aman/IdeaProjects/Ramukaka/public/"
-private var GRADLE_PATH = "/usr/local/bin/gradle"
-private var BUILD_TYPE = "release"
-private var FLAVOUR = "flavour"
-private var BRANCH = "master"
-private var APP_DIR = "/Users/aman/git/LazySocket/"
-
-private var DEFAULT_BRANCH = "master"
-private var DEFAULT_BUILD_TYPE = "release"
+private var UPLOAD_DIR_PATH = "${System.getProperty("user.dir")}/temp"
+private var GRADLE_PATH = System.getenv()["GRADLE_PATH"]
+private var APP_DIR = System.getenv()["APP_DIR"]
+private var TOKEN = System.getenv()["SLACK_TOKEN"] ?: ""
 
 
 private val randomWaitingMessages = listOf(
@@ -103,6 +98,9 @@ private val randomWaitingMessages = listOf(
 @Suppress("unused") // Referenced in application.conf
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
+    if(GRADLE_PATH == null || APP_DIR == null || TOKEN == null) {
+        throw Exception("Gradle variables GRADLE_PATH, APP_DIR and SLACK_TOKEN not set")
+    }
     val loadingMessages =
         install(Locations) {
         }
@@ -142,32 +140,15 @@ fun Application.module(testing: Boolean = false) {
                 println("${param.key}, ${param.value}")
             }
 
-            val token = params["token"]
-            val channelId = params["channel_id"]
             val channelName = params["channel_name"]
-            val userName = params["user_name"]
-            val userId = params["user_id"]
             val text = params["text"]
 
             text?.trim()?.toMap()?.let { buildData ->
                 var executableCommand = "$GRADLE_PATH assembleWithArgs -PFILE_PATH=$UPLOAD_DIR_PATH"
 
-                val branch = buildData["BRANCH"] ?: DEFAULT_BRANCH
-                executableCommand += " -PBRANCH=$branch"
-
-                val flavor = buildData["FLAVOUR"]
-
-                if (flavor != null) {
-                    executableCommand += " -PFLAVOUR=$flavor"
+                buildData.forEach { key, value ->
+                    executableCommand += " -P$key=$value"
                 }
-
-                val appUrl = buildData["URL"]
-                if (appUrl != null) {
-                    executableCommand += " -PURL=$appUrl"
-                }
-
-                val buildType = buildData["TYPE"] ?: DEFAULT_BUILD_TYPE
-                executableCommand += " -PBUILD_TYPE=$buildType"
 
                 launch {
                     println(executableCommand)
@@ -187,7 +168,7 @@ fun Application.module(testing: Boolean = false) {
 
                             val appToken = RequestBody.create(
                                 okhttp3.MultipartBody.FORM,
-                                "xoxb-445373233521-449196750276-dX1OtiZmEgl2ktQydRomlJ4f"
+                                TOKEN!!
                             )
                             val title = RequestBody.create(okhttp3.MultipartBody.FORM, file.nameWithoutExtension)
                             val filename = RequestBody.create(okhttp3.MultipartBody.FORM, file.name)
@@ -225,7 +206,7 @@ fun Application.module(testing: Boolean = false) {
                     is PartData.FileItem -> {
                         val ext = File(part.originalFileName).extension
                         val name = File(part.originalFileName).name
-                        val file = File("/Users/aman/IdeaProjects/Ramukaka/public", "upload-app.$ext")
+                        val file = File(UPLOAD_DIR_PATH, "upload-app.$ext")
                         part.streamProvider().use { input ->
                             file.outputStream().buffered().use { output ->
                                 input.copyToSuspend(output)
