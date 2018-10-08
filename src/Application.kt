@@ -146,9 +146,10 @@ fun Application.module(testing: Boolean = false) {
 
             val channelName = params["channel_name"]
             val text = params["text"]
+            val APKPrefix = System.currentTimeMillis()
 
             text?.trim()?.toMap()?.let { buildData ->
-                var executableCommand = "$GRADLE_PATH assembleWithArgs -PFILE_PATH=$UPLOAD_DIR_PATH"
+                var executableCommand = "$GRADLE_PATH assembleWithArgs -PFILE_PATH=$UPLOAD_DIR_PATH -PAPP_PREFIX=$APKPrefix"
 
                 buildData.forEach { key, value ->
                     executableCommand += " -P$key=$value"
@@ -161,8 +162,7 @@ fun Application.module(testing: Boolean = false) {
                     val tempDirectory = File(UPLOAD_DIR_PATH)
                     if (tempDirectory.exists()) {
                         val file = tempDirectory.listFiles { dir, name ->
-                            println(name)
-                            name.endsWith("apk", true)
+                            name.contains("$APKPrefix", true)
                         }.first()
                         if (file.exists()) {
                             val requestBody =
@@ -187,7 +187,7 @@ fun Application.module(testing: Boolean = false) {
                             } else {
                                 println(response.errorBody().toString())
                             }
-                            tempDirectory.cleanup()
+                            file.delete()
                         }
                     }
                 }
