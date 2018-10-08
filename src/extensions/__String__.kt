@@ -1,5 +1,6 @@
 package com.ramukaka.extensions
 
+import java.io.BufferedInputStream
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -11,13 +12,14 @@ fun String.execute(
 ): String? {
     return try {
         val strings = split(Regex("\\s+"))
-        ProcessBuilder(strings)
+        val builder = ProcessBuilder(strings)
             .directory(workingDir)
             .redirectOutput(ProcessBuilder.Redirect.INHERIT)
             .redirectError(ProcessBuilder.Redirect.INHERIT)
-            .start().apply {
-                waitFor(timeoutAmount, timeoutUnit)
-            }.inputStream.bufferedReader().readText()
+            .start()
+        builder.apply {
+            waitFor(timeoutAmount, timeoutUnit)
+        }.inputStream.bufferedReader().readText()
     } catch (exception: IOException) {
         exception.printStackTrace()
         null
