@@ -144,7 +144,7 @@ fun Application.module(testing: Boolean = false) {
         post<App> {
             val params = call.receiveParameters()
 
-            val channelName = params["channel_name"]
+            val channelId = params["channel_id"]
             val text = params["text"]
             val APKPrefix = System.currentTimeMillis()
 
@@ -177,7 +177,7 @@ fun Application.module(testing: Boolean = false) {
                             val title = RequestBody.create(okhttp3.MultipartBody.FORM, file.nameWithoutExtension)
                             val filename = RequestBody.create(okhttp3.MultipartBody.FORM, file.name)
                             val fileType = RequestBody.create(okhttp3.MultipartBody.FORM, "auto")
-                            val channels = RequestBody.create(okhttp3.MultipartBody.FORM, channelName!!)
+                            val channels = RequestBody.create(okhttp3.MultipartBody.FORM, channelId!!)
 
                             val api = ServiceGenerator.createService(RamukakaApi::class.java, false)
                             val call = api.pushApp(appToken, title, filename, fileType, channels, multipartBody)
