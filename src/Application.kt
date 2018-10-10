@@ -207,7 +207,7 @@ fun Application.module(testing: Boolean = false) {
             val APKPrefix = System.currentTimeMillis()
 
             text?.trim()?.toMap()?.let { buildData ->
-                var executableCommand = "$GRADLE_PATH -q assembleWithArgs -PFILE_PATH=$UPLOAD_DIR_PATH -PAPP_PREFIX=$APKPrefix"
+                var executableCommand = "$GRADLE_PATH assembleWithArgs -PFILE_PATH=$UPLOAD_DIR_PATH -PAPP_PREFIX=$APKPrefix"
 
                 buildData.forEach { key, value ->
                     executableCommand += " -P$key=$value"
