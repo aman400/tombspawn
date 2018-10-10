@@ -4,6 +4,7 @@ import com.ramukaka.extensions.*
 import com.ramukaka.network.RamukakaApi
 import com.ramukaka.network.ServiceGenerator
 import io.ktor.application.Application
+import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.features.*
@@ -21,6 +22,7 @@ import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.get
 import io.ktor.routing.routing
+import io.ktor.util.pipeline.PipelineContext
 import kotlinx.coroutines.experimental.launch
 import okhttp3.MediaType
 import okhttp3.MultipartBody
@@ -31,8 +33,9 @@ import java.io.File
 fun main(args: Array<String>): Unit = io.ktor.server.netty.DevelopmentEngine.main(args)
 private var UPLOAD_DIR_PATH = "${System.getProperty("user.dir")}/temp"
 private var GRADLE_PATH = System.getenv()["GRADLE_PATH"]
-private var APP_DIR = System.getenv()["APP_DIR"]
-private var TOKEN = System.getenv()["SLACK_TOKEN"] ?: ""
+private var CONSUMER_APP_DIR = System.getenv()["CONSUMER_APP_DIR"]
+private var FLEET_APP_DIR = System.getenv()["FLEET_APP_DIR"]
+private var TOKEN = System.getenv()["SLACK_TOKEN"]
 
 
 private val randomWaitingMessages = listOf(
@@ -99,7 +102,7 @@ private val randomWaitingMessages = listOf(
 @Suppress("unused") // Referenced in application.conf
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
-    if (GRADLE_PATH == null || APP_DIR == null || TOKEN == null) {
+    if (GRADLE_PATH == null || TOKEN == null) {
         throw Exception("Gradle variables GRADLE_PATH, APP_DIR and SLACK_TOKEN not set")
     }
     val loadingMessages =
@@ -116,10 +119,10 @@ fun Application.module(testing: Boolean = false) {
         }
     }
 
-//    install(CallLogging) {
-//        level = Level.INFO
-//        filter { call -> call.request.path().startsWith("/") }
-//    }
+    install(CallLogging) {
+        level = Level.INFO
+        filter { call -> call.request.path().startsWith("/") }
+    }
 
 
     install(DataConversion)
@@ -141,7 +144,7 @@ fun Application.module(testing: Boolean = false) {
         get("/health") {
             call.respond(mapOf("status" to "OK"))
         }
-        post<App> {
+        post<App.Consumer> {
             val params = call.receiveParameters()
 
             val channelId = params["channel_id"]
@@ -157,7 +160,62 @@ fun Application.module(testing: Boolean = false) {
 
                 launch {
                     println(executableCommand)
-                    executableCommand.execute(File(APP_DIR))
+                    executableCommand.execute(File(CONSUMER_APP_DIR))
+
+                    val tempDirectory = File(UPLOAD_DIR_PATH)
+                    if (tempDirectory.exists()) {
+                        val file = tempDirectory.listFiles { dir, name ->
+                            name.contains("$APKPrefix", true)
+                        }.first()
+                        if (file.exists()) {
+                            val requestBody =
+                                RequestBody.create(MediaType.parse(ServiceGenerator.MULTIPART_FORM_DATA), file)
+                            val multipartBody =
+                                MultipartBody.Part.createFormData("file", "App-debug.apk", requestBody)
+
+                            val appToken = RequestBody.create(
+                                okhttp3.MultipartBody.FORM,
+                                TOKEN
+                            )
+                            val title = RequestBody.create(okhttp3.MultipartBody.FORM, file.nameWithoutExtension)
+                            val filename = RequestBody.create(okhttp3.MultipartBody.FORM, file.name)
+                            val fileType = RequestBody.create(okhttp3.MultipartBody.FORM, "auto")
+                            val channels = RequestBody.create(okhttp3.MultipartBody.FORM, channelId!!)
+
+                            val api = ServiceGenerator.createService(RamukakaApi::class.java, false)
+                            val call = api.pushApp(appToken, title, filename, fileType, channels, multipartBody)
+                            val response = call.execute()
+                            if (response.isSuccessful) {
+                                println(if (response.body()?.delivered == true) "delivered" else "Not delivered")
+                            } else {
+                                println(response.errorBody().toString())
+                            }
+                            file.delete()
+                        }
+                    }
+                }
+                call.respond(randomWaitingMessages.random()!!)
+            }
+                ?: call.respond("Invalid command. Usage: '/build BRANCH=<git-branch-name>(optional)  TYPE=<master>(optional)  FLAVOUR=<flavour>(optional)'.")
+        }
+
+        post<App.Fleet> {
+            val params = call.receiveParameters()
+
+            val channelId = params["channel_id"]
+            val text = params["text"]
+            val APKPrefix = System.currentTimeMillis()
+
+            text?.trim()?.toMap()?.let { buildData ->
+                var executableCommand = "$GRADLE_PATH -q assembleWithArgs -PFILE_PATH=$UPLOAD_DIR_PATH -PAPP_PREFIX=$APKPrefix"
+
+                buildData.forEach { key, value ->
+                    executableCommand += " -P$key=$value"
+                }
+
+                launch {
+                    println(executableCommand)
+                    executableCommand.execute(File(FLEET_APP_DIR))
 
                     val tempDirectory = File(UPLOAD_DIR_PATH)
                     if (tempDirectory.exists()) {
@@ -229,10 +287,21 @@ fun Application.module(testing: Boolean = false) {
     }
 }
 
+private fun BuildAppAndPush(appDir: String) {
+
+}
+
 @Location("/app")
 data class Apk(val file: File)
 
 @Location("/")
-data class App(val url: String = "")
+class App {
+    @Location("/consumer")
+    class Consumer
+
+    @Location("/fleet")
+    class Fleet
+}
+
 
 
