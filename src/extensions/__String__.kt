@@ -9,19 +9,24 @@ fun String.execute(
     timeoutAmount: Long = 60,
     timeoutUnit: TimeUnit = TimeUnit.MINUTES
 ): String? {
-    return try {
+     try {
         val strings = split(Regex("\\s+"))
         val builder = ProcessBuilder(strings)
             .directory(workingDir)
-            .redirectOutput(ProcessBuilder.Redirect.INHERIT)
-            .redirectError(ProcessBuilder.Redirect.INHERIT)
+            .redirectOutput(ProcessBuilder.Redirect.PIPE)
+            .redirectError(ProcessBuilder.Redirect.PIPE)
             .start()
-        builder.apply {
-            waitFor(timeoutAmount, timeoutUnit)
-        }.inputStream.bufferedReader().readText()
+         val response = builder.inputStream.bufferedReader().readText()
+         val errorText = builder.errorStream.bufferedReader().readText()
+         builder.apply {
+             waitFor(timeoutAmount, timeoutUnit)
+         }
+
+         return if(errorText.isEmpty()) response else errorText
+
     } catch (exception: IOException) {
         exception.printStackTrace()
-        null
+        return null
     }
 }
 

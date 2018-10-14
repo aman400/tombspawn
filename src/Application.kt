@@ -1,10 +1,13 @@
 package com.ramukaka
 
-import com.ramukaka.extensions.*
+import com.ramukaka.extensions.copyToSuspend
+import com.ramukaka.extensions.execute
+import com.ramukaka.extensions.random
+import com.ramukaka.extensions.toMap
+import com.ramukaka.models.ErrorResponse
 import com.ramukaka.network.RamukakaApi
 import com.ramukaka.network.ServiceGenerator
 import io.ktor.application.Application
-import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.features.*
@@ -15,19 +18,20 @@ import io.ktor.http.content.streamProvider
 import io.ktor.locations.Location
 import io.ktor.locations.Locations
 import io.ktor.locations.post
-import io.ktor.request.header
 import io.ktor.request.path
 import io.ktor.request.receiveMultipart
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.get
 import io.ktor.routing.routing
-import io.ktor.util.pipeline.PipelineContext
 import kotlinx.coroutines.experimental.launch
 import okhttp3.MediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import org.slf4j.event.Level
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 import java.io.File
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.DevelopmentEngine.main(args)
@@ -39,71 +43,33 @@ private var TOKEN = System.getenv()["SLACK_TOKEN"]
 
 
 private val randomWaitingMessages = listOf(
+    "Utha le re Baghwan..",
+    "Jai Maharashtra",
     "Try Holding your Breath!!",
     "Hold your horses!!",
     "Adding Randomly Mispeled Words Into Text",
     "Adding Vanilla Flavor to Ice Giants",
-    "All races of Norrath will learn to work together",
-    "Always Frisky Kerrans",
     "Attaching Beards to Dwarves",
-    "Bristlebane Was Here",
-    "Buy:LurN Tu Tok liK Da OgUr iN Ayt DaYz by OG",
     "Checking Anti-Camp Radius",
     "Creating Randomly Generated Feature",
-    "Delivering the Lion Meat to Halas",
     "DING!",
-    "Does Anyone Actually Read This?",
     "Doing Something You Don't Wanna Know About",
     "Doing The Impossible",
     "Don't Panic",
     "Dusting Off Spellbooks",
     "Ensuring Everything Works Perfektly",
-    "Ensuring Gnomes Are Still Short",
-    "Filling Halflings With Pie",
     "Generating Plans for Faster-Than-Light Travel",
-    "Grrr. Bark. Bark. Grrr.",
-    "Have You Hugged An Iksar Today?",
-    "Have You Tried Batwing Crunchies Cereal?",
-    "Hiding Catnip From Vah Shir",
     "Hitting Your Keyboard Won't Make This Faster",
-    "Honk if You Eat Gnomes",
-    "If You Squeeze Dark Elves You Don't Get Wine",
     "In The Grey, No One Can Hear You Scream",
-    "Isn't It About Time You Washed Your Armor?",
-    "Karnor's... Over 41 Billion Trains Served",
     "Loading, Don't Wait If You Don't Want To",
-    "Look Out Behind You",
-    "Looking For Graphics",
-    "Looking Up Barbarian Kilts",
-    "Now Spawning Fippy_Darkpaw_432,366,578",
-    "Oiling Clockworks",
-    "Outfitting Pigs With Wings",
-    "Pizza...The Other Other White Meat",
-    "Polishing Erudite Foreheads",
-    "Preparing to Spin You Around Rapidly",
-    "Refreshing Death Touch Ammunition",
-    "Ruining My Own Lands",
-    "Sanding Wood Elves... now 34% smoother.",
-    "Sharpening Claws",
-    "Sharpening Swords",
-    "Spawning Your_Characters01",
-    "Starching High Elf Robes",
-    "Stringing Bows",
-    "Stupidificationing Ogres",
-    "Teaching Snakes to Kick",
-    "Told You It Wasn't Made of Cheese",
-    "Warning: Half Elves Are Now .49999 Elves.",
-    "Whacking Trolls With Ugly Stick",
-    "Why Do Clerics Always Burn the Bread?",
-    "Wonder If Phinegal Autropos Tires of Seafood?",
-    "You Have Gotten Better At Fizzling! (47)"
+    "Preparing to Spin You Around Rapidly"
 )
 
 @Suppress("unused") // Referenced in application.conf
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
     if (GRADLE_PATH == null || TOKEN == null) {
-        throw Exception("Gradle variables GRADLE_PATH, APP_DIR and SLACK_TOKEN not set")
+        throw Exception("Gradle variables GRADLE_PATH or SLACK_TOKEN not set")
     }
     val loadingMessages =
         install(Locations) {
@@ -149,10 +115,12 @@ fun Application.module(testing: Boolean = false) {
 
             val channelId = params["channel_id"]
             val text = params["text"]
+            val responseUrl = params["response_url"]
             val APKPrefix = System.currentTimeMillis()
 
             text?.trim()?.toMap()?.let { buildData ->
-                var executableCommand = "$GRADLE_PATH assembleWithArgs -PFILE_PATH=$UPLOAD_DIR_PATH -PAPP_PREFIX=$APKPrefix"
+                var executableCommand =
+                    "$GRADLE_PATH assembleWithArgs -PFILE_PATH=$UPLOAD_DIR_PATH -PAPP_PREFIX=$APKPrefix"
 
                 buildData.forEach { key, value ->
                     executableCommand += " -P$key=$value"
@@ -160,38 +128,42 @@ fun Application.module(testing: Boolean = false) {
 
                 launch {
                     println(executableCommand)
-                    executableCommand.execute(File(CONSUMER_APP_DIR))
+                    val commandResponse = executableCommand.execute(File(CONSUMER_APP_DIR))
 
                     val tempDirectory = File(UPLOAD_DIR_PATH)
                     if (tempDirectory.exists()) {
-                        val file = tempDirectory.listFiles { dir, name ->
+                        val firstFile = tempDirectory.listFiles { dir, name ->
                             name.contains("$APKPrefix", true)
-                        }.first()
-                        if (file.exists()) {
-                            val requestBody =
-                                RequestBody.create(MediaType.parse(ServiceGenerator.MULTIPART_FORM_DATA), file)
-                            val multipartBody =
-                                MultipartBody.Part.createFormData("file", "App-debug.apk", requestBody)
+                        }.firstOrNull()
+                        firstFile?.let { file ->
+                            if (file.exists()) {
+                                val requestBody =
+                                    RequestBody.create(MediaType.parse(ServiceGenerator.MULTIPART_FORM_DATA), file)
+                                val multipartBody =
+                                    MultipartBody.Part.createFormData("file", "App-debug.apk", requestBody)
 
-                            val appToken = RequestBody.create(
-                                okhttp3.MultipartBody.FORM,
-                                TOKEN
-                            )
-                            val title = RequestBody.create(okhttp3.MultipartBody.FORM, file.nameWithoutExtension)
-                            val filename = RequestBody.create(okhttp3.MultipartBody.FORM, file.name)
-                            val fileType = RequestBody.create(okhttp3.MultipartBody.FORM, "auto")
-                            val channels = RequestBody.create(okhttp3.MultipartBody.FORM, channelId!!)
+                                val appToken = RequestBody.create(
+                                    okhttp3.MultipartBody.FORM,
+                                    TOKEN!!
+                                )
+                                val title = RequestBody.create(okhttp3.MultipartBody.FORM, file.nameWithoutExtension)
+                                val filename = RequestBody.create(okhttp3.MultipartBody.FORM, file.name)
+                                val fileType = RequestBody.create(okhttp3.MultipartBody.FORM, "auto")
+                                val channels = RequestBody.create(okhttp3.MultipartBody.FORM, channelId!!)
 
-                            val api = ServiceGenerator.createService(RamukakaApi::class.java, false)
-                            val call = api.pushApp(appToken, title, filename, fileType, channels, multipartBody)
-                            val response = call.execute()
-                            if (response.isSuccessful) {
-                                println(if (response.body()?.delivered == true) "delivered" else "Not delivered")
-                            } else {
-                                println(response.errorBody().toString())
-                            }
-                            file.delete()
-                        }
+                                val api = ServiceGenerator.createService(RamukakaApi::class.java, false)
+                                val call = api.pushApp(appToken, title, filename, fileType, channels, multipartBody)
+                                val response = call.execute()
+                                if (response.isSuccessful) {
+                                    println(if (response.body()?.delivered == true) "delivered" else "Not delivered")
+                                } else {
+                                    println(response.errorBody().toString())
+                                }
+                                file.delete()
+                            } else sendError(commandResponse, responseUrl!!)
+                        } ?: sendError(commandResponse, responseUrl!!)
+                    } else {
+                        sendError(commandResponse, responseUrl!!)
                     }
                 }
                 call.respond(randomWaitingMessages.random()!!)
@@ -205,9 +177,11 @@ fun Application.module(testing: Boolean = false) {
             val channelId = params["channel_id"]
             val text = params["text"]
             val APKPrefix = System.currentTimeMillis()
+            val responseUrl = params["response_url"]
 
             text?.trim()?.toMap()?.let { buildData ->
-                var executableCommand = "$GRADLE_PATH assembleWithArgs -PFILE_PATH=$UPLOAD_DIR_PATH -PAPP_PREFIX=$APKPrefix"
+                var executableCommand =
+                    "$GRADLE_PATH assembleWithArgs -PFILE_PATH=$UPLOAD_DIR_PATH -PAPP_PREFIX=$APKPrefix"
 
                 buildData.forEach { key, value ->
                     executableCommand += " -P$key=$value"
@@ -215,38 +189,42 @@ fun Application.module(testing: Boolean = false) {
 
                 launch {
                     println(executableCommand)
-                    executableCommand.execute(File(FLEET_APP_DIR))
+                    val commandResponse = executableCommand.execute(File(FLEET_APP_DIR))
 
                     val tempDirectory = File(UPLOAD_DIR_PATH)
                     if (tempDirectory.exists()) {
-                        val file = tempDirectory.listFiles { dir, name ->
+                        val firstFile = tempDirectory.listFiles { dir, name ->
                             name.contains("$APKPrefix", true)
-                        }.first()
-                        if (file.exists()) {
-                            val requestBody =
-                                RequestBody.create(MediaType.parse(ServiceGenerator.MULTIPART_FORM_DATA), file)
-                            val multipartBody =
-                                MultipartBody.Part.createFormData("file", "App-debug.apk", requestBody)
+                        }.firstOrNull()
+                        firstFile?.let { file ->
+                            if (file.exists()) {
+                                val requestBody =
+                                    RequestBody.create(MediaType.parse(ServiceGenerator.MULTIPART_FORM_DATA), file)
+                                val multipartBody =
+                                    MultipartBody.Part.createFormData("file", "App-debug.apk", requestBody)
 
-                            val appToken = RequestBody.create(
-                                okhttp3.MultipartBody.FORM,
-                                TOKEN
-                            )
-                            val title = RequestBody.create(okhttp3.MultipartBody.FORM, file.nameWithoutExtension)
-                            val filename = RequestBody.create(okhttp3.MultipartBody.FORM, file.name)
-                            val fileType = RequestBody.create(okhttp3.MultipartBody.FORM, "auto")
-                            val channels = RequestBody.create(okhttp3.MultipartBody.FORM, channelId!!)
+                                val appToken = RequestBody.create(
+                                    okhttp3.MultipartBody.FORM,
+                                    TOKEN!!
+                                )
+                                val title = RequestBody.create(okhttp3.MultipartBody.FORM, file.nameWithoutExtension)
+                                val filename = RequestBody.create(okhttp3.MultipartBody.FORM, file.name)
+                                val fileType = RequestBody.create(okhttp3.MultipartBody.FORM, "auto")
+                                val channels = RequestBody.create(okhttp3.MultipartBody.FORM, channelId!!)
 
-                            val api = ServiceGenerator.createService(RamukakaApi::class.java, false)
-                            val call = api.pushApp(appToken, title, filename, fileType, channels, multipartBody)
-                            val response = call.execute()
-                            if (response.isSuccessful) {
-                                println(if (response.body()?.delivered == true) "delivered" else "Not delivered")
-                            } else {
-                                println(response.errorBody().toString())
-                            }
-                            file.delete()
-                        }
+                                val api = ServiceGenerator.createService(RamukakaApi::class.java, false)
+                                val call = api.pushApp(appToken, title, filename, fileType, channels, multipartBody)
+                                val response = call.execute()
+                                if (response.isSuccessful) {
+                                    println(if (response.body()?.delivered == true) "delivered" else "Not delivered")
+                                } else {
+                                    println(response.errorBody().toString())
+                                }
+                                file.delete()
+                            } else sendError(commandResponse, responseUrl!!)
+                        } ?: sendError(commandResponse, responseUrl!!)
+                    } else {
+                        sendError(commandResponse, responseUrl!!)
                     }
                 }
                 call.respond(randomWaitingMessages.random()!!)
@@ -287,8 +265,31 @@ fun Application.module(testing: Boolean = false) {
     }
 }
 
-private fun BuildAppAndPush(appDir: String) {
+private fun sendError(commandResponse: String?, responseUrl: String) {
+    val errorResponse = if (!commandResponse.isNullOrEmpty()) {
+        ErrorResponse(response = commandResponse!!)
+    } else {
+        ErrorResponse(response = "Something went wrong. Unable to generate APK.")
+    }
 
+    val api = ServiceGenerator.createService(RamukakaApi::class.java, true)
+    val headers = mapOf("Content-type" to "application/json")
+    val call = api.sendError(headers, responseUrl, errorResponse)
+    call.enqueue(object : Callback<String> {
+        override fun onFailure(call: Call<String>, throwable: Throwable) {
+            throwable.printStackTrace()
+        }
+
+        override fun onResponse(
+            call: Call<String>,
+            response: Response<String>
+        ) {
+            if (response.isSuccessful) {
+                println(response.body())
+            }
+        }
+
+    })
 }
 
 @Location("/app")

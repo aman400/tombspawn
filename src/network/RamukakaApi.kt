@@ -1,5 +1,6 @@
 package com.ramukaka.network
 
+import com.ramukaka.models.ErrorResponse
 import com.ramukaka.models.Response
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -18,4 +19,8 @@ interface RamukakaApi {
         @Part("channels") channels: RequestBody,
         @Part body: MultipartBody.Part
     ): Call<Response>
+
+    @POST
+    fun sendError(@HeaderMap header: Map<String, String>, @Url url: String,
+                  @Body errorResponse: ErrorResponse) : Call<String>
 }
