@@ -44,19 +44,14 @@ private var TOKEN = System.getenv()["SLACK_TOKEN"]
 
 private val randomWaitingMessages = listOf(
     "Utha le re Baghwan..",
-    "Jai Maharashtra",
+    "Jai Maharashtra!!",
     "Try Holding your Breath!!",
     "Hold your horses!!",
-    "Adding Randomly Mispeled Words Into Text",
-    "Adding Vanilla Flavor to Ice Giants",
-    "Attaching Beards to Dwarves",
     "Checking Anti-Camp Radius",
     "Creating Randomly Generated Feature",
-    "DING!",
     "Doing Something You Don't Wanna Know About",
     "Doing The Impossible",
     "Don't Panic",
-    "Dusting Off Spellbooks",
     "Ensuring Everything Works Perfektly",
     "Generating Plans for Faster-Than-Light Travel",
     "Hitting Your Keyboard Won't Make This Faster",
@@ -137,29 +132,7 @@ fun Application.module(testing: Boolean = false) {
                         }.firstOrNull()
                         firstFile?.let { file ->
                             if (file.exists()) {
-                                val requestBody =
-                                    RequestBody.create(MediaType.parse(ServiceGenerator.MULTIPART_FORM_DATA), file)
-                                val multipartBody =
-                                    MultipartBody.Part.createFormData("file", "App-debug.apk", requestBody)
-
-                                val appToken = RequestBody.create(
-                                    okhttp3.MultipartBody.FORM,
-                                    TOKEN!!
-                                )
-                                val title = RequestBody.create(okhttp3.MultipartBody.FORM, file.nameWithoutExtension)
-                                val filename = RequestBody.create(okhttp3.MultipartBody.FORM, file.name)
-                                val fileType = RequestBody.create(okhttp3.MultipartBody.FORM, "auto")
-                                val channels = RequestBody.create(okhttp3.MultipartBody.FORM, channelId!!)
-
-                                val api = ServiceGenerator.createService(RamukakaApi::class.java, false)
-                                val call = api.pushApp(appToken, title, filename, fileType, channels, multipartBody)
-                                val response = call.execute()
-                                if (response.isSuccessful) {
-                                    println(if (response.body()?.delivered == true) "delivered" else "Not delivered")
-                                } else {
-                                    println(response.errorBody().toString())
-                                }
-                                file.delete()
+                                uploadFile(file, channelId!!)
                             } else sendError(commandResponse, responseUrl!!)
                         } ?: sendError(commandResponse, responseUrl!!)
                     } else {
@@ -168,7 +141,7 @@ fun Application.module(testing: Boolean = false) {
                 }
                 call.respond(randomWaitingMessages.random()!!)
             }
-                ?: call.respond("Invalid command. Usage: '/build BRANCH=<git-branch-name>(optional)  TYPE=<master>(optional)  FLAVOUR=<flavour>(optional)'.")
+                ?: call.respond("Invalid command. Usage: '/build BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'.")
         }
 
         post<App.Fleet> {
@@ -198,29 +171,7 @@ fun Application.module(testing: Boolean = false) {
                         }.firstOrNull()
                         firstFile?.let { file ->
                             if (file.exists()) {
-                                val requestBody =
-                                    RequestBody.create(MediaType.parse(ServiceGenerator.MULTIPART_FORM_DATA), file)
-                                val multipartBody =
-                                    MultipartBody.Part.createFormData("file", "App-debug.apk", requestBody)
-
-                                val appToken = RequestBody.create(
-                                    okhttp3.MultipartBody.FORM,
-                                    TOKEN!!
-                                )
-                                val title = RequestBody.create(okhttp3.MultipartBody.FORM, file.nameWithoutExtension)
-                                val filename = RequestBody.create(okhttp3.MultipartBody.FORM, file.name)
-                                val fileType = RequestBody.create(okhttp3.MultipartBody.FORM, "auto")
-                                val channels = RequestBody.create(okhttp3.MultipartBody.FORM, channelId!!)
-
-                                val api = ServiceGenerator.createService(RamukakaApi::class.java, false)
-                                val call = api.pushApp(appToken, title, filename, fileType, channels, multipartBody)
-                                val response = call.execute()
-                                if (response.isSuccessful) {
-                                    println(if (response.body()?.delivered == true) "delivered" else "Not delivered")
-                                } else {
-                                    println(response.errorBody().toString())
-                                }
-                                file.delete()
+                                uploadFile(file, channelId!!)
                             } else sendError(commandResponse, responseUrl!!)
                         } ?: sendError(commandResponse, responseUrl!!)
                     } else {
@@ -229,7 +180,7 @@ fun Application.module(testing: Boolean = false) {
                 }
                 call.respond(randomWaitingMessages.random()!!)
             }
-                ?: call.respond("Invalid command. Usage: '/build BRANCH=<git-branch-name>(optional)  TYPE=<master>(optional)  FLAVOUR=<flavour>(optional)'.")
+                ?: call.respond("Invalid command. Usage: '/build BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'.")
         }
 
         post<Apk> {
@@ -290,6 +241,33 @@ private fun sendError(commandResponse: String?, responseUrl: String) {
         }
 
     })
+}
+
+fun uploadFile(file: File, channelId: String, deleteFile: Boolean = true) {
+    val requestBody =
+        RequestBody.create(MediaType.parse(ServiceGenerator.MULTIPART_FORM_DATA), file)
+    val multipartBody =
+        MultipartBody.Part.createFormData("file", "App-debug.apk", requestBody)
+
+    val appToken = RequestBody.create(
+        okhttp3.MultipartBody.FORM,
+        TOKEN!!
+    )
+    val title = RequestBody.create(okhttp3.MultipartBody.FORM, file.nameWithoutExtension)
+    val filename = RequestBody.create(okhttp3.MultipartBody.FORM, file.name)
+    val fileType = RequestBody.create(okhttp3.MultipartBody.FORM, "auto")
+    val channels = RequestBody.create(okhttp3.MultipartBody.FORM, channelId)
+
+    val api = ServiceGenerator.createService(RamukakaApi::class.java, false)
+    val call = api.pushApp(appToken, title, filename, fileType, channels, multipartBody)
+    val response = call.execute()
+    if (response.isSuccessful) {
+        println(if (response.body()?.delivered == true) "delivered" else "Not delivered")
+    } else {
+        println(response.errorBody().toString())
+    }
+    if(deleteFile)
+        file.delete()
 }
 
 @Location("/app")
