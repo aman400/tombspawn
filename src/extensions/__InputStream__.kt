@@ -1,9 +1,9 @@
 package com.ramukaka.extensions
 
-import io.ktor.network.util.ioCoroutineDispatcher
-import kotlinx.coroutines.experimental.CoroutineDispatcher
-import kotlinx.coroutines.experimental.withContext
-import kotlinx.coroutines.experimental.yield
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -11,7 +11,7 @@ suspend fun InputStream.copyToSuspend(
     out: OutputStream,
     bufferSize: Int = DEFAULT_BUFFER_SIZE,
     yieldSize: Int = 4 * 1024 * 1024,
-    dispatcher: CoroutineDispatcher = ioCoroutineDispatcher
+    dispatcher: CoroutineDispatcher = Dispatchers.IO
 ): Long {
     return withContext(dispatcher) {
         val buffer = ByteArray(bufferSize)
