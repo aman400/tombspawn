@@ -8,6 +8,7 @@ import com.ramukaka.models.ErrorResponse
 import com.ramukaka.network.RamukakaApi
 import com.ramukaka.network.ServiceGenerator
 import io.ktor.application.Application
+import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.features.*
@@ -18,16 +19,16 @@ import io.ktor.http.content.streamProvider
 import io.ktor.locations.Location
 import io.ktor.locations.Locations
 import io.ktor.locations.post
-import io.ktor.request.path
-import io.ktor.request.receiveMultipart
-import io.ktor.request.receiveParameters
+import io.ktor.request.*
 import io.ktor.response.respond
 import io.ktor.routing.get
 import io.ktor.routing.routing
 import kotlinx.coroutines.launch
+import models.Payload
 import okhttp3.MediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import org.jetbrains.exposed.sql.Database
 import org.slf4j.event.Level
 import retrofit2.Call
 import retrofit2.Callback
@@ -66,9 +67,10 @@ fun Application.module(testing: Boolean = false) {
     if (GRADLE_PATH == null || TOKEN == null) {
         throw Exception("Gradle variables GRADLE_PATH or SLACK_TOKEN not set")
     }
-    val loadingMessages =
-        install(Locations) {
-        }
+
+
+    install(Locations) {
+    }
 
     install(Compression) {
         gzip {
@@ -98,6 +100,32 @@ fun Application.module(testing: Boolean = false) {
         }
     }
 
+
+    intercept(ApplicationCallPipeline.Monitoring) {
+
+        if (!call.parameters.isEmpty()) {
+            println("Parameters: ")
+            call.parameters.forEach { key, valuesList ->
+                println("$key: ${valuesList.joinToString(",")}")
+            }
+        }
+
+        if (!call.request.headers.isEmpty()) {
+            println("Headers:")
+            call.request.headers.forEach { key, valuesList ->
+                println("$key: ${valuesList.joinToString(",")}")
+            }
+        }
+
+        if (!call.request.queryParameters.isEmpty()) {
+            println("Query Paras: ")
+            call.request.queryParameters.forEach { key, valuesList ->
+                println("$key: ${valuesList.joinToString(",")}")
+            }
+        }
+
+    }
+
     routing {
         get("/") {
             call.respond(mapOf("status" to "OK"))
@@ -107,6 +135,7 @@ fun Application.module(testing: Boolean = false) {
         }
         post<App.Consumer> {
             val params = call.receiveParameters()
+//            Database.connect()
 
             val channelId = params["channel_id"]
             val text = params["text"]
@@ -211,6 +240,17 @@ fun Application.module(testing: Boolean = false) {
             }
         }
 
+        post<GithubApi.Webhook> {
+            val payload = call.receive<Payload>()
+            payload.ref?.let { ref ->
+                if(ref == "refs/heads/development") {
+                    call.respond("OK")
+                } else {
+                    call.respond("Not development branch")
+                }
+            } ?: call.respond("Not development branch")
+        }
+
         get("/") {
         }
     }
@@ -218,7 +258,7 @@ fun Application.module(testing: Boolean = false) {
 
 private fun sendError(commandResponse: String?, responseUrl: String) {
     val errorResponse = if (!commandResponse.isNullOrEmpty()) {
-        ErrorResponse(response = commandResponse!!)
+        ErrorResponse(response = commandResponse)
     } else {
         ErrorResponse(response = "Something went wrong. Unable to generate APK.")
     }
@@ -266,7 +306,7 @@ fun uploadFile(file: File, channelId: String, deleteFile: Boolean = true) {
     } else {
         println(response.errorBody().toString())
     }
-    if(deleteFile)
+    if (deleteFile)
         file.delete()
 }
 
@@ -282,5 +322,11 @@ class App {
     class Fleet
 }
 
+@Location("/github")
+class GithubApi {
+
+    @Location("/payload/")
+    class Webhook
+}
 
 
