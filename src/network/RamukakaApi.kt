@@ -1,5 +1,6 @@
 package com.ramukaka.network
 
+import com.google.gson.JsonObject
 import com.ramukaka.models.ErrorResponse
 import com.ramukaka.models.Response
 import okhttp3.MultipartBody
@@ -21,6 +22,10 @@ interface RamukakaApi {
     ): Call<Response>
 
     @POST
-    fun sendError(@HeaderMap header: Map<String, String>, @Url url: String,
+    fun sendError(@HeaderMap header: MutableMap<String, String>, @Url url: String,
                   @Body errorResponse: ErrorResponse) : Call<String>
+
+    @FormUrlEncoded
+    @POST("api/chat.postMessage")
+    fun postAction(@HeaderMap headers: MutableMap<String, String>, @FieldMap body: MutableMap<String, String?> ): Call<JsonObject>
 }

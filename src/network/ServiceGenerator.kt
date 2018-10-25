@@ -7,6 +7,7 @@ import com.ramukaka.network.interceptors.HeadersInterceptor
 import okhttp3.Cache
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.CallAdapter
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
@@ -18,15 +19,16 @@ class ServiceGenerator {
 
         private val retrofitBuilder = Retrofit.Builder()
 
-        init {
-            retrofitBuilder.baseUrl("https://slack.com/")
-        }
-
         fun <T> createService(
-            serviceClass: Class<T>, isLoggingEnabled: Boolean = false, isGzipEnabled: Boolean = false,
+            serviceClass: Class<T>, url: String, isLoggingEnabled: Boolean = false, isGzipEnabled: Boolean = false,
             cache: Cache? = null, headers: MutableMap<String, String>? = null,
-            factory: TypeAdapterFactory? = null
+            factory: TypeAdapterFactory? = null, callAdapterFactory: CallAdapter.Factory?= null
         ): T {
+
+            retrofitBuilder.baseUrl(url)
+            if(callAdapterFactory != null) {
+                retrofitBuilder.addCallAdapterFactory(callAdapterFactory)
+            }
 
             val gsonBuilder = GsonBuilder().setLenient().setPrettyPrinting()
 

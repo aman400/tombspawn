@@ -21,6 +21,7 @@ fun String.execute(
          builder.apply {
              waitFor(timeoutAmount, timeoutUnit)
          }
+         println(response)
 
          return if(errorText.isEmpty()) response else errorText
 
