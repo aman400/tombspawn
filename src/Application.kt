@@ -18,7 +18,6 @@ import com.ramukaka.network.ServiceGenerator
 import com.ramukaka.network.SlackApi
 import com.ramukaka.network.interceptors.LoggingInterceptor
 import com.ramukaka.utils.Constants
-import com.sun.org.apache.xpath.internal.operations.Bool
 import io.ktor.application.Application
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
@@ -41,11 +40,11 @@ import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.get
 import io.ktor.routing.routing
+import io.reactivex.disposables.CompositeDisposable
 import kotlinx.coroutines.launch
 import models.Payload
 import models.slack.Action
 import models.slack.Option
-import models.slack.UserProfile
 import okhttp3.MediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -70,6 +69,8 @@ private var TOKEN = System.getenv()["SLACK_TOKEN"]
 private var O_AUTH_TOKEN = System.getenv()["O_AUTH_TOKEN"]
 private const val OUTPUT_SEPARATOR = "##***##"
 private const val ARA_OUTPUT_SEPARATOR = "OUTPUT_SEPARATOR"
+
+private val compositeDisposable = CompositeDisposable()
 
 
 private val randomWaitingMessages = listOf(
@@ -292,20 +293,24 @@ fun Application.module(testing: Boolean = false) {
             val slackEvent = call.receive<SlackEvent>()
             println(slackEvent.toString())
             when (slackEvent.type) {
-                Constants.EVENT_TYPE_VERIFICATION -> call.respond(slackEvent)
-                Constants.EVENT_TYPE_RATE_LIMIT -> {
+                Constants.Slack.EVENT_TYPE_VERIFICATION -> call.respond(slackEvent)
+                Constants.Slack.EVENT_TYPE_RATE_LIMIT -> {
                     call.respond("")
                     println("Api rate limit")
                 }
-                Constants.EVENT_TYPE_CALLBACK -> {
+                Constants.Slack.EVENT_TYPE_CALLBACK -> {
                     call.respond("")
-                    slackEvent.event?.let { event ->
-                        fetchUser(event.user!!)
-                        when (event.type) {
-                            Constants.EVENT_TYPE_APP_MENTION -> {
 
+                    slackEvent.event?.let { event ->
+                        if (!User.exists(event.user)) {
+                            event.user?.let { user ->
+                                fetchUser(user)
                             }
-                            Constants.EVENT_TYPE_MESSAGE -> {
+                        }
+                        when (event.type) {
+                            Constants.Slack.EVENT_TYPE_APP_MENTION -> {
+                            }
+                            Constants.Slack.EVENT_TYPE_MESSAGE -> {
                             }
                             else -> {
 
@@ -334,7 +339,7 @@ fun Application.module(testing: Boolean = false) {
             println(slackEvent.toString())
 
             call.respond("")
-            if (slackEvent.callbackId.equals("subscribe_generate_apk")) {
+            if (slackEvent.callbackId.equals(Constants.Slack.SUBSCRIBE_GENERATE_APK)) {
 
             } else {
                 launch {
@@ -346,7 +351,7 @@ fun Application.module(testing: Boolean = false) {
                     }
                     val attachments = mutableListOf(
                         Attachment(
-                            "subscribe_generate_apk", "Subscribe to github branch for code changes.",
+                            Constants.Slack.SUBSCRIBE_GENERATE_APK, "Subscribe to github branch for code changes.",
                             "Select the branch to subscribe the changes for APK Generation.", 1, "#0000FF",
                             mutableListOf(
                                 Action(
@@ -363,13 +368,12 @@ fun Application.module(testing: Boolean = false) {
                     val gson = Gson()
 
                     val body = mutableMapOf<String, String?>()
-                    body["attachments"] = gson.toJson(attachments)
-                    body["text"] = "Generate an APK"
-                    body["channel"] = slackEvent.channel?.id
-                    body["token"] = O_AUTH_TOKEN
+                    body[Constants.Slack.ATTACHMENTS] = gson.toJson(attachments)
+                    body[Constants.Slack.TEXT] = "Generate an APK"
+                    body[Constants.Slack.CHANNEL] = slackEvent.channel?.id
+                    body[Constants.Slack.TOKEN] = O_AUTH_TOKEN
                     val api = ServiceGenerator.createService(RamukakaApi::class.java, SlackApi.BASE_URL, true)
-                    val headers = mutableMapOf("Content-type" to "application/x-www-form-urlencoded")
-                    headers[""]
+                    val headers = mutableMapOf(Constants.Common.HEADER_CONTENT_TYPE to Constants.Common.VALUE_FORM_ENCODE)
                     api.postAction(headers, body).enqueue(object : Callback<JsonObject> {
                         override fun onFailure(call: Call<JsonObject>, t: Throwable) {
                             println("post failure")
@@ -397,46 +401,27 @@ fun Application.module(testing: Boolean = false) {
     }
 }
 
-fun fetchUser(userId: String) {
-    run {
-        if(!userExists(userId)) {
-            val api = ServiceGenerator.createService(SlackApi::class.java, SlackApi.BASE_URL,
-                true, callAdapterFactory = RxJava2CallAdapterFactory.create())
-            val queryParams = mutableMapOf<String, String>()
-            queryParams[SlackApi.PARAM_TOKEN] = O_AUTH_TOKEN!!
-            queryParams[SlackApi.PARAM_USER_ID] = userId
-            api.getProfile(queryParams).subscribe({ response ->
-                if (response.isSuccessful) {
-                    response.body()?.let { body ->
-                        if (body.success) {
-                            addUserToDB(body.user, userId)
-                        }
-                    }
+fun fetchUser(userId: String) = run {
+    val api = ServiceGenerator.createService(
+        SlackApi::class.java, SlackApi.BASE_URL,
+        true, callAdapterFactory = RxJava2CallAdapterFactory.create()
+    )
+    val queryParams = mutableMapOf<String, String>()
+    queryParams[SlackApi.PARAM_TOKEN] = O_AUTH_TOKEN!!
+    queryParams[SlackApi.PARAM_USER_ID] = userId
+    val disposable = api.getProfile(queryParams).subscribe({ response ->
+        if (response.isSuccessful) {
+            response.body()?.let { body ->
+                if (body.success) {
+                    User.add(body.user, userId)
                 }
-            }, { throwable ->
-                LOGGER.log(java.util.logging.Level.SEVERE, throwable.message, throwable!!)
-            })
+            }
         }
-    }
-}
+    }, { throwable ->
+        LOGGER.log(java.util.logging.Level.SEVERE, throwable.message, throwable!!)
+    })
 
-fun userExists(userId: String): Boolean {
-    return transaction {
-        addLogger(StdOutSqlLogger)
-        val user = User.find { Users.slackId eq userId }
-        !user.empty()
-    }
-}
-
-fun addUserToDB(user: UserProfile, userId: String) {
-    transaction {
-        addLogger(StdOutSqlLogger)
-        User.new {
-            name = user.name!!
-            email = user.email!!
-            slackId = userId
-        }
-    }
+    compositeDisposable.add(disposable)
 }
 
 private fun fetchAllBranches(dirName: String): List<String>? {
