@@ -37,7 +37,7 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
         Database.connect(connectionPool)
     }
 
-    public fun userExists(userId: String?): Boolean {
+    fun userExists(userId: String?): Boolean {
         if(userId.isNullOrEmpty()) {
             return false
         }
@@ -48,7 +48,7 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
         }
     }
 
-    public fun addUser(user: UserProfile, userId: String) {
+    fun addUser(user: UserProfile, userId: String) {
         transaction {
             addLogger(StdOutSqlLogger)
             User.new {

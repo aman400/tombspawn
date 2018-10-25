@@ -23,12 +23,11 @@ import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
-import retrofit2.http.GET
-import retrofit2.http.QueryMap
+import retrofit2.http.*
 import java.io.File
 import java.util.logging.Logger
 
-interface SlackClient {
+interface SlackApi {
     companion object {
         const val BASE_URL = "https://slack.com"
         const val PARAM_TOKEN = "token"
@@ -37,6 +36,10 @@ interface SlackClient {
 
     @GET("/api/users.profile.get")
     fun getProfile (@QueryMap queryMap: MutableMap<String, String>): Observable<Response<SlackProfileResponse>>
+
+    @FormUrlEncoded
+    @POST("api/chat.postMessage")
+    fun postAction(@HeaderMap headers: MutableMap<String, String>, @FieldMap body: MutableMap<String, String?> ): Call<JsonObject>
 }
 
 private const val OUTPUT_SEPARATOR = "##***##"
@@ -131,7 +134,7 @@ fun Routing.slackAction(slackAuthToken: String, consumerAppDir: String, gradlePa
                 body[Constants.Slack.TEXT] = "Generate an APK"
                 body[Constants.Slack.CHANNEL] = slackEvent.channel?.id
                 body[Constants.Slack.TOKEN] = slackAuthToken
-                val api = ServiceGenerator.createService(RamukakaApi::class.java, SlackClient.BASE_URL, true)
+                val api = ServiceGenerator.createService(SlackApi::class.java, SlackApi.BASE_URL, true)
                 val headers = mutableMapOf(Constants.Common.HEADER_CONTENT_TYPE to Constants.Common.VALUE_FORM_ENCODE)
                 api.postAction(headers, body).enqueue(object : Callback<JsonObject> {
                     override fun onFailure(call: Call<JsonObject>, t: Throwable) {
@@ -162,12 +165,12 @@ private fun fetchAllBranches(gradlePath: String, dirName: String): List<String>?
 
 private fun fetchUser(userId: String, authToken: String, database: Database) = run {
     val api = ServiceGenerator.createService(
-        SlackClient::class.java, SlackClient.BASE_URL,
+        SlackApi::class.java, SlackApi.BASE_URL,
         true, callAdapterFactory = RxJava2CallAdapterFactory.create()
     )
     val queryParams = mutableMapOf<String, String>()
-    queryParams[SlackClient.PARAM_TOKEN] = authToken
-    queryParams[SlackClient.PARAM_USER_ID] = userId
+    queryParams[SlackApi.PARAM_TOKEN] = authToken
+    queryParams[SlackApi.PARAM_USER_ID] = userId
     api.getProfile(queryParams).subscribe({ response ->
         if (response.isSuccessful) {
             response.body()?.let { body ->
