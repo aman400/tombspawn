@@ -7,7 +7,6 @@ import com.ramukaka.extensions.random
 import com.ramukaka.extensions.toMap
 import com.ramukaka.models.ErrorResponse
 import com.ramukaka.models.locations.Slack
-import com.ramukaka.network.RamukakaApi
 import com.ramukaka.network.ServiceGenerator
 import com.ramukaka.network.SlackApi
 import io.ktor.application.call
@@ -181,7 +180,7 @@ private fun sendError(commandResponse: String?, responseUrl: String) {
         ErrorResponse(response = "Something went wrong. Unable to generate APK.")
     }
 
-    val api = ServiceGenerator.createService(RamukakaApi::class.java, SlackApi.BASE_URL, true)
+    val api = ServiceGenerator.createService(SlackApi::class.java, SlackApi.BASE_URL, true)
     val headers = mutableMapOf("Content-type" to "application/json")
     val call = api.sendError(headers, responseUrl, errorResponse)
     call.enqueue(object : Callback<String> {
@@ -217,7 +216,7 @@ private fun uploadFile(file: File, channelId: String, token: String, deleteFile:
     val fileType = RequestBody.create(okhttp3.MultipartBody.FORM, "auto")
     val channels = RequestBody.create(okhttp3.MultipartBody.FORM, channelId)
 
-    val api = ServiceGenerator.createService(RamukakaApi::class.java, SlackApi.BASE_URL, false)
+    val api = ServiceGenerator.createService(SlackApi::class.java, SlackApi.BASE_URL, false)
     val call = api.pushApp(appToken, title, filename, fileType, channels, multipartBody)
     val response = call.execute()
     if (response.isSuccessful) {
