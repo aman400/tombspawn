@@ -43,6 +43,4 @@ class User(id: EntityID<Int>) : IntEntity(id) {
     var name by Users.name
     var email by Users.email
     var slackId by Users.slackId
-
-
 }
