@@ -1,6 +1,6 @@
 package com.ramukaka
 
-import com.ramukaka.models.database.Users
+import com.ramukaka.data.Database
 import com.ramukaka.network.githubWebhook
 import com.ramukaka.network.interceptors.LoggingInterceptor
 import com.ramukaka.network.slackAction
@@ -18,14 +18,9 @@ import io.ktor.locations.Location
 import io.ktor.locations.Locations
 import io.ktor.request.path
 import io.ktor.routing.routing
-import io.reactivex.disposables.CompositeDisposable
 import network.*
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.SchemaUtils
-import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.event.Level
 import java.io.File
-import java.util.logging.Logger
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.DevelopmentEngine.main(args)
 
@@ -41,14 +36,6 @@ private var DB_PASSWORD = System.getenv()["DB_PASSWORD"]!!
 
 @Suppress("unused") // Referenced in application.conf
 fun Application.module() {
-
-    Database.connect(
-        url = DB_URL,
-        driver = "com.mysql.cj.jdbc.Driver",
-        password = DB_PASSWORD,
-        user = DB_USER
-    )
-
 
     install(Locations) {
     }
@@ -79,10 +66,6 @@ fun Application.module() {
         gson {
             setPrettyPrinting()
         }
-    }
-
-    transaction {
-        SchemaUtils.create(Users)
     }
 
     HttpClient(OkHttp) {
@@ -120,13 +103,15 @@ fun Application.module() {
 
     }
 
+    val database = Database(this, DB_URL, DB_USER, DB_PASSWORD)
+
     routing {
         status()
         health()
         buildConsumer(GRADLE_PATH, UPLOAD_DIR_PATH, CONSUMER_APP_DIR, TOKEN)
         buildFleet(GRADLE_PATH, UPLOAD_DIR_PATH, FLEET_APP_DIR, TOKEN)
         receiveApk(UPLOAD_DIR_PATH)
-        slackEvent(O_AUTH_TOKEN)
+        slackEvent(O_AUTH_TOKEN, database)
         subscribe()
         slackAction(O_AUTH_TOKEN, CONSUMER_APP_DIR, GRADLE_PATH)
         githubWebhook()

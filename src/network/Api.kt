@@ -102,7 +102,7 @@ fun Routing.buildConsumer(gradlePath: String, uploadDirPath: String, consumerApp
 }
 
 
-fun Routing.buildFleet(gradlePath: String, uploadDirPath: String, fleetAppDir: String, token : String) {
+fun Routing.buildFleet(gradlePath: String, uploadDirPath: String, fleetAppDir: String, token: String) {
     post<Slack.Fleet> {
         val params = call.receiveParameters()
 

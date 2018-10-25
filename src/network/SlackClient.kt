@@ -2,8 +2,8 @@ package com.ramukaka.network
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.ramukaka.data.Database
 import com.ramukaka.extensions.execute
-import com.ramukaka.models.database.User
 import com.ramukaka.models.locations.Slack
 import com.ramukaka.models.slack.Attachment
 import com.ramukaka.models.slack.SlackEvent
@@ -49,7 +49,7 @@ fun Routing.subscribe() {
     }
 }
 
-fun Routing.slackEvent(authToken: String) {
+fun Routing.slackEvent(authToken: String, database: Database) {
     post<Slack.Event> {
         val slackEvent = call.receive<SlackEvent>()
         println(slackEvent.toString())
@@ -63,9 +63,9 @@ fun Routing.slackEvent(authToken: String) {
                 call.respond("")
 
                 slackEvent.event?.let { event ->
-                    if (!User.exists(event.user)) {
+                    if (!database.userExists(event.user)) {
                         event.user?.let { user ->
-                            fetchUser(user, authToken)
+                            fetchUser(user, authToken, database)
                         }
                     }
                     when (event.type) {
@@ -160,7 +160,7 @@ private fun fetchAllBranches(gradlePath: String, dirName: String): List<String>?
     return null
 }
 
-private fun fetchUser(userId: String, authToken: String) = run {
+private fun fetchUser(userId: String, authToken: String, database: Database) = run {
     val api = ServiceGenerator.createService(
         SlackClient::class.java, SlackClient.BASE_URL,
         true, callAdapterFactory = RxJava2CallAdapterFactory.create()
@@ -172,7 +172,7 @@ private fun fetchUser(userId: String, authToken: String) = run {
         if (response.isSuccessful) {
             response.body()?.let { body ->
                 if (body.success) {
-                    User.add(body.user, userId)
+                    database.addUser(body.user, userId)
                 }
             }
         }
