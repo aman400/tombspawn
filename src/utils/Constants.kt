@@ -23,4 +23,11 @@ class Constants {
             const val ATTACHMENTS = "attachments"
         }
     }
+
+    class Github {
+        companion object {
+            const val HEADER_KEY_EVENT = "X-GitHub-Event"
+            const val HEADER_VALUE_EVENT_PUSH = "push"
+        }
+    }
 }

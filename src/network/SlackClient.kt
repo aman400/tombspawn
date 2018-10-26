@@ -17,8 +17,10 @@ import io.ktor.request.receive
 import io.ktor.response.respond
 import io.ktor.routing.Routing
 import io.reactivex.Observable
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import models.slack.Action
+import models.slack.BotInfo
 import models.slack.Option
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -59,6 +61,10 @@ interface SlackApi {
     fun sendError(@HeaderMap header: MutableMap<String, String>, @Url url: String,
                   @Body errorResponse: ErrorResponse
     ) : Call<String>
+
+    @GET("api/rtm.connect")
+    fun fetchBotInfo(@HeaderMap headers: MutableMap<String, String>,
+                   @Query("token") botToken: String): Observable<Response<BotInfo>>
 }
 
 private const val OUTPUT_SEPARATOR = "##***##"
@@ -194,7 +200,9 @@ private fun fetchUser(userId: String, authToken: String, database: Database) = r
         if (response.isSuccessful) {
             response.body()?.let { body ->
                 if (body.success) {
-                    database.addUser(body.user, userId)
+                    GlobalScope.launch {
+                        database.addUser(body.user, userId)
+                    }
                 }
             }
         }

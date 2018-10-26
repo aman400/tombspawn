@@ -4,6 +4,7 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.ktor.application.Application
 import kotlinx.coroutines.newFixedThreadPoolContext
+import kotlinx.coroutines.withContext
 import models.slack.UserProfile
 import org.jetbrains.exposed.dao.EntityID
 import org.jetbrains.exposed.dao.IntEntity
@@ -19,6 +20,7 @@ import kotlin.coroutines.CoroutineContext
 class Database(application: Application, dbUrl: String, dbUsername: String, dbPass: String) {
     private val dispatcher: CoroutineContext
     private val connectionPool: HikariDataSource
+    private val connection: Database
 
     private val config = HikariConfig()
 
@@ -34,22 +36,22 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
         dispatcher = newFixedThreadPoolContext(20, "database-pool")
 
         connectionPool = HikariDataSource(config)
-        Database.connect(connectionPool)
+        connection = Database.connect(connectionPool)
     }
 
-    fun userExists(userId: String?): Boolean {
+    suspend fun userExists(userId: String?): Boolean = withContext(dispatcher) {
         if(userId.isNullOrEmpty()) {
-            return false
+            return@withContext false
         }
-        return transaction {
+        return@withContext transaction(connection) {
             addLogger(StdOutSqlLogger)
             val user = User.find { Users.slackId eq userId }
-            !user.empty()
+            return@transaction !user.empty()
         }
     }
 
-    fun addUser(user: UserProfile, userId: String) {
-        transaction {
+    suspend fun addUser(user: UserProfile, userId: String) = withContext(dispatcher) {
+        transaction(connection) {
             addLogger(StdOutSqlLogger)
             User.new {
                 name = user.name!!
@@ -66,7 +68,7 @@ private object Users : IntIdTable() {
     val slackId = varchar("slack_id", 50).index(isUnique = true)
 }
 
-private class User(id: EntityID<Int>) : IntEntity(id) {
+class User(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<User>(Users)
 
     var name by Users.name
