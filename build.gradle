@@ -58,7 +58,7 @@ dependencies {
     implementation "com.squareup.retrofit2:adapter-rxjava2:$retrofit_version"
     implementation 'com.google.code.gson:gson:2.8.5'
     implementation 'io.reactivex.rxjava2:rxjava:2.2.2'
-    implementation 'org.jetbrains.exposed:exposed:0.10.5'
+    implementation 'org.jetbrains.exposed:exposed:0.11.1'
     implementation 'mysql:mysql-connector-java:8.0.12'
     implementation group: 'com.zaxxer', name: 'HikariCP', version: '2.7.2'
 }

@@ -1,6 +1,7 @@
-package models
+package models.github
 
 import com.google.gson.annotations.SerializedName
+import sun.jvm.hotspot.debugger.cdbg.RefType
 
 data class Payload(
 
@@ -30,6 +31,9 @@ data class Payload(
 
 	@field:SerializedName("ref")
 	val ref: String? = null,
+
+	@field:SerializedName("ref_type")
+	val refType: RefType? = null,
 
 	@field:SerializedName("deleted")
 	val deleted: Boolean? = null,

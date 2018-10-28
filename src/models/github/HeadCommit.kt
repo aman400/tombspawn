@@ -1,39 +1,39 @@
-package models
+package models.github
 
 import com.google.gson.annotations.SerializedName
 
 data class HeadCommit(
 
-	@field:SerializedName("committer")
+    @field:SerializedName("committer")
 	val committer: Committer? = null,
 
-	@field:SerializedName("removed")
+    @field:SerializedName("removed")
 	val removed: List<Any?>? = null,
 
-	@field:SerializedName("tree_id")
+    @field:SerializedName("tree_id")
 	val treeId: String? = null,
 
-	@field:SerializedName("added")
+    @field:SerializedName("added")
 	val added: List<String?>? = null,
 
-	@field:SerializedName("author")
+    @field:SerializedName("author")
 	val author: Author? = null,
 
-	@field:SerializedName("distinct")
+    @field:SerializedName("distinct")
 	val distinct: Boolean? = null,
 
-	@field:SerializedName("modified")
+    @field:SerializedName("modified")
 	val modified: List<Any?>? = null,
 
-	@field:SerializedName("id")
+    @field:SerializedName("id")
 	val id: String? = null,
 
-	@field:SerializedName("message")
+    @field:SerializedName("message")
 	val message: String? = null,
 
-	@field:SerializedName("url")
+    @field:SerializedName("url")
 	val url: String? = null,
 
-	@field:SerializedName("timestamp")
+    @field:SerializedName("timestamp")
 	val timestamp: String? = null
 )

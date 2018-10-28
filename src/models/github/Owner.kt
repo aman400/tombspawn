@@ -1,8 +1,8 @@
-package models
+package models.github
 
 import com.google.gson.annotations.SerializedName
 
-data class Sender(
+data class Owner(
 
 	@field:SerializedName("gists_url")
 	val gistsUrl: String? = null,
@@ -43,6 +43,9 @@ data class Sender(
 	@field:SerializedName("html_url")
 	val htmlUrl: String? = null,
 
+	@field:SerializedName("name")
+	val name: String? = null,
+
 	@field:SerializedName("site_admin")
 	val siteAdmin: Boolean? = null,
 
@@ -51,6 +54,9 @@ data class Sender(
 
 	@field:SerializedName("gravatar_id")
 	val gravatarId: String? = null,
+
+	@field:SerializedName("email")
+	val email: String? = null,
 
 	@field:SerializedName("node_id")
 	val nodeId: String? = null,

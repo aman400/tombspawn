@@ -20,5 +20,8 @@ data class Action(
 	val value: String? = null,
 
 	@field:SerializedName("options")
-	val options: List<Option>? = null
+	val options: List<Option>? = null,
+
+	@field:SerializedName("url")
+	val url: String? = null
 )

@@ -28,7 +28,7 @@ private var UPLOAD_DIR_PATH = "${System.getProperty("user.dir")}/temp"
 private var GRADLE_PATH = System.getenv()["GRADLE_PATH"]!!
 private var CONSUMER_APP_DIR = System.getenv()["CONSUMER_APP_DIR"]!!
 private var FLEET_APP_DIR = System.getenv()["FLEET_APP_DIR"]!!
-private var TOKEN = System.getenv()["SLACK_TOKEN"]!!
+private var BOT_TOKEN = System.getenv()["SLACK_TOKEN"]!!
 private var O_AUTH_TOKEN = System.getenv()["O_AUTH_TOKEN"]!!
 private var DB_URL = System.getenv()["DB_URL"]!!
 private var DB_USER = System.getenv()["DB_USER"]!!
@@ -104,20 +104,19 @@ fun Application.module() {
     }
 
     val database = Database(this, DB_URL, DB_USER, DB_PASSWORD)
+    fetchBotData(database, BOT_TOKEN)
 
     routing {
         status()
         health()
-        buildConsumer(GRADLE_PATH, UPLOAD_DIR_PATH, CONSUMER_APP_DIR, TOKEN)
-        buildFleet(GRADLE_PATH, UPLOAD_DIR_PATH, FLEET_APP_DIR, TOKEN)
+        buildConsumer(GRADLE_PATH, UPLOAD_DIR_PATH, CONSUMER_APP_DIR, BOT_TOKEN)
+        buildFleet(GRADLE_PATH, UPLOAD_DIR_PATH, FLEET_APP_DIR, BOT_TOKEN)
         receiveApk(UPLOAD_DIR_PATH)
-        slackEvent(O_AUTH_TOKEN, database)
+        slackEvent(O_AUTH_TOKEN, database, GRADLE_PATH, CONSUMER_APP_DIR)
         subscribe()
         slackAction(O_AUTH_TOKEN, CONSUMER_APP_DIR, GRADLE_PATH)
         githubWebhook()
     }
-
-
 }
 
 @Location("/app")

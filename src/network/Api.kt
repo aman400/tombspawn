@@ -1,6 +1,7 @@
 package network
 
 import com.ramukaka.Apk
+import com.ramukaka.data.Database
 import com.ramukaka.extensions.copyToSuspend
 import com.ramukaka.extensions.execute
 import com.ramukaka.extensions.random
@@ -9,6 +10,7 @@ import com.ramukaka.models.ErrorResponse
 import com.ramukaka.models.locations.Slack
 import com.ramukaka.network.ServiceGenerator
 import com.ramukaka.network.SlackApi
+import com.ramukaka.utils.Constants
 import io.ktor.application.call
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
@@ -19,13 +21,18 @@ import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.Routing
 import io.ktor.routing.get
+import io.reactivex.disposables.Disposable
+import io.reactivex.schedulers.Schedulers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import okhttp3.MediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import java.io.File
 
 
@@ -196,7 +203,6 @@ private fun sendError(commandResponse: String?, responseUrl: String) {
                 println(response.body())
             }
         }
-
     })
 }
 
@@ -226,4 +232,28 @@ private fun uploadFile(file: File, channelId: String, token: String, deleteFile:
     }
     if (deleteFile)
         file.delete()
+}
+
+@Throws(Exception::class)
+fun fetchBotData(database: Database, botToken: String): Disposable = runBlocking {
+    val api = ServiceGenerator.createService(SlackApi::class.java, SlackApi.BASE_URL, true, callAdapterFactory = RxJava2CallAdapterFactory.create())
+    val headers = mutableMapOf("Content-type" to "application/x-www-form-urlencoded")
+    val call = api.fetchBotInfo(headers, botToken)
+    call.subscribeOn(Schedulers.io()).subscribe({ response ->
+        if(response.isSuccessful) {
+            val botInfo = response.body()
+            botInfo?.let {
+                if(botInfo.ok) {
+                    GlobalScope.launch {
+                        it.self?.let { about ->
+                            database.addUser(about.id!!, about.name, typeString = Constants.Database.USER_TYPE_BOT)
+                        }
+                    }
+                }
+            }
+        }
+    }, {
+        it.printStackTrace()
+        throw it
+    })
 }

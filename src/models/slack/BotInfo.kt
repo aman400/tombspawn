@@ -5,7 +5,7 @@ import com.google.gson.annotations.SerializedName
 data class BotInfo(
 	@field:SerializedName("self") val self: Self? = null,
 	@field:SerializedName("team") val team: Team? = null,
-	@field:SerializedName("ok") val ok: Boolean? = null,
+	@field:SerializedName("ok") val ok: Boolean = false,
 	@field:SerializedName("url") val url: String? = null
 ) {
 	data class Self(

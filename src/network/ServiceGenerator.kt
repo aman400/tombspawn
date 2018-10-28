@@ -22,7 +22,7 @@ class ServiceGenerator {
         fun <T> createService(
             serviceClass: Class<T>, url: String, isLoggingEnabled: Boolean = false, isGzipEnabled: Boolean = false,
             cache: Cache? = null, headers: MutableMap<String, String>? = null,
-            factory: TypeAdapterFactory? = null, callAdapterFactory: CallAdapter.Factory?= null
+            typeAdapterFactory: TypeAdapterFactory? = null, callAdapterFactory: CallAdapter.Factory?= null
         ): T {
 
             retrofitBuilder.baseUrl(url)
@@ -51,8 +51,8 @@ class ServiceGenerator {
             }
 
             retrofitBuilder.client(okHttpClientBuilder.build())
-            if (factory != null) {
-                gsonBuilder.registerTypeAdapterFactory(factory)
+            if (typeAdapterFactory != null) {
+                gsonBuilder.registerTypeAdapterFactory(typeAdapterFactory)
             }
             retrofitBuilder.addConverterFactory(GsonConverterFactory.create(gsonBuilder.create()))
             return retrofitBuilder.build().create(serviceClass)

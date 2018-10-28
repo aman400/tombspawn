@@ -21,6 +21,12 @@ class Constants {
             const val CHANNEL = "channel"
             const val TEXT = "text"
             const val ATTACHMENTS = "attachments"
+
+            const val TYPE_SUBSCRIBE_CONSUMER = "subscribe-consumer"
+            const val TYPE_SUBSCRIBE_FLEET = "subscribe-fleet"
+            const val ATTACHMENT_TYPE_SELECT: String = "select"
+            const val ATTACHMENT_TYPE_DEFAULT: String = "default"
+            const val ACTION_CHOOSE_BRANCH: String = "choose_branch"
         }
     }
 
@@ -28,6 +34,17 @@ class Constants {
         companion object {
             const val HEADER_KEY_EVENT = "X-GitHub-Event"
             const val HEADER_VALUE_EVENT_PUSH = "push"
+            const val HEADER_VALUE_EVENT_DELETE: String = "delete"
+            const val HEADER_VALUE_EVENT_CREATE: String = "create"
+        }
+    }
+
+    class Database {
+        companion object {
+            const val USER_TYPE_USER = "user"
+            const val USER_TYPE_BOT = "bot"
+            const val USER_TYPE_CHANNEL = "channel"
+            const val USER_TYPE_GROUP = "group"
         }
     }
 }

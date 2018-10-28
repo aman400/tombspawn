@@ -17,6 +17,7 @@ import io.ktor.request.receive
 import io.ktor.response.respond
 import io.ktor.routing.Routing
 import io.reactivex.Observable
+import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import models.slack.Action
@@ -25,7 +26,6 @@ import models.slack.Option
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Call
-import retrofit2.Callback
 import retrofit2.Response
 import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import retrofit2.http.*
@@ -40,11 +40,11 @@ interface SlackApi {
     }
 
     @GET("/api/users.profile.get")
-    fun getProfile (@QueryMap queryMap: MutableMap<String, String>): Observable<Response<SlackProfileResponse>>
+    fun getProfile(@QueryMap queryMap: MutableMap<String, String>): Observable<Response<SlackProfileResponse>>
 
     @FormUrlEncoded
-    @POST("api/chat.postMessage")
-    fun postAction(@HeaderMap headers: MutableMap<String, String>, @FieldMap body: MutableMap<String, String?> ): Call<JsonObject>
+    @POST("/api/chat.postMessage")
+    fun postAction(@HeaderMap headers: MutableMap<String, String>, @FieldMap body: MutableMap<String, String?>): Observable<Response<JsonObject>>
 
     @Multipart
     @POST("/api/files.upload")
@@ -58,13 +58,16 @@ interface SlackApi {
     ): Call<com.ramukaka.models.Response>
 
     @POST
-    fun sendError(@HeaderMap header: MutableMap<String, String>, @Url url: String,
-                  @Body errorResponse: ErrorResponse
-    ) : Call<String>
+    fun sendError(
+        @HeaderMap header: MutableMap<String, String>, @Url url: String,
+        @Body errorResponse: ErrorResponse
+    ): Call<String>
 
-    @GET("api/rtm.connect")
-    fun fetchBotInfo(@HeaderMap headers: MutableMap<String, String>,
-                   @Query("token") botToken: String): Observable<Response<BotInfo>>
+    @GET("/api/rtm.connect")
+    fun fetchBotInfo(
+        @HeaderMap headers: MutableMap<String, String>,
+        @Query("token") botToken: String
+    ): Observable<Response<BotInfo>>
 }
 
 private const val OUTPUT_SEPARATOR = "##***##"
@@ -77,7 +80,7 @@ fun Routing.subscribe() {
     }
 }
 
-fun Routing.slackEvent(authToken: String, database: Database) {
+fun Routing.slackEvent(authToken: String, database: Database, gradlePath: String, consumerAppDir: String) {
     post<Slack.Event> {
         val slackEvent = call.receive<SlackEvent>()
         println(slackEvent.toString())
@@ -89,24 +92,9 @@ fun Routing.slackEvent(authToken: String, database: Database) {
             }
             Constants.Slack.EVENT_TYPE_CALLBACK -> {
                 call.respond("")
-
-                slackEvent.event?.let { event ->
-                    if (!database.userExists(event.user)) {
-                        event.user?.let { user ->
-                            fetchUser(user, authToken, database)
-                        }
-                    }
-                    when (event.type) {
-                        Constants.Slack.EVENT_TYPE_APP_MENTION -> {
-                        }
-                        Constants.Slack.EVENT_TYPE_MESSAGE -> {
-                        }
-                        else -> {
-
-                        }
-                    }
+                launch {
+                    subscribeSlackEvent(authToken, database, slackEvent, gradlePath, consumerAppDir)
                 }
-
             }
             "interactive_message" -> {
 
@@ -131,46 +119,6 @@ fun Routing.slackAction(slackAuthToken: String, consumerAppDir: String, gradlePa
         } else {
             launch {
 
-                val branches = fetchAllBranches(gradlePath, consumerAppDir)
-                val branchList = mutableListOf<Option>()
-                branches?.forEach { branchName ->
-                    branchList.add(Option(branchName, branchName))
-                }
-                val attachments = mutableListOf(
-                    Attachment(
-                        Constants.Slack.SUBSCRIBE_GENERATE_APK, "Subscribe to github branch for code changes.",
-                        "Select the branch to subscribe the changes for APK Generation.", 1, "#0000FF",
-                        mutableListOf(
-                            Action(
-                                confirm = null,
-                                name = "choose_branch",
-                                text = "Choose the branch to subscribe for changes",
-                                type = "select",
-                                options = branchList
-                            )
-                        )
-                    )
-                )
-
-                val gson = Gson()
-
-                val body = mutableMapOf<String, String?>()
-                body[Constants.Slack.ATTACHMENTS] = gson.toJson(attachments)
-                body[Constants.Slack.TEXT] = "Generate an APK"
-                body[Constants.Slack.CHANNEL] = slackEvent.channel?.id
-                body[Constants.Slack.TOKEN] = slackAuthToken
-                val api = ServiceGenerator.createService(SlackApi::class.java, SlackApi.BASE_URL, true)
-                val headers = mutableMapOf(Constants.Common.HEADER_CONTENT_TYPE to Constants.Common.VALUE_FORM_ENCODE)
-                api.postAction(headers, body).enqueue(object : Callback<JsonObject> {
-                    override fun onFailure(call: Call<JsonObject>, t: Throwable) {
-                        println("post failure")
-                    }
-
-                    override fun onResponse(call: Call<JsonObject>, response: Response<JsonObject>) {
-                        println("post success")
-                    }
-
-                })
             }
         }
     }
@@ -188,7 +136,7 @@ private fun fetchAllBranches(gradlePath: String, dirName: String): List<String>?
     return null
 }
 
-private fun fetchUser(userId: String, authToken: String, database: Database) = run {
+private suspend fun fetchUser(userId: String, authToken: String, database: Database) = run {
     val api = ServiceGenerator.createService(
         SlackApi::class.java, SlackApi.BASE_URL,
         true, callAdapterFactory = RxJava2CallAdapterFactory.create()
@@ -201,12 +149,88 @@ private fun fetchUser(userId: String, authToken: String, database: Database) = r
             response.body()?.let { body ->
                 if (body.success) {
                     GlobalScope.launch {
-                        database.addUser(body.user, userId)
+                        database.addUser(userId, body.user.name, body.user.email, Constants.Database.USER_TYPE_USER)
                     }
                 }
             }
         }
     }, { throwable ->
         LOGGER.log(java.util.logging.Level.SEVERE, throwable.message, throwable!!)
+    })
+}
+
+
+private suspend fun subscribeSlackEvent(authToken: String, database: Database, slackEvent: SlackEvent,
+                                        gradlePath: String, consumerAppDir: String) {
+    slackEvent.event?.let { event ->
+        if (!database.userExists(event.user)) {
+            event.user?.let { user ->
+                fetchUser(user, authToken, database)
+            }
+        }
+        when (event.type) {
+            Constants.Slack.EVENT_TYPE_APP_MENTION, Constants.Slack.EVENT_TYPE_MESSAGE -> {
+                GlobalScope.launch {
+                    val user = database.getUser(Constants.Database.USER_TYPE_BOT)
+                    user?.let { bot ->
+                        when (event.text?.substringAfter("<@${bot.slackId}>", event.text)?.trim()) {
+                            Constants.Slack.TYPE_SUBSCRIBE_CONSUMER -> {
+                                println("Valid Event Consumer")
+                                fetchAllBranches(gradlePath, consumerAppDir)?.let { branches ->
+                                    sendChooseBranchAction(branches, slackEvent, authToken)
+                                }
+                            }
+                            Constants.Slack.TYPE_SUBSCRIBE_FLEET -> {
+                                println("Valid Event Fleet")
+                            }
+                            else -> {
+                                println("Invalid Event")
+                            }
+                        }
+                    }
+                }
+            }
+            else -> {
+                println("Unknown event type")
+            }
+        }
+    }
+}
+
+private fun sendChooseBranchAction(branches: List<String>, slackEvent: SlackEvent, slackAuthToken: String) {
+    val branchList = mutableListOf<Option>()
+    branches.forEach { branchName ->
+        branchList.add(Option(branchName, branchName))
+    }
+    val attachments = mutableListOf(
+        Attachment(
+            Constants.Slack.SUBSCRIBE_GENERATE_APK, "Subscribe to github branch for code changes.",
+            "Select the branch to subscribe for changes for APK generation.", 1, "#0000FF",
+            mutableListOf(
+                Action(
+                    confirm = null,
+                    name = Constants.Slack.ACTION_CHOOSE_BRANCH,
+                    text = "Choose the branch to subscribe for changes.",
+                    type = Constants.Slack.ATTACHMENT_TYPE_SELECT,
+                    options = branchList
+                )
+            )
+        )
+    )
+
+    val body = mutableMapOf<String, String?>()
+    body[Constants.Slack.ATTACHMENTS] = Gson().toJson(attachments)
+    body[Constants.Slack.TEXT] = "Generate an APK"
+    body[Constants.Slack.CHANNEL] = slackEvent.channel?.id ?: slackEvent.event!!.channel
+    body[Constants.Slack.TOKEN] = slackAuthToken
+    val api = ServiceGenerator.createService(SlackApi::class.java, SlackApi.BASE_URL, true, callAdapterFactory = RxJava2CallAdapterFactory.create())
+    val headers = mutableMapOf(Constants.Common.HEADER_CONTENT_TYPE to Constants.Common.VALUE_FORM_ENCODE)
+    api.postAction(headers, body).subscribeOn(Schedulers.io()).subscribe({
+        if(it.isSuccessful) {
+            println("post success")
+        }
+    }, {
+        it.printStackTrace()
+        println("post failure")
     })
 }

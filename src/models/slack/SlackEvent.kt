@@ -17,5 +17,6 @@ data class SlackEvent(@field:SerializedName("token") val token: String?,
                       @field:SerializedName("authed_users") val users: MutableList<String>?,
                       @field:SerializedName("actions") val actions: MutableList<Action>?,
                       @field:SerializedName("callback_id") val callbackId: String?,
-                      @field:SerializedName("response_url") val responseUrl: String?
+                      @field:SerializedName("response_url") val responseUrl: String?,
+                      @field:SerializedName("trigger_id") val triggerId: String?
 )
