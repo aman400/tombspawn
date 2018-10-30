@@ -70,8 +70,6 @@ interface SlackApi {
     ): Observable<Response<BotInfo>>
 }
 
-private const val OUTPUT_SEPARATOR = "##***##"
-private const val ARA_OUTPUT_SEPARATOR = "OUTPUT_SEPARATOR"
 private val LOGGER = Logger.getLogger("SlackClient")
 
 fun Routing.subscribe() {
@@ -124,18 +122,6 @@ fun Routing.slackAction(slackAuthToken: String, consumerAppDir: String, gradlePa
     }
 }
 
-private fun fetchAllBranches(gradlePath: String, dirName: String): List<String>? {
-    val executableCommand = "$gradlePath fetchRemoteBranches -P$ARA_OUTPUT_SEPARATOR=$OUTPUT_SEPARATOR"
-    val response = executableCommand.execute(File(dirName))
-    response?.let {
-        val parsedResponse = it.split(OUTPUT_SEPARATOR)
-        if (parsedResponse.size >= 2) {
-            return parsedResponse[1].split("\n")
-        }
-    }
-    return null
-}
-
 private suspend fun fetchUser(userId: String, authToken: String, database: Database) = run {
     val api = ServiceGenerator.createService(
         SlackApi::class.java, SlackApi.BASE_URL,
@@ -176,9 +162,9 @@ private suspend fun subscribeSlackEvent(authToken: String, database: Database, s
                         when (event.text?.substringAfter("<@${bot.slackId}>", event.text)?.trim()) {
                             Constants.Slack.TYPE_SUBSCRIBE_CONSUMER -> {
                                 println("Valid Event Consumer")
-                                fetchAllBranches(gradlePath, consumerAppDir)?.let { branches ->
-                                    sendChooseBranchAction(branches, slackEvent, authToken)
-                                }
+//                                fetchAllBranches(gradlePath, consumerAppDir)?.let { branches ->
+//                                    sendChooseBranchAction(branches, slackEvent, authToken)
+//                                }
                             }
                             Constants.Slack.TYPE_SUBSCRIBE_FLEET -> {
                                 println("Valid Event Fleet")

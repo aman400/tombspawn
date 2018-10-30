@@ -8,7 +8,7 @@ data class Repository(
 	val stargazersCount: Int? = null,
 
     @field:SerializedName("pushed_at")
-	val pushedAt: Int? = null,
+	val pushedAt: String? = null,
 
     @field:SerializedName("subscription_url")
 	val subscriptionUrl: String? = null,
@@ -116,7 +116,7 @@ data class Repository(
 	val description: String? = null,
 
     @field:SerializedName("created_at")
-	val createdAt: Int? = null,
+	val createdAt: String? = null,
 
     @field:SerializedName("watchers")
 	val watchers: Int? = null,

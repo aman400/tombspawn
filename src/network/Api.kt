@@ -235,16 +235,16 @@ private fun uploadFile(file: File, channelId: String, token: String, deleteFile:
 }
 
 @Throws(Exception::class)
-fun fetchBotData(database: Database, botToken: String): Disposable = runBlocking {
+fun fetchBotData(database: Database, botToken: String) = runBlocking {
     val api = ServiceGenerator.createService(SlackApi::class.java, SlackApi.BASE_URL, true, callAdapterFactory = RxJava2CallAdapterFactory.create())
     val headers = mutableMapOf("Content-type" to "application/x-www-form-urlencoded")
     val call = api.fetchBotInfo(headers, botToken)
-    call.subscribeOn(Schedulers.io()).subscribe({ response ->
+    call.subscribeOn(Schedulers.io()).blockingSubscribe({ response ->
         if(response.isSuccessful) {
             val botInfo = response.body()
             botInfo?.let {
                 if(botInfo.ok) {
-                    GlobalScope.launch {
+                    runBlocking {
                         it.self?.let { about ->
                             database.addUser(about.id!!, about.name, typeString = Constants.Database.USER_TYPE_BOT)
                         }

@@ -5,6 +5,12 @@ class Constants {
         companion object {
             const val HEADER_CONTENT_TYPE = "Content-type"
             const val VALUE_FORM_ENCODE = "application/x-www-form-urlencoded"
+
+            const val APP_CONSUMER = "consumer"
+            const val APP_FLEET = "fleet"
+
+            const val OUTPUT_SEPARATOR = "##***##"
+            const val ARG_OUTPUT_SEPARATOR = "OUTPUT_SEPARATOR"
         }
     }
 

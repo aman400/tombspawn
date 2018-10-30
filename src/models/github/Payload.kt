@@ -1,7 +1,7 @@
 package models.github
 
 import com.google.gson.annotations.SerializedName
-import sun.jvm.hotspot.debugger.cdbg.RefType
+import com.ramukaka.models.github.RefType
 
 data class Payload(
 

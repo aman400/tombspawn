@@ -6,5 +6,7 @@ enum class RefType(val type: String) {
     @field:SerializedName("branch")
     BRANCH("branch"),
     @field:SerializedName("tag")
-    TAG("tag")
+    TAG("tag"),
+    @field:SerializedName("repository")
+    REPOSITORY("repository")
 }

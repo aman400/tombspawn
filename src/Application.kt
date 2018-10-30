@@ -1,11 +1,10 @@
 package com.ramukaka
 
 import com.ramukaka.data.Database
-import com.ramukaka.network.githubWebhook
+import com.ramukaka.extensions.execute
+import com.ramukaka.network.*
 import com.ramukaka.network.interceptors.LoggingInterceptor
-import com.ramukaka.network.slackAction
-import com.ramukaka.network.slackEvent
-import com.ramukaka.network.subscribe
+import com.ramukaka.utils.Constants
 import io.ktor.application.Application
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
@@ -18,6 +17,9 @@ import io.ktor.locations.Location
 import io.ktor.locations.Locations
 import io.ktor.request.path
 import io.ktor.routing.routing
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import network.*
 import org.slf4j.event.Level
 import java.io.File
@@ -105,6 +107,15 @@ fun Application.module() {
 
     val database = Database(this, DB_URL, DB_USER, DB_PASSWORD)
     fetchBotData(database, BOT_TOKEN)
+    val apps = mutableListOf(Constants.Common.APP_CONSUMER, Constants.Common.APP_FLEET)
+    runBlocking { database.addApps(apps) }
+
+    GlobalScope.launch {
+        val branches = fetchAllBranches(GRADLE_PATH, CONSUMER_APP_DIR)
+        branches?.let {
+            database.addBranches(it, Constants.Common.APP_CONSUMER)
+        }
+    }
 
     routing {
         status()
@@ -115,9 +126,25 @@ fun Application.module() {
         slackEvent(O_AUTH_TOKEN, database, GRADLE_PATH, CONSUMER_APP_DIR)
         subscribe()
         slackAction(O_AUTH_TOKEN, CONSUMER_APP_DIR, GRADLE_PATH)
-        githubWebhook()
+        githubWebhook(database)
     }
 }
+
+fun fetchAllBranches(gradlePath: String, dirName: String): List<String>? {
+    val executableCommand = "$gradlePath fetchRemoteBranches -P${Constants.Common.ARG_OUTPUT_SEPARATOR}=${Constants.Common.OUTPUT_SEPARATOR}"
+    val response = executableCommand.execute(File(dirName))
+    response?.let {
+        val parsedResponse = it.split(Constants.Common.OUTPUT_SEPARATOR)
+        if (parsedResponse.size >= 2) {
+            return parsedResponse[1]
+                .split("\n")
+                .filter { item -> item.isNotEmpty() }
+                .map { item -> item.substringAfter("origin/") }
+        }
+    }
+    return null
+}
+
 
 @Location("/app")
 data class Apk(val file: File)
