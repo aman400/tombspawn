@@ -27,12 +27,20 @@ class Constants {
             const val CHANNEL = "channel"
             const val TEXT = "text"
             const val ATTACHMENTS = "attachments"
+            const val DIALOG = "dialog"
+
+            const val CALLBACK_SUBSCRIBE_CONSUMER = "subscribe_consumer_details"
 
             const val TYPE_SUBSCRIBE_CONSUMER = "subscribe-consumer"
             const val TYPE_SUBSCRIBE_FLEET = "subscribe-fleet"
             const val ATTACHMENT_TYPE_SELECT: String = "select"
             const val ATTACHMENT_TYPE_DEFAULT: String = "default"
             const val ACTION_CHOOSE_BRANCH: String = "choose_branch"
+            const val TRIGGER_ID: String = "trigger_id"
+            const val EVENT_TYPE_MESSAGE_ACTION: String = "message_action"
+            const val EVENT_TYPE_DIALOG: String = "dialog_submission"
+            const val TYPE_SELECT_BRANCH: String = "select_branch"
+            const val TYPE_SELECT_URL: String = "app_url"
         }
     }
 
@@ -42,6 +50,7 @@ class Constants {
             const val HEADER_VALUE_EVENT_PUSH = "push"
             const val HEADER_VALUE_EVENT_DELETE: String = "delete"
             const val HEADER_VALUE_EVENT_CREATE: String = "create"
+            const val HEADER_VALUE_EVENT_PING: String = "ping"
         }
     }
 

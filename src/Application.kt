@@ -20,7 +20,10 @@ import io.ktor.routing.routing
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import network.*
+import network.fetchBotData
+import network.health
+import network.receiveApk
+import network.status
 import org.slf4j.event.Level
 import java.io.File
 
@@ -121,11 +124,11 @@ fun Application.module() {
         status()
         health()
         buildConsumer(GRADLE_PATH, UPLOAD_DIR_PATH, CONSUMER_APP_DIR, BOT_TOKEN)
-        buildFleet(GRADLE_PATH, UPLOAD_DIR_PATH, FLEET_APP_DIR, BOT_TOKEN)
+        buildFleet(database, GRADLE_PATH, UPLOAD_DIR_PATH, FLEET_APP_DIR, BOT_TOKEN)
         receiveApk(UPLOAD_DIR_PATH)
-        slackEvent(O_AUTH_TOKEN, database, GRADLE_PATH, CONSUMER_APP_DIR)
+        slackEvent(O_AUTH_TOKEN, database)
         subscribe()
-        slackAction(O_AUTH_TOKEN, CONSUMER_APP_DIR, GRADLE_PATH)
+        slackAction(database, O_AUTH_TOKEN)
         githubWebhook(database)
     }
 }

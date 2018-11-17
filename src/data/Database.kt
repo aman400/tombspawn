@@ -5,6 +5,7 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.ktor.application.Application
 import kotlinx.coroutines.newFixedThreadPoolContext
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.dao.EntityID
 import org.jetbrains.exposed.dao.IntEntity
@@ -39,6 +40,42 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
         connection = Database.connect(connectionPool)
         transaction(connection) {
             SchemaUtils.create(Users, UserTypes, Apps, Branches, Subscriptions)
+        }
+    }
+
+    /**
+     * Subscribe user to a branch
+     */
+    suspend fun subscribeUser(userId: String, appName: String, branchName: String, channel: String): Boolean =
+        withContext(dispatcher) {
+            return@withContext transaction(connection) {
+                addLogger(StdOutSqlLogger)
+                val user = User.find { Users.slackId eq userId }.first()
+                val app = App.find { Apps.name eq appName }.first()
+                val branch = Branch.find { Branches.name eq branchName }.first()
+                if(runBlocking(coroutineContext) {!isUserSubscribed(user, app, branch)}) {
+                    val data = Subscription.new {
+                        this.appId = app
+                        this.branchId = branch
+                        this.channel = channel
+                        this.userId = user
+                    }
+                    return@transaction true
+                } else {
+                    return@transaction false
+                }
+            }
+        }
+
+    /**
+     * Checks if user is already subscribed to a branch or not.
+     */
+    suspend fun isUserSubscribed(user: User, app: App, branch: Branch): Boolean = withContext(dispatcher) {
+        return@withContext transaction(connection) {
+            addLogger(StdOutSqlLogger)
+            return@transaction !Subscription.find {
+                (Subscriptions.userId eq user.id) and (Subscriptions.appId eq app.id) and (Subscriptions.branchId eq branch.id)
+            }.empty()
         }
     }
 
@@ -124,6 +161,14 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
         }
     }
 
+    suspend fun getBranches(app: String): List<Branch>? = withContext(dispatcher) {
+        return@withContext transaction(connection) {
+            addLogger(StdOutSqlLogger)
+            Branch.wrapRows(Branches.leftJoin(Apps, { Branches.appId }, { Apps.id }).select { Apps.name eq app })
+                .toList()
+        }
+    }
+
     suspend fun addBranch(branch: String, app: String) = withContext(dispatcher) {
         return@withContext transaction(connection) {
             addLogger(StdOutSqlLogger)
@@ -150,7 +195,7 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
             addLogger(StdOutSqlLogger)
             branches.forEach { branch ->
                 val application = App.find { Apps.name eq app }.firstOrNull()
-                if (Branch.find {(Branches.name eq(branch) and (Branches.appId eq application!!.id))}.empty()) {
+                if (Branch.find { (Branches.name eq (branch) and (Branches.appId eq application!!.id)) }.empty()) {
                     Branch.new {
                         this.branchName = branch
                         this.deleted = false
@@ -245,8 +290,8 @@ private object Subscriptions : IntIdTable() {
 class Subscription(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<Subscription>(Subscriptions)
 
-    val userId by User referencedOn Subscriptions.userId
-    val branchId by Branch referencedOn Subscriptions.branchId
-    val appId by App referencedOn Subscriptions.appId
-    val channel by Subscriptions.channel
+    var userId by User referencedOn Subscriptions.userId
+    var branchId by Branch referencedOn Subscriptions.branchId
+    var appId by App referencedOn Subscriptions.appId
+    var channel by Subscriptions.channel
 }

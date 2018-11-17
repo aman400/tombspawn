@@ -13,19 +13,19 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 class ServiceGenerator {
     companion object {
-        val MULTIPART_FORM_DATA = "multipart/form-data"
-        private val CACHE_SIZE = 10 * 1024 * 1024 // 10 MiB
-        private val CACHE_DIRECTORY = "Lazy Socket cache"
+        const val MULTIPART_FORM_DATA = "multipart/form-data"
 
         private val retrofitBuilder = Retrofit.Builder()
 
         fun <T> createService(
-            serviceClass: Class<T>, url: String, isLoggingEnabled: Boolean = false, isGzipEnabled: Boolean = false,
+            serviceClass: Class<T>, url: String? = null, isLoggingEnabled: Boolean = false, isGzipEnabled: Boolean = false,
             cache: Cache? = null, headers: MutableMap<String, String>? = null,
             typeAdapterFactory: TypeAdapterFactory? = null, callAdapterFactory: CallAdapter.Factory?= null
         ): T {
 
-            retrofitBuilder.baseUrl(url)
+            url?.let {
+                retrofitBuilder.baseUrl(it)
+            }
             if(callAdapterFactory != null) {
                 retrofitBuilder.addCallAdapterFactory(callAdapterFactory)
             }

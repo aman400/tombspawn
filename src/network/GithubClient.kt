@@ -15,7 +15,7 @@ import models.github.Payload
 @Location("/github")
 class GithubApi {
 
-    @Location("/payload/")
+    @Location("/payload")
     class Webhook
 }
 
@@ -42,6 +42,14 @@ fun Routing.githubWebhook(database: Database) {
                 call.respond(HttpStatusCode.OK)
                 database.deleteBranch(payload.ref!!)
                 println("Branch deleted")
+            }
+
+            headers[Constants.Github.HEADER_KEY_EVENT] == Constants.Github.HEADER_VALUE_EVENT_PING -> {
+                call.respond(HttpStatusCode.OK)
+            }
+
+            else -> {
+                call.respond(HttpStatusCode.OK)
             }
         }
     }
