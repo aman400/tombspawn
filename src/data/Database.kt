@@ -4,6 +4,7 @@ import com.ramukaka.utils.Constants
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.ktor.application.Application
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.newFixedThreadPoolContext
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -15,6 +16,7 @@ import org.jetbrains.exposed.exceptions.ExposedSQLException
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.util.concurrent.Executors
 import kotlin.coroutines.CoroutineContext
 
 
@@ -34,7 +36,7 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
         config.addDataSourceProperty("prepStmtCacheSize", "250")
         config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048")
         config.validate()
-        dispatcher = newFixedThreadPoolContext(20, "database-pool")
+        dispatcher = Executors.newFixedThreadPool(20).asCoroutineDispatcher()
 
         connectionPool = HikariDataSource(config)
         connection = Database.connect(connectionPool)

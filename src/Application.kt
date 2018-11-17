@@ -17,6 +17,7 @@ import io.ktor.locations.Location
 import io.ktor.locations.Locations
 import io.ktor.request.path
 import io.ktor.routing.routing
+import io.ktor.server.netty.EngineMain
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -27,7 +28,7 @@ import network.status
 import org.slf4j.event.Level
 import java.io.File
 
-fun main(args: Array<String>): Unit = io.ktor.server.netty.DevelopmentEngine.main(args)
+fun main(args: Array<String>): Unit = EngineMain.main(args)
 
 private var UPLOAD_DIR_PATH = "${System.getProperty("user.dir")}/temp"
 private var GRADLE_PATH = System.getenv()["GRADLE_PATH"]!!
