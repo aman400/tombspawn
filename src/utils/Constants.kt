@@ -18,28 +18,35 @@ class Constants {
         companion object {
 
             const val SUBSCRIBE_GENERATE_APK = "subscribe_generate_apk"
+            const val CALLBACK_CONFIRM_GENERATE_APK = "confirm_generate_apk"
+            const val CALLBACK_GENERATE_APK = "generate_apk"
+            const val ACTION_CONFIRM = "true"
+            const val ACTION_REJECT = "false"
             const val EVENT_TYPE_MESSAGE = "message"
             const val EVENT_TYPE_APP_MENTION = "app_mention"
             const val EVENT_TYPE_VERIFICATION = "url_verification"
             const val EVENT_TYPE_CALLBACK = "event_callback"
             const val EVENT_TYPE_RATE_LIMIT = "app_rate_limited"
+
             const val TOKEN = "token"
             const val CHANNEL = "channel"
             const val TEXT = "text"
             const val ATTACHMENTS = "attachments"
             const val DIALOG = "dialog"
+            const val USER = "user"
 
             const val CALLBACK_SUBSCRIBE_CONSUMER = "subscribe_consumer_details"
 
             const val TYPE_SUBSCRIBE_CONSUMER = "subscribe-consumer"
             const val TYPE_SUBSCRIBE_FLEET = "subscribe-fleet"
-            const val ATTACHMENT_TYPE_SELECT: String = "select"
-            const val ATTACHMENT_TYPE_DEFAULT: String = "default"
             const val ACTION_CHOOSE_BRANCH: String = "choose_branch"
             const val TRIGGER_ID: String = "trigger_id"
             const val EVENT_TYPE_MESSAGE_ACTION: String = "message_action"
+            const val EVENT_TYPE_INTERACTIVE_MESSAGE: String = "interactive_message"
             const val EVENT_TYPE_DIALOG: String = "dialog_submission"
             const val TYPE_SELECT_BRANCH: String = "select_branch"
+            const val TYPE_SELECT_BUILD_TYPE: String = "select_build_type"
+            const val TYPE_SELECT_FLAVOUR: String = "select_flavour"
             const val TYPE_SELECT_URL: String = "app_url"
         }
     }

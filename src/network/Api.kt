@@ -4,7 +4,7 @@ import com.ramukaka.Apk
 import com.ramukaka.data.Database
 import com.ramukaka.extensions.copyToSuspend
 import com.ramukaka.network.ServiceGenerator
-import com.ramukaka.network.SlackApi
+import com.ramukaka.network.SlackClient
 import com.ramukaka.utils.Constants
 import io.ktor.application.call
 import io.ktor.http.content.PartData
@@ -15,7 +15,7 @@ import io.ktor.request.receiveMultipart
 import io.ktor.response.respond
 import io.ktor.routing.Routing
 import io.ktor.routing.get
-import io.reactivex.schedulers.Schedulers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import java.io.File
@@ -65,17 +65,17 @@ fun Routing.receiveApk(uploadDirPath: String) {
 }
 
 @Throws(Exception::class)
-fun fetchBotData(database: Database, botToken: String) = runBlocking {
+suspend fun fetchBotData(database: Database, botToken: String) = runBlocking {
     val api = ServiceGenerator.createService(
-        SlackApi::class.java,
-        SlackApi.BASE_URL,
+        SlackClient.SlackApi::class.java,
+        SlackClient.SlackApi.BASE_URL,
         true,
         callAdapterFactory = RxJava2CallAdapterFactory.create()
     )
     val headers = mutableMapOf("Content-type" to "application/x-www-form-urlencoded")
-    val call = api.fetchBotInfo(headers, botToken)
-    call.subscribeOn(Schedulers.io()).blockingSubscribe({ response ->
-        if (response.isSuccessful) {
+    launch(coroutineContext) {
+        val response = api.fetchBotInfo(headers, botToken).execute()
+        if(response.isSuccessful) {
             val botInfo = response.body()
             botInfo?.let {
                 if (botInfo.ok) {
@@ -86,9 +86,10 @@ fun fetchBotData(database: Database, botToken: String) = runBlocking {
                     }
                 }
             }
+        } else {
+            response.errorBody()?.charStream()?.use {
+                println(it.readText())
+            }
         }
-    }, {
-        it.printStackTrace()
-        throw it
-    })
+    }
 }

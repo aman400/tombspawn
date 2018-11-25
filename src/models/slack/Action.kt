@@ -4,24 +4,45 @@ import com.google.gson.annotations.SerializedName
 
 data class Action(
 
-	@field:SerializedName("confirm")
+	@SerializedName("confirm")
 	val confirm: Confirm? = null,
 
-	@field:SerializedName("name")
+	@SerializedName("name")
 	val name: String? = null,
 
-	@field:SerializedName("text")
+	@SerializedName("text")
 	val text: String? = null,
 
-	@field:SerializedName("type")
-	val type: String? = null,
+	@SerializedName("type")
+	val type: ActionType? = ActionType.DEFAULT,
 
-	@field:SerializedName("value")
+	@SerializedName("value")
 	val value: String? = null,
 
-	@field:SerializedName("options")
+	@SerializedName("options")
 	val options: List<Option>? = null,
 
-	@field:SerializedName("url")
-	val url: String? = null
-)
+	@SerializedName("url")
+	val url: String? = null,
+
+	@SerializedName("style")
+	val style: ActionStyle = ActionStyle.DEFAULT
+) {
+	enum class ActionType(val value: String) {
+		@SerializedName("default")
+		DEFAULT("default"),
+		@SerializedName("button")
+		BUTTON("button"),
+		@SerializedName("select")
+		SELECT("select")
+	}
+
+	enum class ActionStyle(val value: String) {
+		@SerializedName("default")
+		DEFAULT("default"),
+		@SerializedName("danger")
+		DANGER("danger"),
+		@SerializedName("primary")
+		PRIMARY("primary")
+	}
+}

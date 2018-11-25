@@ -45,6 +45,31 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
         }
     }
 
+    suspend fun findSubscriptions(branchName: String): List<ResultRow>? = withContext(dispatcher) {
+        try {
+            return@withContext transaction(connection) {
+                addLogger(StdOutSqlLogger)
+
+                val query = Subscriptions.leftJoin(Branches, {
+                    this.branchId
+                }, {
+                    this.id
+                }).innerJoin(Users, {
+                    Subscriptions.userId
+                }, {
+                    Users.id
+                }).slice(Users.slackId, Subscriptions.channel, Branches.name).select {
+                    Branches.name eq branchName
+                }.withDistinct(true)
+
+                return@transaction query.toList()
+
+            }
+        } catch (exception: Exception) {
+            return@withContext null
+        }
+    }
+
     /**
      * Subscribe user to a branch
      */
@@ -55,7 +80,7 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
                 val user = User.find { Users.slackId eq userId }.first()
                 val app = App.find { Apps.name eq appName }.first()
                 val branch = Branch.find { Branches.name eq branchName }.first()
-                if(runBlocking(coroutineContext) {!isUserSubscribed(user, app, branch)}) {
+                if (runBlocking(coroutineContext) { !isUserSubscribed(user, app, branch) }) {
                     val data = Subscription.new {
                         this.appId = app
                         this.branchId = branch
@@ -210,7 +235,7 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
     }
 }
 
-private object Users : IntIdTable() {
+object Users : IntIdTable() {
     val name = varchar("name", 100).nullable()
     val email = varchar("email", 50).nullable()
     val slackId = varchar("slack_id", 50).index(isUnique = true)
@@ -247,7 +272,7 @@ class App(id: EntityID<Int>) : IntEntity(id) {
     var name by Apps.name
 }
 
-private object Branches : IntIdTable() {
+object Branches : IntIdTable() {
     val name = varchar("branch_name", 100).uniqueIndex().primaryKey()
     val deleted = bool("deleted").default(false)
     val appId = reference("app_id", Apps, ReferenceOption.CASCADE, ReferenceOption.RESTRICT).primaryKey()
@@ -262,7 +287,7 @@ class Branch(id: EntityID<Int>) : IntEntity(id) {
     var deleted by Branches.deleted
 }
 
-private object Subscriptions : IntIdTable() {
+object Subscriptions : IntIdTable() {
     val userId = reference(
         "user_id",
         Users,
@@ -282,7 +307,7 @@ private object Subscriptions : IntIdTable() {
             onDelete = ReferenceOption.CASCADE,
             onUpdate = ReferenceOption.RESTRICT
         ).primaryKey()
-    val channel = varchar("channel_id", 100)
+    val channel = varchar("channel_id", 100).primaryKey()
 
     init {
         index(true, userId, branchId, appId)

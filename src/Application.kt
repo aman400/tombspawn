@@ -110,7 +110,9 @@ fun Application.module() {
     }
 
     val database = Database(this, DB_URL, DB_USER, DB_PASSWORD)
-    fetchBotData(database, BOT_TOKEN)
+    runBlocking {
+        fetchBotData(database, BOT_TOKEN)
+    }
     val apps = mutableListOf(Constants.Common.APP_CONSUMER, Constants.Common.APP_FLEET)
     runBlocking { database.addApps(apps) }
 
@@ -121,16 +123,18 @@ fun Application.module() {
         }
     }
 
+    val slackClient = SlackClient(O_AUTH_TOKEN, BOT_TOKEN, GRADLE_PATH, UPLOAD_DIR_PATH)
+
     routing {
         status()
         health()
-        buildConsumer(GRADLE_PATH, UPLOAD_DIR_PATH, CONSUMER_APP_DIR, BOT_TOKEN)
-        buildFleet(database, GRADLE_PATH, UPLOAD_DIR_PATH, FLEET_APP_DIR, BOT_TOKEN)
+        buildConsumer(CONSUMER_APP_DIR, slackClient)
+        buildFleet(FLEET_APP_DIR, slackClient)
         receiveApk(UPLOAD_DIR_PATH)
-        slackEvent(O_AUTH_TOKEN, database)
+        slackEvent(database, slackClient)
         subscribe()
-        slackAction(database, O_AUTH_TOKEN)
-        githubWebhook(database)
+        slackAction(database, slackClient, CONSUMER_APP_DIR)
+        githubWebhook(database, slackClient)
     }
 }
 
@@ -143,7 +147,6 @@ fun fetchAllBranches(gradlePath: String, dirName: String): List<String>? {
             return parsedResponse[1]
                 .split("\n")
                 .filter { item -> item.isNotEmpty() }
-                .map { item -> item.substringAfter("origin/") }
         }
     }
     return null

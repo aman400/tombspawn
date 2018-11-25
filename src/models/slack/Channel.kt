@@ -2,5 +2,6 @@ package com.ramukaka.models.slack
 
 import com.google.gson.annotations.SerializedName
 
-class Channel(@field:SerializedName("id") val id: String?,
-              @field:SerializedName("name") val name: String?)
+class Channel(@SerializedName("id") val id: String?,
+              @SerializedName("name") val name: String?,
+              @SerializedName("is_member") val member: Boolean?)
