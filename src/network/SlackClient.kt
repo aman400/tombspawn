@@ -325,7 +325,9 @@ class SlackClient(
     ) {
         val userAppPrefix = buildData?.get(Constants.Slack.TYPE_SELECT_APP_PREFIX)?.trim()
 
-        val APKPrefix = "${userAppPrefix ?: ""}${System.currentTimeMillis()}"
+        val APKPrefix = "${userAppPrefix?.let {
+            "$it-"
+        } ?: ""}${System.currentTimeMillis()}"
 
         buildData?.remove(Constants.Slack.TYPE_SELECT_APP_PREFIX)
 
@@ -344,7 +346,7 @@ class SlackClient(
             }
         }
 
-        GlobalScope.launch(coroutineContext) {
+        GlobalScope.launch(Dispatchers.IO) {
             println(executableCommand)
             val commandResponse = executableCommand.execute(File(appDir))
 
