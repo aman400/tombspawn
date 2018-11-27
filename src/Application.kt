@@ -13,11 +13,15 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.features.*
 import io.ktor.gson.gson
+import io.ktor.http.HttpStatusCode
+import io.ktor.locations.KtorExperimentalLocationsAPI
 import io.ktor.locations.Location
 import io.ktor.locations.Locations
 import io.ktor.request.path
+import io.ktor.response.respond
 import io.ktor.routing.routing
 import io.ktor.server.netty.EngineMain
+import io.ktor.util.error
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -25,6 +29,7 @@ import network.fetchBotData
 import network.health
 import network.receiveApk
 import network.status
+import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import java.io.File
 
@@ -40,8 +45,16 @@ private var DB_URL = System.getenv()["DB_URL"]!!
 private var DB_USER = System.getenv()["DB_USER"]!!
 private var DB_PASSWORD = System.getenv()["DB_PASSWORD"]!!
 
+@KtorExperimentalLocationsAPI
 @Suppress("unused") // Referenced in application.conf
 fun Application.module() {
+    val LOGGER = LoggerFactory.getLogger(Application::class.java.simpleName)
+    install(StatusPages) {
+        exception<Throwable> { cause ->
+            LOGGER.error(cause)
+            call.respond(HttpStatusCode.InternalServerError)
+        }
+    }
 
     install(Locations) {
     }
