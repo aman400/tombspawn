@@ -12,24 +12,24 @@ import com.ramukaka.models.locations.Slack
 import com.ramukaka.models.slack.*
 import com.ramukaka.utils.Constants
 import io.ktor.application.call
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
 import io.ktor.locations.post
 import io.ktor.request.receive
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.Routing
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import models.slack.Action
 import models.slack.BotInfo
 import models.slack.Confirm
-import models.slack.Option
 import okhttp3.MediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Call
-import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import retrofit2.http.*
 import java.io.File
 import java.util.logging.Logger
@@ -102,12 +102,26 @@ fun Routing.slackAction(database: Database, slackClient: SlackClient, consumerAp
                 slackEvent.actions?.forEach { action ->
                     when (action.name) {
                         Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK -> {
+                            val updatedMessage = slackEvent.originalMessage?.copy(attachments = null)
                             if (action.value!!.toBoolean()) {
+                                updatedMessage?.apply {
+                                    attachments = mutableListOf(
+                                        Attachment(text = ":crossed_fingers: Your APK will be generated soon.")
+                                    )
+                                }
                                 slackClient.sendShowGenerateApkDialog(
-                                    null, null, null,
+                                    null, null, null, Gson().toJson(updatedMessage),
                                     slackEvent.triggerId!!
                                 )
                             } else {
+                                updatedMessage?.apply {
+                                    attachments = mutableListOf(
+                                        Attachment(text = ":slightly_smiling_face: Thanks for saving the server resources.")
+                                    )
+                                    launch(Dispatchers.IO) {
+                                        slackClient.updateMessage(updatedMessage, slackEvent.channel?.id!!)
+                                    }
+                                }
                                 println("Not generating the APK")
                             }
                         }
@@ -136,25 +150,25 @@ fun Routing.slackAction(database: Database, slackClient: SlackClient, consumerAp
                                     }
                                 }
                                 val branch = slackEvent.dialogResponse?.get(Constants.Slack.TYPE_SELECT_BRANCH)
-                                val channel = slackEvent.channel?.id
-                                if (branch != null && channel != null) {
+                                val channelId = slackEvent.channel?.id
+                                if (branch != null) {
 
                                     if (slackEvent.responseUrl != null) {
                                         if (database.subscribeUser(
                                                 userId,
                                                 Constants.Common.APP_CONSUMER,
                                                 branch,
-                                                channel
+                                                channelId!!
                                             )
                                         ) {
-                                            launch(coroutineContext) {
+                                            launch(Dispatchers.IO) {
                                                 slackClient.sendMessage(
                                                     slackEvent.responseUrl,
                                                     RequestData(response = "You are successfully subscribed to $branch")
                                                 )
                                             }
                                         } else {
-                                            launch(coroutineContext) {
+                                            launch(Dispatchers.IO) {
                                                 slackClient.sendMessage(
                                                     slackEvent.responseUrl,
                                                     RequestData(response = "You are already subscribed to $branch")
@@ -171,8 +185,17 @@ fun Routing.slackAction(database: Database, slackClient: SlackClient, consumerAp
                     }
 
                     Constants.Slack.CALLBACK_GENERATE_APK -> {
+                        slackEvent.echoed?.let { echoed ->
+                            launch(Dispatchers.IO) {
+                                slackClient.updateMessage(Gson().fromJson(echoed, SlackMessage::class.java), slackEvent.channel?.id!!)
+                            }
+                        }
                         slackClient.generateAndUploadApk(
-                            slackEvent.dialogResponse, slackEvent.channel?.id ?: "general", consumerAppDir, slackEvent.responseUrl)
+                            slackEvent.dialogResponse?.toMutableMap(),
+                            slackEvent.channel?.id ?: "general",
+                            consumerAppDir,
+                            slackEvent.responseUrl
+                        )
                     }
                 }
             }
@@ -190,6 +213,7 @@ fun Routing.buildConsumer(appDir: String, slackClient: SlackClient) {
 
         text?.trim()?.toMap()?.let { buildData ->
             slackClient.generateAndUploadApk(buildData, channelId!!, appDir, responseUrl)
+            call.respond(HttpStatusCode.OK)
         }
             ?: call.respond("Invalid command. Usage: '/build BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'.")
     }
@@ -207,7 +231,7 @@ fun Routing.buildFleet(appDir: String, slackClient: SlackClient) {
 
         text?.trim()?.toMap()?.let { buildData ->
             slackClient.generateAndUploadApk(buildData, channelId!!, appDir, responseUrl)
-            call.respond(randomWaitingMessages.random()!!)
+            call.respond(HttpStatusCode.OK)
         }
             ?: call.respond("Invalid command. Usage: '/build BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'.")
     }
@@ -239,9 +263,21 @@ class SlackClient(
         @POST("/api/chat.postEphemeral")
         fun sendMessageEphemeral(@HeaderMap headers: MutableMap<String, String>, @FieldMap body: MutableMap<String, String?>): Call<JsonObject>
 
-        @FormUrlEncoded
         @GET("/api/channels.info")
-        fun getChannelInfo(@QueryMap queryParams: Map<String, String>): Call<ChannelInfoResponse>
+        fun getChannelInfo(
+            @HeaderMap headers: MutableMap<String, String>, @Query(Constants.Slack.TOKEN) token: String,
+            @Query(Constants.Slack.CHANNEL) channelId: String
+        ): Call<ChannelInfoResponse>
+
+        @FormUrlEncoded
+        @POST("/api/chat.update")
+        fun updateMessage(
+            @Field(Constants.Slack.TOKEN) token: String,
+            @Field(Constants.Slack.CHANNEL) channel: String,
+            @Field(Constants.Slack.TEXT) text: String,
+            @Field(Constants.Slack.TS) timestamp: String,
+            @Field(Constants.Slack.ATTACHMENTS) attachments: String?
+        ): Call<JsonObject>
 
         @Multipart
         @POST("/api/files.upload")
@@ -258,7 +294,7 @@ class SlackClient(
         fun sendMessage(
             @HeaderMap header: MutableMap<String, String>, @Url url: String,
             @Body requestBody: RequestData?
-        ): Call<JsonObject>
+        ): Call<String>
 
         @GET("/api/rtm.connect")
         fun fetchBotInfo(
@@ -267,32 +303,55 @@ class SlackClient(
         ): Call<BotInfo>
     }
 
+    suspend fun updateMessage(updatedMessage: SlackMessage, channel: String) = GlobalScope.launch(coroutineContext) {
+        val api = ServiceGenerator.createService(SlackApi::class.java, isLoggingEnabled = true)
+
+        val response = api.updateMessage(
+            slackAuthToken, channel, updatedMessage.message ?: "",
+            updatedMessage.timestamp!!, Gson().toJson(updatedMessage.attachments)
+        ).execute()
+        if (response.isSuccessful) {
+            println(response.body())
+        } else {
+            println(response.errorBody())
+        }
+    }
+
     suspend fun generateAndUploadApk(
-        buildData: Map<String, String>?,
+        buildData: MutableMap<String, String>?,
         channelId: String,
         appDir: String,
         responseUrl: String? = null
     ) {
-        val APKPrefix = System.currentTimeMillis()
+        val userAppPrefix = buildData?.get(Constants.Slack.TYPE_SELECT_APP_PREFIX)?.trim()
+
+        val APKPrefix = "${userAppPrefix ?: ""}${System.currentTimeMillis()}"
+
+        buildData?.remove(Constants.Slack.TYPE_SELECT_APP_PREFIX)
 
         var executableCommand =
-            "$gradlePath assembleWithArgs -PFILE_PATH=$uploadDirPath -PAPP_PREFIX=$APKPrefix"
+            "$gradlePath assembleWithArgs -PFILE_PATH=$uploadDirPath -P${Constants.Slack.TYPE_SELECT_APP_PREFIX}=$APKPrefix"
 
         buildData?.forEach { key, value ->
             executableCommand += " -P$key=$value"
         }
 
-        GlobalScope.launch(coroutineContext) {
-            if(responseUrl != null) {
+        GlobalScope.launch(Dispatchers.IO) {
+            if (responseUrl != null) {
+                sendMessage(responseUrl, RequestData(response = randomWaitingMessages.random()!!))
+            } else {
                 sendMessage(randomWaitingMessages.random()!!, channelId, null)
             }
+        }
+
+        GlobalScope.launch(coroutineContext) {
             println(executableCommand)
             val commandResponse = executableCommand.execute(File(appDir))
 
             val tempDirectory = File(uploadDirPath)
             if (tempDirectory.exists()) {
                 val firstFile = tempDirectory.listFiles { _, name ->
-                    name.contains("$APKPrefix", true)
+                    name.contains(APKPrefix, true)
                 }.firstOrNull()
                 firstFile?.let { file ->
                     if (file.exists()) {
@@ -378,24 +437,34 @@ class SlackClient(
     }
 
 
-    suspend fun fetchUser(userId: String, database: Database) = run {
+    suspend fun fetchUser(userId: String, database: Database) = GlobalScope.launch(coroutineContext) {
+        database.addUser(
+            userId,
+            null,
+            null,
+            Constants.Database.USER_TYPE_USER
+        )
+
+        launch(Dispatchers.IO) {
+            fetchAndUpdateUser(userId, database)
+        }
+    }
+
+    private suspend fun fetchAndUpdateUser(userId: String, database: Database) = GlobalScope.launch(coroutineContext) {
         val api = ServiceGenerator.createService(
             SlackApi::class.java, SlackApi.BASE_URL,
-            true, callAdapterFactory = RxJava2CallAdapterFactory.create()
+            true
         )
         val queryParams = mutableMapOf<String, String>()
         queryParams[SlackApi.PARAM_TOKEN] = slackAuthToken
         queryParams[SlackApi.PARAM_USER_ID] = userId
-        GlobalScope.launch(coroutineContext) {
-            val response = api.getProfile(queryParams).execute()
-            if (response.isSuccessful) {
-                database.addUser(
-                    userId,
-                    response.body()?.user?.name,
-                    response.body()?.user?.email,
-                    Constants.Database.USER_TYPE_USER
-                )
-            }
+        val response = api.getProfile(queryParams).execute()
+        if (response.isSuccessful) {
+            database.updateUser(
+                userId,
+                response.body()?.user?.name,
+                response.body()?.user?.email
+            )
         }
     }
 
@@ -437,33 +506,6 @@ class SlackClient(
         }
     }
 
-    suspend fun sendChooseBranchAction(
-        branches: List<Branch>?,
-        slackEvent: SlackEvent
-    ) {
-        val branchList = mutableListOf<Option>()
-        branches?.forEach { branch ->
-            branchList.add(Option(branch.branchName, branch.branchName))
-        }
-        val attachments = mutableListOf(
-            Attachment(
-                Constants.Slack.SUBSCRIBE_GENERATE_APK, "Subscribe to github branch for code changes.",
-                "Select the branch to subscribe for changes for APK generation.", 1, "#0000FF",
-                mutableListOf(
-                    Action(
-                        confirm = null,
-                        name = Constants.Slack.ACTION_CHOOSE_BRANCH,
-                        text = "Choose the branch to subscribe for changes.",
-                        type = Action.ActionType.SELECT,
-                        options = branchList
-                    )
-                )
-            )
-        )
-
-        sendMessage("Generate an APK", slackEvent.channel?.id ?: "general", attachments)
-    }
-
     private suspend fun sendMessage(message: String, channelId: String, attachments: List<Attachment>?) {
         val body = mutableMapOf<String, String?>()
         attachments?.let {
@@ -475,8 +517,7 @@ class SlackClient(
         val api = ServiceGenerator.createService(
             SlackApi::class.java,
             SlackApi.BASE_URL,
-            true,
-            callAdapterFactory = RxJava2CallAdapterFactory.create()
+            true
         )
         val headers = mutableMapOf(Constants.Common.HEADER_CONTENT_TYPE to Constants.Common.VALUE_FORM_ENCODE)
         GlobalScope.launch(coroutineContext) {
@@ -489,7 +530,12 @@ class SlackClient(
         }
     }
 
-    private suspend fun sendMessageEphemeral(message: String, channelId: String, userId: String, attachments: List<Attachment>?) {
+    private suspend fun sendMessageEphemeral(
+        message: String,
+        channelId: String,
+        userId: String,
+        attachments: List<Attachment>?
+    ) {
         val body = mutableMapOf<String, String?>()
         body[Constants.Slack.ATTACHMENTS] = Gson().toJson(attachments)
         body[Constants.Slack.TEXT] = message
@@ -499,8 +545,7 @@ class SlackClient(
         val api = ServiceGenerator.createService(
             SlackApi::class.java,
             SlackApi.BASE_URL,
-            true,
-            callAdapterFactory = RxJava2CallAdapterFactory.create()
+            true
         )
         val headers = mutableMapOf(Constants.Common.HEADER_CONTENT_TYPE to Constants.Common.VALUE_FORM_ENCODE)
         GlobalScope.launch(coroutineContext) {
@@ -582,13 +627,14 @@ class SlackClient(
             )
         )
 
-        sendMessageEphemeral("New changes are available in `$branch` branch.", channelId, user, attachments)
+        sendMessage("New changes are available in `$branch` branch.", channelId, attachments)
     }
 
     suspend fun sendShowGenerateApkDialog(
         branches: List<Branch>?,
         buildTypes: List<String>?,
         flavours: List<String>?,
+        echo: String,
         triggerId: String
     ) {
         val dialogElementList = mutableListOf<Element>()
@@ -634,6 +680,10 @@ class SlackClient(
         }
 
         dialogElementList.add(
+            Element(ElementType.TEXT, "App Prefix", Constants.Slack.TYPE_SELECT_APP_PREFIX, maxLength = 20, optional = true)
+        )
+
+        dialogElementList.add(
             Element(
                 ElementType.TEXT,
                 "App URL",
@@ -644,9 +694,8 @@ class SlackClient(
         )
 
         val dialog = Dialog(
-            Constants.Slack.CALLBACK_GENERATE_APK, "Generate APK", "Submit", false, null,
-            dialogElementList
-        )
+            Constants.Slack.CALLBACK_GENERATE_APK, "Generate APK", "Submit", false, echo,
+            dialogElementList)
 
         val body = mutableMapOf<String, String?>()
         body[Constants.Slack.DIALOG] = Gson().toJson(dialog)

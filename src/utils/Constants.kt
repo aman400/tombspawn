@@ -31,6 +31,8 @@ class Constants {
             const val TOKEN = "token"
             const val CHANNEL = "channel"
             const val TEXT = "text"
+            const val TS = "ts"
+            const val AS_USER = "as_user"
             const val ATTACHMENTS = "attachments"
             const val DIALOG = "dialog"
             const val USER = "user"
@@ -44,9 +46,10 @@ class Constants {
             const val EVENT_TYPE_MESSAGE_ACTION: String = "message_action"
             const val EVENT_TYPE_INTERACTIVE_MESSAGE: String = "interactive_message"
             const val EVENT_TYPE_DIALOG: String = "dialog_submission"
-            const val TYPE_SELECT_BRANCH: String = "select_branch"
-            const val TYPE_SELECT_BUILD_TYPE: String = "select_build_type"
-            const val TYPE_SELECT_FLAVOUR: String = "select_flavour"
+            const val TYPE_SELECT_BRANCH: String = "BRANCH"
+            const val TYPE_SELECT_BUILD_TYPE: String = "BUILD_TYPE"
+            const val TYPE_SELECT_FLAVOUR: String = "FLAVOUR"
+            const val TYPE_SELECT_APP_PREFIX: String = "APP_PREFIX"
             const val TYPE_SELECT_URL: String = "app_url"
         }
     }

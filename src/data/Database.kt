@@ -80,8 +80,8 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
                 val user = User.find { Users.slackId eq userId }.first()
                 val app = App.find { Apps.name eq appName }.first()
                 val branch = Branch.find { Branches.name eq branchName }.first()
-                if (runBlocking(coroutineContext) { !isUserSubscribed(user, app, branch) }) {
-                    val data = Subscription.new {
+                if (runBlocking(coroutineContext) { !isUserSubscribed(user, app, branch, channel) }) {
+                    Subscription.new {
                         this.appId = app
                         this.branchId = branch
                         this.channel = channel
@@ -97,11 +97,11 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
     /**
      * Checks if user is already subscribed to a branch or not.
      */
-    suspend fun isUserSubscribed(user: User, app: App, branch: Branch): Boolean = withContext(dispatcher) {
+    suspend fun isUserSubscribed(user: User, app: App, branch: Branch, channel: String): Boolean = withContext(dispatcher) {
         return@withContext transaction(connection) {
             addLogger(StdOutSqlLogger)
             return@transaction !Subscription.find {
-                (Subscriptions.userId eq user.id) and (Subscriptions.appId eq app.id) and (Subscriptions.branchId eq branch.id)
+                (Subscriptions.userId eq user.id) and (Subscriptions.appId eq app.id) and (Subscriptions.branchId eq branch.id) and (Subscriptions.channel eq channel)
             }.empty()
         }
     }
@@ -166,6 +166,23 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
             } catch (exception: ExposedSQLException) {
                 exception.printStackTrace()
             }
+        }
+    }
+
+    suspend fun updateUser(
+        userId: String,
+        name: String? = null,
+        email: String? = null
+    ) = withContext(dispatcher) {
+        transaction(connection) {
+            addLogger(StdOutSqlLogger)
+            User.find {
+                Users.slackId eq userId
+            }.forEach {
+                it.name = name
+                it.email = email
+            }
+            commit()
         }
     }
 
@@ -310,7 +327,7 @@ object Subscriptions : IntIdTable() {
     val channel = varchar("channel_id", 100).primaryKey()
 
     init {
-        index(true, userId, branchId, appId)
+        index(true, userId, branchId, appId, channel)
     }
 }
 

@@ -17,7 +17,6 @@ import io.ktor.routing.Routing
 import io.ktor.routing.get
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import java.io.File
 
 
@@ -69,8 +68,7 @@ suspend fun fetchBotData(database: Database, botToken: String) = runBlocking {
     val api = ServiceGenerator.createService(
         SlackClient.SlackApi::class.java,
         SlackClient.SlackApi.BASE_URL,
-        true,
-        callAdapterFactory = RxJava2CallAdapterFactory.create()
+        true
     )
     val headers = mutableMapOf("Content-type" to "application/x-www-form-urlencoded")
     launch(coroutineContext) {

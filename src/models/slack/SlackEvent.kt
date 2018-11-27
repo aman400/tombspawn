@@ -20,5 +20,7 @@ data class SlackEvent(
     @SerializedName("callback_id") val callbackId: String?,
     @SerializedName("response_url") val responseUrl: String?,
     @SerializedName("trigger_id") val triggerId: String?,
-    @SerializedName("submission") val dialogResponse: Map<String, String>?
+    @SerializedName("submission") val dialogResponse: Map<String, String>?,
+    @SerializedName("original_message") val originalMessage: SlackMessage?,
+    @SerializedName("state") val echoed: String?
 )
