@@ -1,6 +1,7 @@
 package com.ramukaka.network
 
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
 import com.ramukaka.data.Branch
 import com.ramukaka.data.Database
@@ -10,6 +11,7 @@ import com.ramukaka.extensions.toMap
 import com.ramukaka.models.RequestData
 import com.ramukaka.models.locations.Slack
 import com.ramukaka.models.slack.*
+import com.ramukaka.serializers.ActionDeserializer
 import com.ramukaka.utils.Constants
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
@@ -103,14 +105,19 @@ fun Routing.slackAction(database: Database, slackClient: SlackClient, consumerAp
                     when (action.name) {
                         Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK -> {
                             val updatedMessage = slackEvent.originalMessage?.copy(attachments = null)
-                            if (action.value!!.toBoolean()) {
+                            val callback: GenerateCallback = Gson().fromJson(action.value, GenerateCallback::class.java)
+                            if (callback.generate) {
+                                var branchList: List<String>? = null
+                                callback.data?.get(Constants.Slack.TYPE_SELECT_BRANCH)?.let { branch ->
+                                    branchList = listOf(branch)
+                                }
                                 updatedMessage?.apply {
                                     attachments = mutableListOf(
                                         Attachment(text = ":crossed_fingers: Your APK will be generated soon.")
                                     )
                                 }
                                 slackClient.sendShowGenerateApkDialog(
-                                    null, null, null, Gson().toJson(updatedMessage),
+                                    branchList, null, null, Gson().toJson(updatedMessage),
                                     slackEvent.triggerId!!
                                 )
                             } else {
@@ -187,7 +194,10 @@ fun Routing.slackAction(database: Database, slackClient: SlackClient, consumerAp
                     Constants.Slack.CALLBACK_GENERATE_APK -> {
                         slackEvent.echoed?.let { echoed ->
                             launch(Dispatchers.IO) {
-                                slackClient.updateMessage(Gson().fromJson(echoed, SlackMessage::class.java), slackEvent.channel?.id!!)
+                                slackClient.updateMessage(
+                                    Gson().fromJson(echoed, SlackMessage::class.java),
+                                    slackEvent.channel?.id!!
+                                )
                             }
                         }
                         slackClient.generateAndUploadApk(
@@ -241,6 +251,8 @@ class SlackClient(
     private val slackAuthToken: String, private val slackBotToken: String,
     private val gradlePath: String, private val uploadDirPath: String
 ) {
+    val gson = Gson()
+
     interface SlackApi {
         companion object {
             const val BASE_URL = "https://slack.com"
@@ -308,7 +320,7 @@ class SlackClient(
 
         val response = api.updateMessage(
             slackAuthToken, channel, updatedMessage.message ?: "",
-            updatedMessage.timestamp!!, Gson().toJson(updatedMessage.attachments)
+            updatedMessage.timestamp!!, gson.toJson(updatedMessage.attachments)
         ).execute()
         if (response.isSuccessful) {
             println(response.body())
@@ -511,7 +523,7 @@ class SlackClient(
     private suspend fun sendMessage(message: String, channelId: String, attachments: List<Attachment>?) {
         val body = mutableMapOf<String, String?>()
         attachments?.let {
-            body[Constants.Slack.ATTACHMENTS] = Gson().toJson(attachments)
+            body[Constants.Slack.ATTACHMENTS] = gson.toJson(attachments)
         }
         body[Constants.Slack.TEXT] = message
         body[Constants.Slack.CHANNEL] = channelId
@@ -539,7 +551,7 @@ class SlackClient(
         attachments: List<Attachment>?
     ) {
         val body = mutableMapOf<String, String?>()
-        body[Constants.Slack.ATTACHMENTS] = Gson().toJson(attachments)
+        body[Constants.Slack.ATTACHMENTS] = gson.toJson(attachments)
         body[Constants.Slack.TEXT] = message
         body[Constants.Slack.USER] = userId
         body[Constants.Slack.CHANNEL] = channelId
@@ -579,7 +591,7 @@ class SlackClient(
         )
 
         val body = mutableMapOf<String, String?>()
-        body[Constants.Slack.DIALOG] = Gson().toJson(dialog)
+        body[Constants.Slack.DIALOG] = gson.toJson(dialog)
         body[Constants.Slack.TOKEN] = slackAuthToken
         body[Constants.Slack.TRIGGER_ID] = triggerId
         val api = ServiceGenerator.createService(
@@ -599,6 +611,7 @@ class SlackClient(
     }
 
     suspend fun sendShowConfirmGenerateApk(channelId: String, branch: String, user: String) {
+
         val attachments = mutableListOf(
             Attachment(
                 Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK, "Unable to generate the APK",
@@ -615,7 +628,7 @@ class SlackClient(
                         text = "Yes",
                         type = Action.ActionType.BUTTON,
                         style = Action.ActionStyle.PRIMARY,
-                        value = Constants.Slack.ACTION_CONFIRM
+                        value = gson.toJson(GenerateCallback(true, mutableMapOf(Constants.Slack.TYPE_SELECT_BRANCH to branch)))
                     ),
                     Action(
                         confirm = null,
@@ -623,7 +636,7 @@ class SlackClient(
                         text = "No",
                         type = Action.ActionType.BUTTON,
                         style = Action.ActionStyle.DEFAULT,
-                        value = Constants.Slack.ACTION_REJECT
+                        value = gson.toJson(GenerateCallback(false, mutableMapOf(Constants.Slack.TYPE_SELECT_BRANCH to branch)))
                     )
                 ), Attachment.AttachmentType.DEFAULT
             )
@@ -633,7 +646,7 @@ class SlackClient(
     }
 
     suspend fun sendShowGenerateApkDialog(
-        branches: List<Branch>?,
+        branches: List<String>?,
         buildTypes: List<String>?,
         flavours: List<String>?,
         echo: String,
@@ -642,13 +655,16 @@ class SlackClient(
         val dialogElementList = mutableListOf<Element>()
         val branchList = mutableListOf<Element.Option>()
         branches?.forEach { branch ->
-            branchList.add(Element.Option(branch.branchName, branch.branchName))
+            branchList.add(Element.Option(branch, branch))
         }
+        val defaultValue: String? = if(branches?.size == 1) branches[0] else null
         if (branchList.size > 0) {
             dialogElementList.add(
                 Element(
                     ElementType.SELECT, "Select Branch",
-                    Constants.Slack.TYPE_SELECT_BRANCH, options = branchList
+                    Constants.Slack.TYPE_SELECT_BRANCH,
+                    defaultValue = defaultValue,
+                    options = branchList
                 )
             )
         }
@@ -682,7 +698,13 @@ class SlackClient(
         }
 
         dialogElementList.add(
-            Element(ElementType.TEXT, "App Prefix", Constants.Slack.TYPE_SELECT_APP_PREFIX, maxLength = 20, optional = true)
+            Element(
+                ElementType.TEXT,
+                "App Prefix",
+                Constants.Slack.TYPE_SELECT_APP_PREFIX,
+                maxLength = 20,
+                optional = true
+            )
         )
 
         dialogElementList.add(
@@ -697,10 +719,11 @@ class SlackClient(
 
         val dialog = Dialog(
             Constants.Slack.CALLBACK_GENERATE_APK, "Generate APK", "Submit", false, echo,
-            dialogElementList)
+            dialogElementList
+        )
 
         val body = mutableMapOf<String, String?>()
-        body[Constants.Slack.DIALOG] = Gson().toJson(dialog)
+        body[Constants.Slack.DIALOG] = gson.toJson(dialog)
         body[Constants.Slack.TOKEN] = slackAuthToken
         body[Constants.Slack.TRIGGER_ID] = triggerId
         val api = ServiceGenerator.createService(

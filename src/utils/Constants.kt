@@ -17,11 +17,11 @@ class Constants {
     class Slack {
         companion object {
 
+            const val TYPE = "type"
+
             const val SUBSCRIBE_GENERATE_APK = "subscribe_generate_apk"
             const val CALLBACK_CONFIRM_GENERATE_APK = "confirm_generate_apk"
             const val CALLBACK_GENERATE_APK = "generate_apk"
-            const val ACTION_CONFIRM = "true"
-            const val ACTION_REJECT = "false"
             const val EVENT_TYPE_MESSAGE = "message"
             const val EVENT_TYPE_APP_MENTION = "app_mention"
             const val EVENT_TYPE_VERIFICATION = "url_verification"
