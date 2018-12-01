@@ -854,7 +854,7 @@ class SlackClient(
                 ElementType.TEXT,
                 "App Prefix",
                 Constants.Slack.TYPE_SELECT_APP_PREFIX,
-                maxLength = 20,
+                maxLength = 50,
                 optional = true
             )
         )
