@@ -1,12 +1,10 @@
 package com.ramukaka.data
 
-import com.ramukaka.data.Branches.primaryKey
 import com.ramukaka.utils.Constants
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.ktor.application.Application
 import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.newFixedThreadPoolContext
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.dao.EntityID
@@ -286,7 +284,7 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
         }
     }
 
-    suspend fun addBuildTypes(buildTypes: List<String>, appName: String) = withContext(dispatcher) {
+    suspend fun addBuildVariants(buildTypes: List<String>, appName: String) = withContext(dispatcher) {
         return@withContext transaction(connection) {
             addLogger(StdOutSqlLogger)
             App.find { Apps.name eq appName }.firstOrNull()?.let { application ->

@@ -40,6 +40,7 @@ class Constants {
             const val CALLBACK_SUBSCRIBE_CONSUMER = "subscribe_consumer_details"
 
             const val TYPE_SUBSCRIBE_CONSUMER = "subscribe-consumer"
+            const val TYPE_GENERATE_CONSUMER = "generate-consumer"
             const val TYPE_SUBSCRIBE_FLEET = "subscribe-fleet"
             const val ACTION_CHOOSE_BRANCH: String = "choose_branch"
             const val TRIGGER_ID: String = "trigger_id"

@@ -1,8 +1,6 @@
 package com.ramukaka
 
 import com.ramukaka.data.Database
-import com.ramukaka.extensions.execute
-import com.ramukaka.models.Success
 import com.ramukaka.network.*
 import com.ramukaka.network.interceptors.LoggingInterceptor
 import com.ramukaka.utils.Constants
@@ -150,7 +148,7 @@ fun Application.module() {
     GlobalScope.launch(Dispatchers.IO) {
         val buildVariants = gradleBotClient.fetchBuildVariants()
         buildVariants?.let {
-            database.addBuildTypes(it, Constants.Common.APP_CONSUMER)
+            database.addBuildVariants(it, Constants.Common.APP_CONSUMER)
         }
     }
 

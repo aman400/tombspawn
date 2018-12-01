@@ -149,18 +149,33 @@ fun Routing.slackAction(database: Database, slackClient: SlackClient, consumerAp
             Constants.Slack.EVENT_TYPE_MESSAGE_ACTION -> {
                 when (slackEvent.callbackId) {
                     Constants.Slack.TYPE_SUBSCRIBE_CONSUMER ->
-                        launch {
+                        launch(coroutineContext) {
                             slackClient.sendShowSubscriptionDialog(
                                 database.getBranches(Constants.Common.APP_CONSUMER),
                                 slackEvent.triggerId!!
                             )
                         }
+                    Constants.Slack.TYPE_GENERATE_CONSUMER -> {
+                        launch(coroutineContext) {
+                            val branchList = database.getBranches(Constants.Common.APP_CONSUMER)
+                            val flavourList = database.getFlavours(Constants.Common.APP_CONSUMER)
+                            val buildTypesList = database.getBuildTypes(Constants.Common.APP_CONSUMER)
+
+                            slackClient.sendShowGenerateApkDialog(
+                                branchList?.map { branch -> branch.branchName },
+                                buildTypesList?.map { buildType -> buildType.name },
+                                flavourList?.map { flavour -> flavour.name },
+                                null,
+                                slackEvent.triggerId!!
+                            )
+                        }
+                    }
                 }
             }
             Constants.Slack.EVENT_TYPE_DIALOG -> {
                 when (slackEvent.callbackId) {
                     Constants.Slack.CALLBACK_SUBSCRIBE_CONSUMER -> {
-                        launch {
+                        launch(coroutineContext) {
                             slackEvent.user?.id?.let { userId ->
                                 if (!database.userExists(userId)) {
                                     runBlocking {
@@ -182,14 +197,14 @@ fun Routing.slackAction(database: Database, slackClient: SlackClient, consumerAp
                                             launch(Dispatchers.IO) {
                                                 slackClient.sendMessage(
                                                     slackEvent.responseUrl,
-                                                    RequestData(response = "You are successfully subscribed to $branch")
+                                                    RequestData(response = "You are successfully subscribed to `$branch`")
                                                 )
                                             }
                                         } else {
                                             launch(Dispatchers.IO) {
                                                 slackClient.sendMessage(
                                                     slackEvent.responseUrl,
-                                                    RequestData(response = "You are already subscribed to $branch")
+                                                    RequestData(response = "You are already subscribed to `$branch`")
                                                 )
                                             }
                                         }
@@ -424,7 +439,7 @@ class SlackClient(
             runBlocking(coroutineContext) {
                 val buildVariants = gradleBotClient.fetchBuildVariants()
                 buildVariants?.let {
-                    database.addBranches(it, Constants.Common.APP_CONSUMER)
+                    database.addBuildVariants(it, Constants.Common.APP_CONSUMER)
                 }
 
                 val productFlavours = gradleBotClient.fetchProductFlavours()
@@ -786,7 +801,7 @@ class SlackClient(
         branches: List<String>?,
         buildTypes: List<String>?,
         flavours: List<String>?,
-        echo: String,
+        echo: String?,
         triggerId: String
     ) {
         val dialogElementList = mutableListOf<Element>()
