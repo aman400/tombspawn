@@ -1,17 +1,17 @@
 package com.ramukaka.network
 
 import com.google.gson.Gson
-import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
 import com.ramukaka.data.Branch
 import com.ramukaka.data.Database
 import com.ramukaka.extensions.execute
 import com.ramukaka.extensions.random
 import com.ramukaka.extensions.toMap
+import com.ramukaka.models.Failure
 import com.ramukaka.models.RequestData
+import com.ramukaka.models.Success
 import com.ramukaka.models.locations.Slack
 import com.ramukaka.models.slack.*
-import com.ramukaka.serializers.ActionDeserializer
 import com.ramukaka.utils.Constants
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
@@ -34,6 +34,7 @@ import okhttp3.RequestBody
 import retrofit2.Call
 import retrofit2.http.*
 import java.io.File
+import java.util.logging.Level
 import java.util.logging.Logger
 import kotlin.coroutines.coroutineContext
 
@@ -56,7 +57,7 @@ private val randomWaitingMessages = listOf(
     "Preparing to Spin You Around Rapidly"
 )
 
-private val LOGGER = Logger.getLogger("SlackClient")
+private val LOGGER = Logger.getLogger("com.application.slack.routing")
 
 fun Routing.subscribe() {
     post<Slack.Subscribe> {
@@ -116,8 +117,18 @@ fun Routing.slackAction(database: Database, slackClient: SlackClient, consumerAp
                                         Attachment(text = ":crossed_fingers: Your APK will be generated soon.")
                                     )
                                 }
+
+                                val flavours = database.getFlavours(Constants.Common.APP_CONSUMER)?.map { flavour ->
+                                    flavour.name
+                                }
+
+                                val buildTypes =
+                                    database.getBuildTypes(Constants.Common.APP_CONSUMER)?.map { buildType ->
+                                        buildType.name
+                                    }
+
                                 slackClient.sendShowGenerateApkDialog(
-                                    branchList, null, null, Gson().toJson(updatedMessage),
+                                    branchList, buildTypes, flavours, Gson().toJson(updatedMessage),
                                     slackEvent.triggerId!!
                                 )
                             } else {
@@ -221,11 +232,20 @@ fun Routing.buildConsumer(appDir: String, slackClient: SlackClient) {
         val text = params["text"]
         val responseUrl = params["response_url"]
 
+        params.forEach { key, list ->
+            LOGGER.info("$key: $list")
+        }
+
         text?.trim()?.toMap()?.let { buildData ->
             slackClient.generateAndUploadApk(buildData, channelId!!, appDir, responseUrl)
             call.respond(HttpStatusCode.OK)
         }
-            ?: call.respond("Invalid command. Usage: '/build BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'.")
+            ?: run {
+                val error =
+                    "Invalid command. Usage: '/build BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'."
+                LOGGER.severe(error)
+                call.respond(error)
+            }
     }
 }
 
@@ -237,21 +257,34 @@ fun Routing.buildFleet(appDir: String, slackClient: SlackClient) {
         val channelId = params["channel_id"]
         val text = params["text"]
         val responseUrl = params["response_url"]
-//        val triggerId = params["trigger_id"]
+        params.forEach { key, list ->
+            LOGGER.info("$key: $list")
+        }
 
         text?.trim()?.toMap()?.let { buildData ->
             slackClient.generateAndUploadApk(buildData, channelId!!, appDir, responseUrl)
             call.respond(HttpStatusCode.OK)
         }
-            ?: call.respond("Invalid command. Usage: '/build BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'.")
+            ?: run {
+                val error =
+                    "Invalid command. Usage: '/build BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'."
+                LOGGER.severe(error)
+                call.respond(error)
+            }
     }
 }
 
 class SlackClient(
     private val slackAuthToken: String, private val slackBotToken: String,
-    private val gradlePath: String, private val uploadDirPath: String
+    private val gradlePath: String, private val uploadDirPath: String,
+    private val gradleBotClient: GradleBotClient, private val database: Database
 ) {
-    val gson = Gson()
+    private val gson = Gson()
+    private val LOGGER = Logger.getLogger("com.application.slack.client")
+
+    init {
+        LOGGER.level = Level.ALL
+    }
 
     interface SlackApi {
         companion object {
@@ -343,6 +376,10 @@ class SlackClient(
 
         buildData?.remove(Constants.Slack.TYPE_SELECT_APP_PREFIX)
 
+        val selectedBranch = buildData?.get(Constants.Slack.TYPE_SELECT_BRANCH)?.trim()
+        val pullCodeCommand =
+            "$gradlePath pullCode ${selectedBranch?.let { "-P${Constants.Slack.TYPE_SELECT_BRANCH}=$it" } ?: ""}"
+
         var executableCommand =
             "$gradlePath assembleWithArgs -PFILE_PATH=$uploadDirPath -P${Constants.Slack.TYPE_SELECT_APP_PREFIX}=$APKPrefix"
 
@@ -359,50 +396,133 @@ class SlackClient(
         }
 
         GlobalScope.launch(Dispatchers.IO) {
-            println(executableCommand)
-            val commandResponse = executableCommand.execute(File(appDir))
+            val executionDirectory = File(appDir)
+            val pullCodeResponse = pullCodeCommand.execute(executionDirectory).await()
+            if (pullCodeResponse is Failure) {
+                LOGGER.log(
+                    Level.SEVERE,
+                    if (pullCodeResponse.error.isNullOrEmpty()) "Unable to pull code from branch: $selectedBranch" else pullCodeResponse.error,
+                    pullCodeResponse.throwable
+                )
+                if (responseUrl != null) {
+                    sendMessage(
+                        responseUrl,
+                        RequestData(
+                            response = pullCodeResponse.error
+                                ?: "Unable to pull latest changes from branch `$selectedBranch`."
+                        )
+                    )
+                } else {
+                    sendMessage(
+                        pullCodeResponse.error ?: "Unable to pull latest changes from branch `$selectedBranch`.",
+                        channelId,
+                        null
+                    )
+                }
+            }
 
-            val tempDirectory = File(uploadDirPath)
-            if (tempDirectory.exists()) {
-                val firstFile = tempDirectory.listFiles { _, name ->
-                    name.contains(APKPrefix, true)
-                }.firstOrNull()
-                firstFile?.let { file ->
-                    if (file.exists()) {
-                        uploadFile(file, channelId)
+            runBlocking(coroutineContext) {
+                val buildVariants = gradleBotClient.fetchBuildVariants()
+                buildVariants?.let {
+                    database.addBranches(it, Constants.Common.APP_CONSUMER)
+                }
+
+                val productFlavours = gradleBotClient.fetchProductFlavours()
+                productFlavours?.let {
+                    database.addFlavours(it, Constants.Common.APP_CONSUMER)
+                }
+            }
+
+            val commandResponse = executableCommand.execute(executionDirectory).await()
+            when (commandResponse) {
+                is Success -> {
+                    val tempDirectory = File(uploadDirPath)
+                    if (tempDirectory.exists()) {
+                        val firstFile = tempDirectory.listFiles { _, name ->
+                            name.contains(APKPrefix, true)
+                        }.firstOrNull()
+                        firstFile?.let { file ->
+                            if (file.exists()) {
+                                uploadFile(file, channelId)
+                            } else {
+                                LOGGER.log(Level.SEVERE, "APK Generated but file not found in the folder")
+                                LOGGER.log(Level.SEVERE, commandResponse.data)
+                                if (responseUrl != null) {
+                                    sendMessage(
+                                        responseUrl,
+                                        RequestData(
+                                            response = commandResponse.data
+                                                ?: "Something went wrong. Unable to generate the APK"
+                                        )
+                                    )
+                                } else {
+                                    sendMessage(
+                                        commandResponse.data ?: "Something went wrong. Unable to generate the APK",
+                                        channelId,
+                                        null
+                                    )
+                                }
+                            }
+                        } ?: run {
+                            LOGGER.log(Level.SEVERE, "APK Generated but not found in the folder")
+                            LOGGER.log(Level.SEVERE, commandResponse.data)
+
+                            if (responseUrl != null) {
+                                sendMessage(
+                                    responseUrl,
+                                    RequestData(
+                                        response = commandResponse.data
+                                            ?: "Something went wrong. Unable to generate the APK"
+                                    )
+                                )
+                            } else {
+                                sendMessage(
+                                    commandResponse.data ?: "Something went wrong. Unable to generate the APK",
+                                    channelId,
+                                    null
+                                )
+                            }
+                        }
                     } else {
+                        LOGGER.log(Level.SEVERE, "APK Generated but not found in the folder")
+                        LOGGER.log(Level.SEVERE, commandResponse.data)
                         if (responseUrl != null) {
                             sendMessage(
                                 responseUrl,
                                 RequestData(
-                                    response = commandResponse ?: "Something went wrong. Unable to generate the APK"
+                                    response = commandResponse.data
+                                        ?: "Something went wrong. Unable to generate the APK"
                                 )
                             )
                         } else {
                             sendMessage(
-                                commandResponse ?: "Something went wrong. Unable to generate the APK",
+                                commandResponse.data ?: "Something went wrong. Unable to generate the APK",
                                 channelId,
                                 null
                             )
                         }
                     }
-                } ?: if (responseUrl != null) {
-                    sendMessage(
-                        responseUrl,
-                        RequestData(response = commandResponse ?: "Something went wrong. Unable to generate the APK")
-                    )
-                } else {
-                    sendMessage(commandResponse ?: "Something went wrong. Unable to generate the APK", channelId, null)
                 }
-            } else {
-                if (responseUrl != null) {
-                    sendMessage(
-                        responseUrl,
-                        RequestData(response = commandResponse ?: "Something went wrong. Unable to generate the APK")
-                    )
-                } else {
-                    sendMessage(commandResponse ?: "Something went wrong. Unable to generate the APK", channelId, null)
+
+                is Failure -> {
+                    LOGGER.log(Level.SEVERE, commandResponse.error, commandResponse.throwable)
+                    if (responseUrl != null) {
+                        sendMessage(
+                            responseUrl,
+                            RequestData(
+                                response = commandResponse.error
+                                    ?: "Something went wrong. Unable to generate the APK"
+                            )
+                        )
+                    } else {
+                        sendMessage(
+                            commandResponse.error ?: "Something went wrong. Unable to generate the APK",
+                            channelId,
+                            null
+                        )
+                    }
                 }
+
             }
         }
     }
@@ -439,14 +559,21 @@ class SlackClient(
         val api = ServiceGenerator.createService(SlackApi::class.java, SlackApi.BASE_URL, false)
         val call = api.pushApp(appToken, title, filename, fileType, channels, multipartBody)
         GlobalScope.launch(coroutineContext) {
-            val response = call.execute()
-            if (response.isSuccessful) {
-                println(if (response.body()?.delivered == true) "delivered" else "Not delivered")
-            } else {
-                println(response.errorBody().toString())
+            try {
+                val response = call.execute()
+                if (response.isSuccessful) {
+                    LOGGER.info(if (response.body()?.delivered == true) "delivered" else "Not delivered")
+                } else {
+                    println(response.errorBody().toString())
+                }
+                if (deleteFile)
+                    file.delete()
+            } catch (exception: Exception) {
+                LOGGER.log(Level.SEVERE, "Unable to push apk to Slack.", exception)
+                if (deleteFile) {
+                    file.delete()
+                }
             }
-            if (deleteFile)
-                file.delete()
         }
     }
 
@@ -628,7 +755,12 @@ class SlackClient(
                         text = "Yes",
                         type = Action.ActionType.BUTTON,
                         style = Action.ActionStyle.PRIMARY,
-                        value = gson.toJson(GenerateCallback(true, mutableMapOf(Constants.Slack.TYPE_SELECT_BRANCH to branch)))
+                        value = gson.toJson(
+                            GenerateCallback(
+                                true,
+                                mutableMapOf(Constants.Slack.TYPE_SELECT_BRANCH to branch)
+                            )
+                        )
                     ),
                     Action(
                         confirm = null,
@@ -636,7 +768,12 @@ class SlackClient(
                         text = "No",
                         type = Action.ActionType.BUTTON,
                         style = Action.ActionStyle.DEFAULT,
-                        value = gson.toJson(GenerateCallback(false, mutableMapOf(Constants.Slack.TYPE_SELECT_BRANCH to branch)))
+                        value = gson.toJson(
+                            GenerateCallback(
+                                false,
+                                mutableMapOf(Constants.Slack.TYPE_SELECT_BRANCH to branch)
+                            )
+                        )
                     )
                 ), Attachment.AttachmentType.DEFAULT
             )
@@ -657,7 +794,7 @@ class SlackClient(
         branches?.forEach { branch ->
             branchList.add(Element.Option(branch, branch))
         }
-        val defaultValue: String? = if(branches?.size == 1) branches[0] else null
+        val defaultValue: String? = if (branches?.size == 1) branches[0] else null
         if (branchList.size > 0) {
             dialogElementList.add(
                 Element(

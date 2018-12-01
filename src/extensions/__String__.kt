@@ -1,14 +1,19 @@
 package com.ramukaka.extensions
 
+import com.ramukaka.models.CommandResponse
+import com.ramukaka.models.Failure
+import com.ramukaka.models.Success
+import kotlinx.coroutines.*
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.coroutineContext
 
-fun String.execute(
+suspend fun String.execute(
     workingDir: File = File("."),
     timeoutAmount: Long = 60,
     timeoutUnit: TimeUnit = TimeUnit.MINUTES
-): String? {
+): Deferred<CommandResponse> = GlobalScope.async(coroutineContext) {
      try {
         val strings = split(Regex("\\s+"))
         val builder = ProcessBuilder(strings)
@@ -23,11 +28,12 @@ fun String.execute(
          }
          println(response)
 
-         return if(errorText.isEmpty()) response else errorText
+         if(errorText.isEmpty()) Success(response) else Failure(errorText)
+
 
     } catch (exception: IOException) {
         exception.printStackTrace()
-        return null
+        Failure(throwable = exception)
     }
 }
 

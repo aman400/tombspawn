@@ -2,6 +2,7 @@ package com.ramukaka
 
 import com.ramukaka.data.Database
 import com.ramukaka.extensions.execute
+import com.ramukaka.models.Success
 import com.ramukaka.network.*
 import com.ramukaka.network.interceptors.LoggingInterceptor
 import com.ramukaka.utils.Constants
@@ -22,6 +23,7 @@ import io.ktor.response.respond
 import io.ktor.routing.routing
 import io.ktor.server.netty.EngineMain
 import io.ktor.util.error
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -36,7 +38,7 @@ import java.io.File
 fun main(args: Array<String>): Unit = EngineMain.main(args)
 
 private var UPLOAD_DIR_PATH = "${System.getProperty("user.dir")}/temp"
-private var GRADLE_PATH = System.getenv()["GRADLE_PATH"]!!
+private var GRADLE_PATH = "./gradlew"
 private var CONSUMER_APP_DIR = System.getenv()["CONSUMER_APP_DIR"]!!
 private var FLEET_APP_DIR = System.getenv()["FLEET_APP_DIR"]!!
 private var BOT_TOKEN = System.getenv()["SLACK_TOKEN"]!!
@@ -48,7 +50,7 @@ private var DB_PASSWORD = System.getenv()["DB_PASSWORD"]!!
 @KtorExperimentalLocationsAPI
 @Suppress("unused") // Referenced in application.conf
 fun Application.module() {
-    val LOGGER = LoggerFactory.getLogger(Application::class.java.simpleName)
+    val LOGGER = LoggerFactory.getLogger("com.application")
     install(StatusPages) {
         exception<Throwable> { cause ->
             LOGGER.error(cause)
@@ -129,14 +131,30 @@ fun Application.module() {
     val apps = mutableListOf(Constants.Common.APP_CONSUMER, Constants.Common.APP_FLEET)
     runBlocking { database.addApps(apps) }
 
-    GlobalScope.launch {
-        val branches = fetchAllBranches(GRADLE_PATH, CONSUMER_APP_DIR)
+    val gradleBotClient = GradleBotClient(GRADLE_PATH, CONSUMER_APP_DIR)
+
+    GlobalScope.launch(Dispatchers.IO) {
+        val branches = gradleBotClient.fetchAllBranches()
         branches?.let {
             database.addBranches(it, Constants.Common.APP_CONSUMER)
         }
     }
 
-    val slackClient = SlackClient(O_AUTH_TOKEN, BOT_TOKEN, GRADLE_PATH, UPLOAD_DIR_PATH)
+    GlobalScope.launch(Dispatchers.IO) {
+        val productFlavours = gradleBotClient.fetchProductFlavours()
+        productFlavours?.let {
+            database.addFlavours(it, Constants.Common.APP_CONSUMER)
+        }
+    }
+
+    GlobalScope.launch(Dispatchers.IO) {
+        val buildVariants = gradleBotClient.fetchBuildVariants()
+        buildVariants?.let {
+            database.addBuildTypes(it, Constants.Common.APP_CONSUMER)
+        }
+    }
+
+    val slackClient = SlackClient(O_AUTH_TOKEN, BOT_TOKEN, GRADLE_PATH, UPLOAD_DIR_PATH, gradleBotClient, database)
 
     routing {
         status()
@@ -150,21 +168,6 @@ fun Application.module() {
         githubWebhook(database, slackClient)
     }
 }
-
-fun fetchAllBranches(gradlePath: String, dirName: String): List<String>? {
-    val executableCommand = "$gradlePath fetchRemoteBranches -P${Constants.Common.ARG_OUTPUT_SEPARATOR}=${Constants.Common.OUTPUT_SEPARATOR}"
-    val response = executableCommand.execute(File(dirName))
-    response?.let {
-        val parsedResponse = it.split(Constants.Common.OUTPUT_SEPARATOR)
-        if (parsedResponse.size >= 2) {
-            return parsedResponse[1]
-                .split("\n")
-                .filter { item -> item.isNotEmpty() }
-        }
-    }
-    return null
-}
-
 
 @Location("/app")
 data class Apk(val file: File)

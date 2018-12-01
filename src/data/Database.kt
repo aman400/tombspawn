@@ -1,5 +1,6 @@
 package com.ramukaka.data
 
+import com.ramukaka.data.Branches.primaryKey
 import com.ramukaka.utils.Constants
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
@@ -41,7 +42,7 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
         connectionPool = HikariDataSource(config)
         connection = Database.connect(connectionPool)
         transaction(connection) {
-            SchemaUtils.create(Users, UserTypes, Apps, Branches, Subscriptions)
+            SchemaUtils.create(Users, UserTypes, Apps, Branches, BuildTypes, Flavours, Subscriptions)
         }
     }
 
@@ -237,17 +238,68 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
     suspend fun addBranches(branches: List<String>, app: String) = withContext(dispatcher) {
         return@withContext transaction(connection) {
             addLogger(StdOutSqlLogger)
-            branches.forEach { branch ->
-                val application = App.find { Apps.name eq app }.firstOrNull()
-                if (Branch.find { (Branches.name eq (branch) and (Branches.appId eq application!!.id)) }.empty()) {
-                    Branch.new {
-                        this.branchName = branch
-                        this.deleted = false
-                        this.appId = application!!
+            App.find { Apps.name eq app }.firstOrNull()?.let { application ->
+                branches.forEach { branch ->
+                    if (Branch.find { (Branches.name eq (branch) and (Branches.appId eq application.id)) }.empty()) {
+                        Branch.new {
+                            this.branchName = branch
+                            this.deleted = false
+                            this.appId = application
+                        }
                     }
                 }
             }
 
+        }
+    }
+
+    suspend fun getFlavours(app: String): List<Flavour>? = withContext(dispatcher) {
+        return@withContext transaction(connection) {
+            addLogger(StdOutSqlLogger)
+            Flavour.wrapRows(Flavours.leftJoin(Apps, { Flavours.appId }, { Apps.id }).select { Apps.name eq app })
+                .toList()
+        }
+    }
+
+    suspend fun getBuildTypes(app: String): List<BuildType>? = withContext(dispatcher) {
+        return@withContext transaction(connection) {
+            addLogger(StdOutSqlLogger)
+            BuildType.wrapRows(BuildTypes.leftJoin(Apps, { BuildTypes.appId }, { Apps.id }).select { Apps.name eq app })
+                .toList()
+        }
+    }
+
+    suspend fun addFlavours(flavours: List<String>, appName: String) = withContext(dispatcher) {
+        return@withContext transaction(connection) {
+            addLogger(StdOutSqlLogger)
+            App.find { Apps.name eq appName }.firstOrNull()?.let { application ->
+                Flavour.all().forEach {
+                    it.delete()
+                }
+                flavours.forEach { flavour ->
+                    Flavour.new {
+                        this.name = flavour
+                        this.appId = application
+                    }
+                }
+            }
+        }
+    }
+
+    suspend fun addBuildTypes(buildTypes: List<String>, appName: String) = withContext(dispatcher) {
+        return@withContext transaction(connection) {
+            addLogger(StdOutSqlLogger)
+            App.find { Apps.name eq appName }.firstOrNull()?.let { application ->
+                BuildType.all().forEach {
+                    it.delete()
+                }
+                buildTypes.forEach { buildType ->
+                    BuildType.new {
+                        this.name = buildType
+                        this.appId = application
+                    }
+                }
+            }
         }
     }
 }
@@ -302,6 +354,30 @@ class Branch(id: EntityID<Int>) : IntEntity(id) {
     var branchName by Branches.name
     var appId by App referencedOn Branches.appId
     var deleted by Branches.deleted
+}
+
+object BuildTypes: IntIdTable() {
+    val name = varchar("name", 100).uniqueIndex().primaryKey()
+    val appId = reference("app_id", Apps, ReferenceOption.CASCADE, ReferenceOption.RESTRICT).primaryKey()
+}
+
+class BuildType(id: EntityID<Int>): IntEntity(id) {
+    companion object : IntEntityClass<BuildType>(BuildTypes)
+
+    var name by BuildTypes.name
+    var appId by App referencedOn BuildTypes.appId
+}
+
+object Flavours: IntIdTable() {
+    val name = varchar("name", 100).uniqueIndex().primaryKey()
+    val appId = reference("app_id", Apps, ReferenceOption.CASCADE, ReferenceOption.RESTRICT).primaryKey()
+}
+
+class Flavour(id: EntityID<Int>): IntEntity(id) {
+    companion object : IntEntityClass<Flavour>(Flavours)
+
+    var name by Flavours.name
+    var appId by App referencedOn Flavours.appId
 }
 
 object Subscriptions : IntIdTable() {
