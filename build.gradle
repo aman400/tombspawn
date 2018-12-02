@@ -18,7 +18,7 @@ apply plugin: 'application'
 
 group 'app'
 version '0.1'
-mainClassName = "io.ktor.server.netty.DevelopmentEngine"
+mainClassName = "io.ktor.server.jetty.EngineMain"
 
 sourceSets {
     main.kotlin.srcDirs = main.java.srcDirs = ['src']
@@ -45,7 +45,7 @@ dependencies {
     testImplementation "io.ktor:ktor-server-tests:$ktor_version"
     
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
-    implementation "io.ktor:ktor-server-netty:$ktor_version"
+    implementation "io.ktor:ktor-server-jetty:$ktor_version"
     implementation "ch.qos.logback:logback-classic:$logback_version"
     implementation "io.ktor:ktor-server-core:$ktor_version"
     implementation "io.ktor:ktor-locations:$ktor_version"
@@ -56,7 +56,7 @@ dependencies {
     implementation "com.squareup.okhttp3:logging-interceptor:$okhttp_version"
     implementation "com.squareup.retrofit2:converter-gson:$retrofit_version"
     implementation 'com.google.code.gson:gson:2.8.5'
-    implementation 'org.jetbrains.exposed:exposed:0.11.1'
+    implementation 'org.jetbrains.exposed:exposed:0.11.2'
     implementation 'mysql:mysql-connector-java:8.0.12'
     implementation 'io.sentry:sentry:1.7.14'
     implementation group: 'com.zaxxer', name: 'HikariCP', version: '2.7.2'

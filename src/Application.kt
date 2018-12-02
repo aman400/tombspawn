@@ -19,7 +19,7 @@ import io.ktor.locations.Locations
 import io.ktor.request.path
 import io.ktor.response.respond
 import io.ktor.routing.routing
-import io.ktor.server.netty.EngineMain
+import io.ktor.server.jetty.EngineMain
 import io.ktor.util.error
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
