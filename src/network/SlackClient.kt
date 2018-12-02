@@ -31,6 +31,7 @@ import models.slack.Confirm
 import okhttp3.MediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.http.*
 import java.io.File
@@ -292,7 +293,7 @@ fun Routing.buildFleet(appDir: String, slackClient: SlackClient) {
 }
 
 class SlackClient(
-    private val slackAuthToken: String, private val slackBotToken: String,
+    private val slackAuthToken: String, private val defaultAppUrl: String,
     private val gradlePath: String, private val uploadDirPath: String,
     private val gradleBotClient: GradleBotClient, private val database: Database
 ) {
@@ -356,7 +357,7 @@ class SlackClient(
         fun sendMessage(
             @HeaderMap header: MutableMap<String, String>, @Url url: String,
             @Body requestBody: RequestData?
-        ): Call<String>
+        ): Call<ResponseBody>
 
         @GET("/api/rtm.connect")
         fun fetchBotInfo(
@@ -385,6 +386,14 @@ class SlackClient(
         appDir: String,
         responseUrl: String? = null
     ) {
+        val additionalParams = buildData?.get(Constants.Slack.TYPE_ADDITIONAL_PARAMS)?.trim()
+
+        additionalParams?.let {
+            it.toMap()?.let { map ->
+                buildData.putAll(map)
+            }
+        }
+
         val userAppPrefix = buildData?.get(Constants.Slack.TYPE_SELECT_APP_PREFIX)?.trim()
 
         val APKPrefix = "${userAppPrefix?.let {
@@ -566,7 +575,7 @@ class SlackClient(
 
         val appToken = RequestBody.create(
             okhttp3.MultipartBody.FORM,
-            slackBotToken
+            slackAuthToken
         )
         val title = RequestBody.create(okhttp3.MultipartBody.FORM, file.nameWithoutExtension)
         val filename = RequestBody.create(okhttp3.MultipartBody.FORM, file.name)
@@ -579,7 +588,12 @@ class SlackClient(
             try {
                 val response = call.execute()
                 if (response.isSuccessful) {
-                    LOGGER.info(if (response.body()?.delivered == true) "delivered" else "Not delivered")
+                    if (response.body()?.delivered == true) {
+                        LOGGER.info("delivered")
+                    } else {
+                        sendMessage("Unable to deliver apk to this channel reason: ${response.body()?.error}", channelId, null)
+                        LOGGER.severe("Not delivered")
+                    }
                 } else {
                     println(response.errorBody().toString())
                 }
@@ -854,20 +868,37 @@ class SlackClient(
         dialogElementList.add(
             Element(
                 ElementType.TEXT,
-                "App Prefix",
-                Constants.Slack.TYPE_SELECT_APP_PREFIX,
-                maxLength = 50,
-                optional = true
+                "App URL",
+                Constants.Slack.TYPE_SELECT_URL,
+                defaultAppUrl,
+                hint = defaultAppUrl,
+                optional = true,
+                defaultValue = defaultAppUrl,
+                inputType = Element.InputType.URL
             )
         )
 
+        if(dialogElementList.size < 4) {
+            dialogElementList.add(
+                Element(
+                    ElementType.TEXT,
+                    "App Prefix",
+                    Constants.Slack.TYPE_SELECT_APP_PREFIX,
+                    hint="Prefixes this along with the generated App name",
+                    maxLength = 50,
+                    optional = true
+                )
+            )
+        }
+
         dialogElementList.add(
             Element(
-                ElementType.TEXT,
-                "App URL",
-                Constants.Slack.TYPE_SELECT_URL,
-                "http://www.google.co.in",
-                inputType = Element.InputType.URL
+                ElementType.TEXT_AREA,
+                "Advanced Options",
+                Constants.Slack.TYPE_ADDITIONAL_PARAMS,
+                optional = true,
+                hint = "Advanced Options for Android Devs",
+                maxLength = 1000
             )
         )
 

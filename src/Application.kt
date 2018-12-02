@@ -40,6 +40,7 @@ private var GRADLE_PATH = "./gradlew"
 private var CONSUMER_APP_DIR = System.getenv()["CONSUMER_APP_DIR"]!!
 private var FLEET_APP_DIR = System.getenv()["FLEET_APP_DIR"]!!
 private var BOT_TOKEN = System.getenv()["SLACK_TOKEN"]!!
+private var DEFAULT_APP_URL = System.getenv()["DEFAULT_APP_URL"]!!
 private var O_AUTH_TOKEN = System.getenv()["O_AUTH_TOKEN"]!!
 private var DB_URL = System.getenv()["DB_URL"]!!
 private var DB_USER = System.getenv()["DB_USER"]!!
@@ -152,7 +153,7 @@ fun Application.module() {
         }
     }
 
-    val slackClient = SlackClient(O_AUTH_TOKEN, BOT_TOKEN, GRADLE_PATH, UPLOAD_DIR_PATH, gradleBotClient, database)
+    val slackClient = SlackClient(O_AUTH_TOKEN, DEFAULT_APP_URL, GRADLE_PATH, UPLOAD_DIR_PATH, gradleBotClient, database)
 
     routing {
         status()

@@ -7,7 +7,11 @@ import kotlinx.coroutines.*
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import java.util.logging.Logger
 import kotlin.coroutines.coroutineContext
+
+
+private val LOGGER = Logger.getLogger("com.application.StringUtils")
 
 suspend fun String.execute(
     workingDir: File = File("."),
@@ -46,7 +50,7 @@ fun String.toMap(): MutableMap<String, String>? {
             if (pair.size == 2) {
                 returnValue[pair[0]] = pair[1]
             } else {
-                println("Invalid parameters. $this")
+                LOGGER.severe("Invalid parameters. $this")
                 return null
             }
         }
