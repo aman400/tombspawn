@@ -394,6 +394,8 @@ class SlackClient(
             }
         }
 
+        buildData?.remove(Constants.Slack.TYPE_ADDITIONAL_PARAMS)
+
         val userAppPrefix = buildData?.get(Constants.Slack.TYPE_SELECT_APP_PREFIX)?.trim()
 
         val APKPrefix = "${userAppPrefix?.let {
