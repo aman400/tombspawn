@@ -73,6 +73,7 @@ fun Routing.slackEvent(database: Database, slackClient: SlackClient) {
             Constants.Slack.EVENT_TYPE_VERIFICATION -> call.respond(slackEvent)
             Constants.Slack.EVENT_TYPE_RATE_LIMIT -> {
                 call.respond("")
+                LOGGER.severe("Slack Api Rate Limit")
                 println("Api rate limit")
             }
             Constants.Slack.EVENT_TYPE_CALLBACK -> {
@@ -104,6 +105,7 @@ fun Routing.slackAction(database: Database, slackClient: SlackClient, consumerAp
             Constants.Slack.EVENT_TYPE_INTERACTIVE_MESSAGE -> {
                 slackEvent.actions?.forEach { action ->
                     when (action.name) {
+                        // User confirmed APK Generation from dialog box
                         Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK -> {
                             val updatedMessage = slackEvent.originalMessage?.copy(attachments = null)
                             val callback: GenerateCallback = Gson().fromJson(action.value, GenerateCallback::class.java)
