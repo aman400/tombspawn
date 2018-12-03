@@ -389,8 +389,10 @@ class SlackClient(
         val additionalParams = buildData?.get(Constants.Slack.TYPE_ADDITIONAL_PARAMS)?.trim()
 
         additionalParams?.let {
-            it.toMap()?.let { map ->
-                buildData.putAll(map)
+            it.toMap()?.forEach { key, value ->
+                if(!buildData.containsKey(key)) {
+                    buildData[key] = value
+                }
             }
         }
 
