@@ -153,7 +153,7 @@ fun Application.module() {
         }
     }
 
-    val slackClient = SlackClient(O_AUTH_TOKEN, DEFAULT_APP_URL, GRADLE_PATH, UPLOAD_DIR_PATH, gradleBotClient, database)
+    val slackClient = SlackClient(O_AUTH_TOKEN, DEFAULT_APP_URL, GRADLE_PATH, UPLOAD_DIR_PATH, gradleBotClient, database, BOT_TOKEN)
 
     routing {
         status()
