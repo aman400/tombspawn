@@ -295,7 +295,8 @@ fun Routing.buildFleet(appDir: String, slackClient: SlackClient) {
 class SlackClient(
     private val slackAuthToken: String, private val defaultAppUrl: String,
     private val gradlePath: String, private val uploadDirPath: String,
-    private val gradleBotClient: GradleBotClient, private val database: Database
+    private val gradleBotClient: GradleBotClient, private val database: Database,
+    private val slackBotToken: String
 ) {
     private val gson = Gson()
     private val LOGGER = Logger.getLogger("com.application.slack.client")
@@ -370,7 +371,7 @@ class SlackClient(
         val api = ServiceGenerator.createService(SlackApi::class.java, isLoggingEnabled = true)
 
         val response = api.updateMessage(
-            slackAuthToken, channel, updatedMessage.message ?: "",
+            slackBotToken, channel, updatedMessage.message ?: "",
             updatedMessage.timestamp!!, gson.toJson(updatedMessage.attachments)
         ).execute()
         if (response.isSuccessful) {
@@ -577,7 +578,7 @@ class SlackClient(
 
         val appToken = RequestBody.create(
             okhttp3.MultipartBody.FORM,
-            slackAuthToken
+            slackBotToken
         )
         val title = RequestBody.create(okhttp3.MultipartBody.FORM, file.nameWithoutExtension)
         val filename = RequestBody.create(okhttp3.MultipartBody.FORM, file.name)
@@ -687,7 +688,7 @@ class SlackClient(
         }
         body[Constants.Slack.TEXT] = message
         body[Constants.Slack.CHANNEL] = channelId
-        body[Constants.Slack.TOKEN] = slackAuthToken
+        body[Constants.Slack.TOKEN] = slackBotToken
         val api = ServiceGenerator.createService(
             SlackApi::class.java,
             SlackApi.BASE_URL,
@@ -715,7 +716,7 @@ class SlackClient(
         body[Constants.Slack.TEXT] = message
         body[Constants.Slack.USER] = userId
         body[Constants.Slack.CHANNEL] = channelId
-        body[Constants.Slack.TOKEN] = slackAuthToken
+        body[Constants.Slack.TOKEN] = slackBotToken
         val api = ServiceGenerator.createService(
             SlackApi::class.java,
             SlackApi.BASE_URL,
@@ -752,7 +753,7 @@ class SlackClient(
 
         val body = mutableMapOf<String, String?>()
         body[Constants.Slack.DIALOG] = gson.toJson(dialog)
-        body[Constants.Slack.TOKEN] = slackAuthToken
+        body[Constants.Slack.TOKEN] = slackBotToken
         body[Constants.Slack.TRIGGER_ID] = triggerId
         val api = ServiceGenerator.createService(
             SlackApi::class.java,
@@ -911,7 +912,7 @@ class SlackClient(
 
         val body = mutableMapOf<String, String?>()
         body[Constants.Slack.DIALOG] = gson.toJson(dialog)
-        body[Constants.Slack.TOKEN] = slackAuthToken
+        body[Constants.Slack.TOKEN] = slackBotToken
         body[Constants.Slack.TRIGGER_ID] = triggerId
         val api = ServiceGenerator.createService(
             SlackApi::class.java,
