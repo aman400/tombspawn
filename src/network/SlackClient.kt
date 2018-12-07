@@ -58,7 +58,7 @@ private val randomWaitingMessages = listOf(
     "Preparing to Spin You Around Rapidly"
 )
 
-private val LOGGER = Logger.getLogger("com.application.slack.routing")
+val LOGGER = Logger.getLogger("com.application.slack.routing")
 
 fun Routing.subscribe() {
     post<Slack.Subscribe> {
