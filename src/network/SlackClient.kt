@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.ramukaka.data.Branch
 import com.ramukaka.data.Database
+import com.ramukaka.extensions.await
 import com.ramukaka.extensions.execute
 import com.ramukaka.extensions.random
 import com.ramukaka.extensions.toMap
@@ -561,12 +562,19 @@ class SlackClient(
     suspend fun sendMessage(url: String, data: RequestData?) {
         val headers = mutableMapOf("Content-type" to "application/json")
         val api = ServiceGenerator.createService(SlackApi::class.java, isLoggingEnabled = true)
-        GlobalScope.launch(coroutineContext) {
-            val response = api.sendMessage(headers, url, data).execute()
-            if (response.isSuccessful) {
-                println(response.body())
-            } else {
-                println(response.errorBody())
+        GlobalScope.launch(Dispatchers.IO) {
+            val response = api.sendMessage(headers, url, data).await()
+            when(response) {
+                is com.ramukaka.network.Success -> {
+                    LOGGER.info(response.data.toString())
+                }
+                is com.ramukaka.network.Failure -> {
+                    LOGGER.fine(response.errorBody)
+                }
+
+                is CallError -> {
+                    LOGGER.log(Level.SEVERE, "Unable to send message", response.throwable)
+                }
             }
         }
     }
