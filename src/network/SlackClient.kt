@@ -22,10 +22,7 @@ import io.ktor.request.receive
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.Routing
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import models.slack.Action
 import models.slack.BotInfo
 import models.slack.Confirm
@@ -635,7 +632,7 @@ class SlackClient(
         }
     }
 
-    private suspend fun fetchAndUpdateUser(userId: String, database: Database) = GlobalScope.launch(coroutineContext) {
+    private suspend fun fetchAndUpdateUser(userId: String, database: Database) = withContext(coroutineContext){
         val api = ServiceGenerator.createService(
             SlackApi::class.java, SlackApi.BASE_URL,
             true
@@ -643,13 +640,27 @@ class SlackClient(
         val queryParams = mutableMapOf<String, String>()
         queryParams[SlackApi.PARAM_TOKEN] = slackAuthToken
         queryParams[SlackApi.PARAM_USER_ID] = userId
-        val response = api.getProfile(queryParams).execute()
-        if (response.isSuccessful) {
-            database.updateUser(
-                userId,
-                response.body()?.user?.name,
-                response.body()?.user?.email
-            )
+        launch {
+            val response = api.getProfile(queryParams).await()
+            when(response) {
+                is com.ramukaka.network.Success -> {
+                    response.data?.user?.let { user ->
+                        database.updateUser(
+                            userId,
+                            user.name,
+                            user.email
+                        )
+                    }
+                }
+
+                is com.ramukaka.network.Failure -> {
+                    LOGGER.log(Level.SEVERE, response.errorBody, response.throwable)
+                }
+
+                is CallError -> {
+                    LOGGER.log(Level.SEVERE, response.throwable, null)
+                }
+            }
         }
     }
 
@@ -832,7 +843,7 @@ class SlackClient(
         flavours: List<String>?,
         echo: String?,
         triggerId: String
-    ) {
+    ) = withContext(coroutineContext) {
         val dialogElementList = mutableListOf<Element>()
         val branchList = mutableListOf<Element.Option>()
         branches?.forEach { branch ->
@@ -931,7 +942,7 @@ class SlackClient(
         )
         val headers = mutableMapOf(Constants.Common.HEADER_CONTENT_TYPE to Constants.Common.VALUE_FORM_ENCODE)
 
-        GlobalScope.launch(coroutineContext) {
+        launch {
             if (api.sendActionOpenDialog(headers, body).execute().isSuccessful) {
                 println("post success")
             } else {
