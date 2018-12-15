@@ -35,6 +35,7 @@ import retrofit2.http.*
 import java.io.File
 import java.util.logging.Level
 import java.util.logging.Logger
+import javax.xml.ws.Dispatch
 import kotlin.coroutines.coroutineContext
 
 
@@ -150,12 +151,10 @@ fun Routing.slackAction(database: Database, slackClient: SlackClient, consumerAp
             Constants.Slack.EVENT_TYPE_MESSAGE_ACTION -> {
                 when (slackEvent.callbackId) {
                     Constants.Slack.TYPE_SUBSCRIBE_CONSUMER ->
-                        launch(coroutineContext) {
-                            slackClient.sendShowSubscriptionDialog(
-                                database.getBranches(Constants.Common.APP_CONSUMER),
-                                slackEvent.triggerId!!
-                            )
-                        }
+                        slackClient.sendShowSubscriptionDialog(
+                            database.getBranches(Constants.Common.APP_CONSUMER),
+                            slackEvent.triggerId!!
+                        )
                     Constants.Slack.TYPE_GENERATE_CONSUMER -> {
                         launch(coroutineContext) {
                             val branchList = database.getBranches(Constants.Common.APP_CONSUMER)
@@ -219,10 +218,10 @@ fun Routing.slackAction(database: Database, slackClient: SlackClient, consumerAp
                     }
 
                     Constants.Slack.CALLBACK_GENERATE_APK -> {
-                        slackEvent.echoed?.let { echoed ->
+                        if(!slackEvent.echoed.isNullOrEmpty()) {
                             launch(Dispatchers.IO) {
                                 slackClient.updateMessage(
-                                    Gson().fromJson(echoed, SlackMessage::class.java),
+                                    Gson().fromJson(slackEvent.echoed, SlackMessage::class.java),
                                     slackEvent.channel?.id!!
                                 )
                             }
@@ -365,17 +364,28 @@ class SlackClient(
         ): Call<BotInfo>
     }
 
-    suspend fun updateMessage(updatedMessage: SlackMessage, channel: String) = GlobalScope.launch(coroutineContext) {
+    suspend fun updateMessage(updatedMessage: SlackMessage, channel: String) {
         val api = ServiceGenerator.createService(SlackApi::class.java, isLoggingEnabled = true)
 
-        val response = api.updateMessage(
-            slackBotToken, channel, updatedMessage.message ?: "",
-            updatedMessage.timestamp!!, gson.toJson(updatedMessage.attachments)
-        ).execute()
-        if (response.isSuccessful) {
-            println(response.body())
-        } else {
-            println(response.errorBody())
+        withContext(Dispatchers.IO) {
+            when (val response = api.updateMessage(
+                slackBotToken, channel, updatedMessage.message ?: "",
+                updatedMessage.timestamp!!, gson.toJson(updatedMessage.attachments)
+            ).await()) {
+                is com.ramukaka.network.Success -> {
+                    LOGGER.info("Posted dialog successfully")
+                    LOGGER.info(response.data.toString())
+                }
+                is com.ramukaka.network.Failure -> {
+                    LOGGER.info("Dialog posting failed")
+                    LOGGER.fine(response.errorBody)
+                }
+
+                is CallError -> {
+                    LOGGER.info("Dialog posting failed")
+                    LOGGER.log(Level.SEVERE, "Unable to post dialog", response.throwable)
+                }
+            }.exhaustive
         }
     }
 
@@ -389,7 +399,7 @@ class SlackClient(
 
         additionalParams?.let {
             it.toMap()?.forEach { key, value ->
-                if(!buildData.containsKey(key)) {
+                if (!buildData.containsKey(key)) {
                     buildData[key] = value
                 }
             }
@@ -416,7 +426,7 @@ class SlackClient(
             executableCommand += " -P$key=$value"
         }
 
-        GlobalScope.launch(Dispatchers.IO) {
+        withContext(Dispatchers.IO) {
             if (responseUrl != null) {
                 sendMessage(responseUrl, RequestData(response = randomWaitingMessages.random()!!))
             } else {
@@ -424,7 +434,7 @@ class SlackClient(
             }
         }
 
-        GlobalScope.launch(Dispatchers.IO) {
+        withContext(Dispatchers.IO) {
             val executionDirectory = File(appDir)
             val pullCodeResponse = pullCodeCommand.execute(executionDirectory).await()
             if (pullCodeResponse is Failure) {
@@ -450,7 +460,7 @@ class SlackClient(
                 }
             }
 
-            runBlocking(coroutineContext) {
+            runBlocking {
                 val buildVariants = gradleBotClient.fetchBuildVariants()
                 buildVariants?.let {
                     database.addBuildVariants(it, Constants.Common.APP_CONSUMER)
@@ -559,9 +569,9 @@ class SlackClient(
     suspend fun sendMessage(url: String, data: RequestData?) {
         val headers = mutableMapOf("Content-type" to "application/json")
         val api = ServiceGenerator.createService(SlackApi::class.java, isLoggingEnabled = true)
-        GlobalScope.launch(Dispatchers.IO) {
+        withContext(Dispatchers.IO) {
             val response = api.sendMessage(headers, url, data).await()
-            when(response) {
+            when (response) {
                 is com.ramukaka.network.Success -> {
                     LOGGER.info(response.data.toString())
                 }
@@ -594,19 +604,32 @@ class SlackClient(
 
         val api = ServiceGenerator.createService(SlackApi::class.java, SlackApi.BASE_URL, false)
         val call = api.pushApp(appToken, title, filename, fileType, channels, multipartBody)
-        GlobalScope.launch(coroutineContext) {
+        withContext(Dispatchers.IO) {
             try {
-                val response = call.execute()
-                if (response.isSuccessful) {
-                    if (response.body()?.delivered == true) {
-                        LOGGER.info("delivered")
-                    } else {
-                        sendMessage("Unable to deliver apk to this channel reason: ${response.body()?.error}", channelId, null)
-                        LOGGER.severe("Not delivered")
+                val response = call.await()
+                when (response) {
+                    is com.ramukaka.network.Success -> {
+                        if (response.data?.delivered == true) {
+                            LOGGER.info("delivered")
+                        } else {
+                            sendMessage(
+                                "Unable to deliver apk to this channel reason: ${response.data?.error}",
+                                channelId,
+                                null
+                            )
+                            LOGGER.severe("Not delivered")
+                        }
                     }
-                } else {
-                    println(response.errorBody().toString())
-                }
+                    is com.ramukaka.network.Failure -> {
+                        LOGGER.severe("Not delivered")
+                        LOGGER.log(Level.SEVERE, response.errorBody, response.throwable)
+                    }
+                    is CallError -> {
+                        LOGGER.severe("Call failed unable to deliver APK")
+                        LOGGER.log(Level.SEVERE, response.throwable?.message, response.throwable)
+                    }
+                }.exhaustive
+
                 if (deleteFile)
                     file.delete()
             } catch (exception: Exception) {
@@ -619,20 +642,22 @@ class SlackClient(
     }
 
 
-    suspend fun fetchUser(userId: String, database: Database) = GlobalScope.launch(coroutineContext) {
-        database.addUser(
-            userId,
-            null,
-            null,
-            Constants.Database.USER_TYPE_USER
-        )
+    suspend fun fetchUser(userId: String, database: Database) {
+        runBlocking {
+            database.addUser(
+                userId,
+                null,
+                null,
+                Constants.Database.USER_TYPE_USER
+            )
+        }
 
-        launch(Dispatchers.IO) {
+        withContext(coroutineContext) {
             fetchAndUpdateUser(userId, database)
         }
     }
 
-    private suspend fun fetchAndUpdateUser(userId: String, database: Database) = withContext(coroutineContext){
+    private suspend fun fetchAndUpdateUser(userId: String, database: Database) {
         val api = ServiceGenerator.createService(
             SlackApi::class.java, SlackApi.BASE_URL,
             true
@@ -640,9 +665,8 @@ class SlackClient(
         val queryParams = mutableMapOf<String, String>()
         queryParams[SlackApi.PARAM_TOKEN] = slackAuthToken
         queryParams[SlackApi.PARAM_USER_ID] = userId
-        launch {
-            val response = api.getProfile(queryParams).await()
-            when(response) {
+        withContext(Dispatchers.IO) {
+            when (val response = api.getProfile(queryParams).await()) {
                 is com.ramukaka.network.Success -> {
                     response.data?.user?.let { user ->
                         database.updateUser(
@@ -660,7 +684,7 @@ class SlackClient(
                 is CallError -> {
                     LOGGER.log(Level.SEVERE, response.throwable, null)
                 }
-            }
+            }.exhaustive
         }
     }
 
@@ -676,7 +700,7 @@ class SlackClient(
             }
             when (event.type) {
                 Constants.Slack.EVENT_TYPE_APP_MENTION, Constants.Slack.EVENT_TYPE_MESSAGE -> {
-                    GlobalScope.launch {
+                    withContext(Dispatchers.IO) {
                         val user = database.getUser(Constants.Database.USER_TYPE_BOT)
                         user?.let { bot ->
                             when (event.text?.substringAfter("<@${bot.slackId}>", event.text)?.trim()) {
@@ -716,13 +740,17 @@ class SlackClient(
             true
         )
         val headers = mutableMapOf(Constants.Common.HEADER_CONTENT_TYPE to Constants.Common.VALUE_FORM_ENCODE)
-        GlobalScope.launch(coroutineContext) {
-            val response = api.postAction(headers, body).execute()
-            if (response.isSuccessful) {
-                println("Success")
-            } else {
-                println("Failure")
-            }
+        withContext(Dispatchers.IO) {
+            val response = api.postAction(headers, body).await()
+            when (response) {
+
+                is com.ramukaka.network.Success -> {
+                    LOGGER.info("message successfully sent")
+                }
+                else -> {
+                    LOGGER.info("message sending failed")
+                }
+            }.exhaustive
         }
     }
 
@@ -744,13 +772,21 @@ class SlackClient(
             true
         )
         val headers = mutableMapOf(Constants.Common.HEADER_CONTENT_TYPE to Constants.Common.VALUE_FORM_ENCODE)
-        GlobalScope.launch(coroutineContext) {
-            val response = api.sendMessageEphemeral(headers, body).execute()
-            if (response.isSuccessful) {
-                println(response.body())
-            } else {
-                println(response.errorBody())
-            }
+        withContext(Dispatchers.IO) {
+            val response = api.sendMessageEphemeral(headers, body).await()
+            when (response) {
+
+                is com.ramukaka.network.Success -> {
+                    LOGGER.info(response.data.toString())
+                }
+                is com.ramukaka.network.Failure -> {
+                    LOGGER.info(response.errorBody.toString())
+                }
+                is CallError -> {
+                    LOGGER.info(response.throwable?.message)
+
+                }
+            }.exhaustive
         }
     }
 
@@ -783,12 +819,19 @@ class SlackClient(
         )
         val headers = mutableMapOf(Constants.Common.HEADER_CONTENT_TYPE to Constants.Common.VALUE_FORM_ENCODE)
 
-        GlobalScope.launch(coroutineContext) {
-            if (api.sendActionOpenDialog(headers, body).execute().isSuccessful) {
-                println("post success")
-            } else {
-                println("post failure")
-            }
+        withContext(Dispatchers.IO) {
+            when (val response = api.sendActionOpenDialog(headers, body).await()) {
+                is com.ramukaka.network.Success -> {
+                    LOGGER.info(response.data.toString())
+                }
+                is com.ramukaka.network.Failure -> {
+                    LOGGER.info(response.errorBody.toString())
+                }
+                is CallError -> {
+                    LOGGER.info(response.throwable?.message)
+
+                }
+            }.exhaustive
         }
     }
 
@@ -843,7 +886,7 @@ class SlackClient(
         flavours: List<String>?,
         echo: String?,
         triggerId: String
-    ) = withContext(coroutineContext) {
+    ) {
         val dialogElementList = mutableListOf<Element>()
         val branchList = mutableListOf<Element.Option>()
         branches?.forEach { branch ->
@@ -902,13 +945,13 @@ class SlackClient(
             )
         )
 
-        if(dialogElementList.size < 4) {
+        if (dialogElementList.size < 4) {
             dialogElementList.add(
                 Element(
                     ElementType.TEXT,
                     "App Prefix",
                     Constants.Slack.TYPE_SELECT_APP_PREFIX,
-                    hint="Prefixes this along with the generated App name",
+                    hint = "Prefixes this along with the generated App name",
                     maxLength = 50,
                     optional = true
                 )
@@ -942,12 +985,22 @@ class SlackClient(
         )
         val headers = mutableMapOf(Constants.Common.HEADER_CONTENT_TYPE to Constants.Common.VALUE_FORM_ENCODE)
 
-        launch {
-            if (api.sendActionOpenDialog(headers, body).execute().isSuccessful) {
-                println("post success")
-            } else {
-                println("post failure")
-            }
+        withContext(Dispatchers.IO) {
+            when (val response = api.sendActionOpenDialog(headers, body).await()) {
+                is com.ramukaka.network.Success -> {
+                    LOGGER.info("Posted dialog successfully")
+                    LOGGER.info(response.data.toString())
+                }
+                is com.ramukaka.network.Failure -> {
+                    LOGGER.info("Dialog posting failed")
+                    LOGGER.fine(response.errorBody)
+                }
+
+                is CallError -> {
+                    LOGGER.info("Dialog posting failed")
+                    LOGGER.log(Level.SEVERE, "Unable to post dialog", response.throwable)
+                }
+            }.exhaustive
         }
 
     }
