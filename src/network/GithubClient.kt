@@ -4,6 +4,7 @@ import com.ramukaka.data.Branches
 import com.ramukaka.data.Database
 import com.ramukaka.data.Subscriptions
 import com.ramukaka.data.Users
+import com.ramukaka.models.github.RefType
 import com.ramukaka.utils.Constants
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
@@ -49,13 +50,15 @@ fun Routing.githubWebhook(database: Database, slackClient: SlackClient) {
             headers[Constants.Github.HEADER_KEY_EVENT] == Constants.Github.HEADER_VALUE_EVENT_CREATE -> {
                 call.respond(HttpStatusCode.OK)
                 launch {
-                    database.addBranch(payload.ref!!, Constants.Common.APP_CONSUMER)
+                    if(payload.refType!! == RefType.BRANCH) {
+                        database.addBranch(payload.ref!!, Constants.Common.APP_CONSUMER)
+                    }
                 }
             }
             headers[Constants.Github.HEADER_KEY_EVENT] == Constants.Github.HEADER_VALUE_EVENT_DELETE -> {
                 call.respond(HttpStatusCode.OK)
                 database.deleteBranch(payload.ref!!)
-                println("Branch deleted")
+                LOGGER.info("deleted branch: ${payload.ref}")
             }
 
             headers[Constants.Github.HEADER_KEY_EVENT] == Constants.Github.HEADER_VALUE_EVENT_PING -> {

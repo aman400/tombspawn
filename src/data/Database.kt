@@ -96,14 +96,15 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
     /**
      * Checks if user is already subscribed to a branch or not.
      */
-    suspend fun isUserSubscribed(user: User, app: App, branch: Branch, channel: String): Boolean = withContext(dispatcher) {
-        return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
-            return@transaction !Subscription.find {
-                (Subscriptions.userId eq user.id) and (Subscriptions.appId eq app.id) and (Subscriptions.branchId eq branch.id) and (Subscriptions.channel eq channel)
-            }.empty()
+    suspend fun isUserSubscribed(user: User, app: App, branch: Branch, channel: String): Boolean =
+        withContext(dispatcher) {
+            return@withContext transaction(connection) {
+                addLogger(StdOutSqlLogger)
+                return@transaction !Subscription.find {
+                    (Subscriptions.userId eq user.id) and (Subscriptions.appId eq app.id) and (Subscriptions.branchId eq branch.id) and (Subscriptions.channel eq channel)
+                }.empty()
+            }
         }
-    }
 
     suspend fun userExists(userId: String?): Boolean = withContext(dispatcher) {
         if (userId.isNullOrEmpty()) {
@@ -236,18 +237,20 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
     suspend fun addBranches(branches: List<String>, app: String) = withContext(dispatcher) {
         return@withContext transaction(connection) {
             addLogger(StdOutSqlLogger)
+
             App.find { Apps.name eq app }.firstOrNull()?.let { application ->
+                Branch.all().forEach {
+                    it.delete()
+                }
+
                 branches.forEach { branch ->
-                    if (Branch.find { (Branches.name eq (branch) and (Branches.appId eq application.id)) }.empty()) {
-                        Branch.new {
-                            this.branchName = branch
-                            this.deleted = false
-                            this.appId = application
-                        }
+                    Branch.new {
+                        this.branchName = branch
+                        this.deleted = false
+                        this.appId = application
                     }
                 }
             }
-
         }
     }
 
@@ -262,7 +265,10 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
     suspend fun getBuildTypes(app: String): List<BuildType>? = withContext(dispatcher) {
         return@withContext transaction(connection) {
             addLogger(StdOutSqlLogger)
-            BuildType.wrapRows(BuildTypes.leftJoin(Apps, { BuildTypes.appId }, { Apps.id }).select { Apps.name eq app })
+            BuildType.wrapRows(BuildTypes.leftJoin(
+                Apps,
+                { BuildTypes.appId },
+                { Apps.id }).select { Apps.name eq app })
                 .toList()
         }
     }
@@ -354,24 +360,24 @@ class Branch(id: EntityID<Int>) : IntEntity(id) {
     var deleted by Branches.deleted
 }
 
-object BuildTypes: IntIdTable() {
+object BuildTypes : IntIdTable() {
     val name = varchar("name", 100).uniqueIndex().primaryKey()
     val appId = reference("app_id", Apps, ReferenceOption.CASCADE, ReferenceOption.RESTRICT).primaryKey()
 }
 
-class BuildType(id: EntityID<Int>): IntEntity(id) {
+class BuildType(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<BuildType>(BuildTypes)
 
     var name by BuildTypes.name
     var appId by App referencedOn BuildTypes.appId
 }
 
-object Flavours: IntIdTable() {
+object Flavours : IntIdTable() {
     val name = varchar("name", 100).uniqueIndex().primaryKey()
     val appId = reference("app_id", Apps, ReferenceOption.CASCADE, ReferenceOption.RESTRICT).primaryKey()
 }
 
-class Flavour(id: EntityID<Int>): IntEntity(id) {
+class Flavour(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<Flavour>(Flavours)
 
     var name by Flavours.name

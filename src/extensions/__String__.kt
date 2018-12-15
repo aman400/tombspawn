@@ -15,7 +15,7 @@ private val LOGGER = Logger.getLogger("com.application.StringUtils")
 
 suspend fun String.execute(
     workingDir: File = File("."),
-    timeoutAmount: Long = 60,
+    timeoutAmount: Long = 15,
     timeoutUnit: TimeUnit = TimeUnit.MINUTES
 ): Deferred<CommandResponse> = GlobalScope.async(coroutineContext) {
      try {
@@ -29,10 +29,13 @@ suspend fun String.execute(
          val errorText = builder.errorStream.bufferedReader().readText()
          builder.apply {
              waitFor(timeoutAmount, timeoutUnit)
+
          }
+         val exitValue = builder.exitValue()
+
          println(response)
 
-         if(errorText.isEmpty()) Success(response) else Failure(errorText)
+         if(exitValue == 0) Success(response) else Failure(errorText)
 
 
     } catch (exception: IOException) {

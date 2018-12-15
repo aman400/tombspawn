@@ -2,14 +2,11 @@ package com.ramukaka
 
 import com.ramukaka.data.Database
 import com.ramukaka.network.*
-import com.ramukaka.network.interceptors.LoggingInterceptor
 import com.ramukaka.utils.Constants
 import io.ktor.application.Application
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
 import io.ktor.application.install
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.features.*
 import io.ktor.gson.gson
 import io.ktor.http.HttpStatusCode
@@ -19,7 +16,7 @@ import io.ktor.locations.Locations
 import io.ktor.request.path
 import io.ktor.response.respond
 import io.ktor.routing.routing
-import io.ktor.server.jetty.EngineMain
+import io.ktor.server.netty.EngineMain
 import io.ktor.util.error
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -88,16 +85,6 @@ fun Application.module() {
         }
     }
 
-    HttpClient(OkHttp) {
-        engine {
-            config {
-                followRedirects(true)
-            }
-
-            addInterceptor(LoggingInterceptor())
-        }
-    }
-
     intercept(ApplicationCallPipeline.Monitoring) {
 
         if (!call.parameters.isEmpty()) {
@@ -120,7 +107,6 @@ fun Application.module() {
                 println("$key: ${valuesList.joinToString(",")}")
             }
         }
-
     }
 
     val database = Database(this, DB_URL, DB_USER, DB_PASSWORD)
@@ -153,7 +139,7 @@ fun Application.module() {
         }
     }
 
-    val slackClient = SlackClient(O_AUTH_TOKEN, DEFAULT_APP_URL, GRADLE_PATH, UPLOAD_DIR_PATH, gradleBotClient, database)
+    val slackClient = SlackClient(O_AUTH_TOKEN, DEFAULT_APP_URL, GRADLE_PATH, UPLOAD_DIR_PATH, gradleBotClient, database, BOT_TOKEN)
 
     routing {
         status()
