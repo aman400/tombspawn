@@ -22,7 +22,10 @@ import io.ktor.request.receive
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.Routing
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import models.slack.Action
 import models.slack.BotInfo
 import models.slack.Confirm
@@ -35,8 +38,6 @@ import retrofit2.http.*
 import java.io.File
 import java.util.logging.Level
 import java.util.logging.Logger
-import javax.xml.ws.Dispatch
-import kotlin.coroutines.coroutineContext
 
 
 private val randomWaitingMessages = listOf(
@@ -156,7 +157,7 @@ fun Routing.slackAction(database: Database, slackClient: SlackClient, consumerAp
                             slackEvent.triggerId!!
                         )
                     Constants.Slack.TYPE_GENERATE_CONSUMER -> {
-                        launch(coroutineContext) {
+                        launch {
                             val branchList = database.getBranches(Constants.Common.APP_CONSUMER)
                             val flavourList = database.getFlavours(Constants.Common.APP_CONSUMER)
                             val buildTypesList = database.getBuildTypes(Constants.Common.APP_CONSUMER)
@@ -175,7 +176,7 @@ fun Routing.slackAction(database: Database, slackClient: SlackClient, consumerAp
             Constants.Slack.EVENT_TYPE_DIALOG -> {
                 when (slackEvent.callbackId) {
                     Constants.Slack.CALLBACK_SUBSCRIBE_CONSUMER -> {
-                        launch(coroutineContext) {
+                        launch {
                             slackEvent.user?.id?.let { userId ->
                                 if (!database.userExists(userId)) {
                                     runBlocking {
@@ -218,7 +219,7 @@ fun Routing.slackAction(database: Database, slackClient: SlackClient, consumerAp
                     }
 
                     Constants.Slack.CALLBACK_GENERATE_APK -> {
-                        if(!slackEvent.echoed.isNullOrEmpty()) {
+                        if (!slackEvent.echoed.isNullOrEmpty()) {
                             launch(Dispatchers.IO) {
                                 slackClient.updateMessage(
                                     Gson().fromJson(slackEvent.echoed, SlackMessage::class.java),
@@ -652,9 +653,7 @@ class SlackClient(
             )
         }
 
-        withContext(coroutineContext) {
-            fetchAndUpdateUser(userId, database)
-        }
+        fetchAndUpdateUser(userId, database)
     }
 
     private suspend fun fetchAndUpdateUser(userId: String, database: Database) {
