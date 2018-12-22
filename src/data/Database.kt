@@ -239,15 +239,19 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
             addLogger(StdOutSqlLogger)
 
             App.find { Apps.name eq app }.firstOrNull()?.let { application ->
-                Branch.all().forEach {
+                Branch.all().filterNot {
+                    branches.contains(it.branchName)
+                }.forEach {
                     it.delete()
                 }
 
-                branches.forEach { branch ->
-                    Branch.new {
-                        this.branchName = branch
-                        this.deleted = false
-                        this.appId = application
+                branches.forEach {
+                    if(Branch.find { Branches.name eq it }.firstOrNull() == null) {
+                        Branch.new {
+                            this.branchName = it
+                            this.deleted = false
+                            this.appId = application
+                        }
                     }
                 }
             }
@@ -277,13 +281,19 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
         return@withContext transaction(connection) {
             addLogger(StdOutSqlLogger)
             App.find { Apps.name eq appName }.firstOrNull()?.let { application ->
-                Flavour.all().forEach {
+
+                Flavour.all().filterNot {
+                    flavours.contains(it.name)
+                }.forEach {
                     it.delete()
                 }
+
                 flavours.forEach { flavour ->
-                    Flavour.new {
-                        this.name = flavour
-                        this.appId = application
+                    if(Flavour.find { Flavours.name eq flavour }.firstOrNull() == null) {
+                        Flavour.new {
+                            this.name = flavour
+                            this.appId = application
+                        }
                     }
                 }
             }
@@ -294,13 +304,20 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
         return@withContext transaction(connection) {
             addLogger(StdOutSqlLogger)
             App.find { Apps.name eq appName }.firstOrNull()?.let { application ->
-                BuildType.all().forEach {
+
+                BuildType.all().filterNot {
+                    buildTypes.contains(it.name)
+                }.forEach {
                     it.delete()
                 }
+
                 buildTypes.forEach { buildType ->
-                    BuildType.new {
-                        this.name = buildType
-                        this.appId = application
+                    if(BuildType.find { BuildTypes.name eq buildType }.firstOrNull() == null) {
+
+                        BuildType.new {
+                            this.name = buildType
+                            this.appId = application
+                        }
                     }
                 }
             }
