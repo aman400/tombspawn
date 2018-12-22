@@ -1,6 +1,8 @@
 package com.ramukaka
 
 import com.ramukaka.data.Database
+import com.ramukaka.extensions.commandExecutor
+import com.ramukaka.models.CommandResponse
 import com.ramukaka.network.*
 import com.ramukaka.utils.Constants
 import io.ktor.application.Application
@@ -18,10 +20,7 @@ import io.ktor.response.respond
 import io.ktor.routing.routing
 import io.ktor.server.netty.EngineMain
 import io.ktor.util.error
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import network.fetchBotData
 import network.health
 import network.receiveApk
@@ -116,7 +115,10 @@ fun Application.module() {
     val apps = mutableListOf(Constants.Common.APP_CONSUMER, Constants.Common.APP_FLEET)
     runBlocking { database.addApps(apps) }
 
-    val gradleBotClient = GradleBotClient(GRADLE_PATH, CONSUMER_APP_DIR)
+    val responseListener = mutableMapOf<String, CompletableDeferred<CommandResponse>>()
+    val requestExecutor = commandExecutor(responseListener)
+
+    val gradleBotClient = GradleBotClient(GRADLE_PATH, CONSUMER_APP_DIR, responseListener, requestExecutor)
 
     GlobalScope.launch(Dispatchers.IO) {
         val branches = gradleBotClient.fetchAllBranches()
@@ -139,7 +141,8 @@ fun Application.module() {
         }
     }
 
-    val slackClient = SlackClient(O_AUTH_TOKEN, DEFAULT_APP_URL, GRADLE_PATH, UPLOAD_DIR_PATH, gradleBotClient, database, BOT_TOKEN)
+    val slackClient = SlackClient(O_AUTH_TOKEN, DEFAULT_APP_URL, GRADLE_PATH, UPLOAD_DIR_PATH, gradleBotClient,
+        database, BOT_TOKEN, requestExecutor, responseListener)
 
     routing {
         status()

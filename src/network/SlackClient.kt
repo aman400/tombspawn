@@ -5,8 +5,9 @@ import com.google.gson.JsonObject
 import com.ramukaka.data.Branch
 import com.ramukaka.data.Database
 import com.ramukaka.extensions.*
+import com.ramukaka.models.*
+import com.ramukaka.models.Command
 import com.ramukaka.models.Failure
-import com.ramukaka.models.RequestData
 import com.ramukaka.models.Success
 import com.ramukaka.models.locations.Slack
 import com.ramukaka.models.slack.*
@@ -19,10 +20,8 @@ import io.ktor.request.receive
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.Routing
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.SendChannel
 import models.slack.Action
 import models.slack.BotInfo
 import models.slack.Confirm
@@ -33,6 +32,7 @@ import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.http.*
 import java.io.File
+import java.util.*
 import java.util.logging.Level
 import java.util.logging.Logger
 
@@ -291,7 +291,9 @@ class SlackClient(
     private val slackAuthToken: String, private val defaultAppUrl: String,
     private val gradlePath: String, private val uploadDirPath: String,
     private val gradleBotClient: GradleBotClient, private val database: Database,
-    private val slackBotToken: String
+    private val slackBotToken: String,
+    private val requestExecutor: SendChannel<Command>,
+    private val responseListeners: MutableMap<String, CompletableDeferred<CommandResponse>>
 ) {
     private val gson = Gson()
     private val LOGGER = Logger.getLogger("com.application.slack.client")
@@ -434,27 +436,33 @@ class SlackClient(
 
         withContext(Dispatchers.IO) {
             val executionDirectory = File(appDir)
-            val pullCodeResponse = pullCodeCommand.execute(executionDirectory).await()
-            if (pullCodeResponse is Failure) {
-                LOGGER.log(
-                    Level.SEVERE,
-                    if (pullCodeResponse.error.isNullOrEmpty()) "Unable to pull code from branch: $selectedBranch" else pullCodeResponse.error,
-                    pullCodeResponse.throwable
-                )
-                if (responseUrl != null) {
-                    sendMessage(
-                        responseUrl,
-                        RequestData(
-                            response = pullCodeResponse.error
-                                ?: "Unable to pull latest changes from branch `$selectedBranch`."
+            val id = UUID.randomUUID().toString()
+            requestExecutor.send(Request(pullCodeCommand, executionDirectory, id = id))
+            val pullCodeResponseListener = CompletableDeferred<CommandResponse>()
+            responseListeners[id] = pullCodeResponseListener
+
+            when(val pullCodeResponse = pullCodeResponseListener.await()) {
+                is Failure -> {
+                    LOGGER.log(
+                        Level.SEVERE,
+                        if (pullCodeResponse.error.isNullOrEmpty()) "Unable to pull code from branch: $selectedBranch" else pullCodeResponse.error,
+                        pullCodeResponse.throwable
+                    )
+                    if (responseUrl != null) {
+                        sendMessage(
+                            responseUrl,
+                            RequestData(
+                                response = pullCodeResponse.error
+                                    ?: "Unable to pull latest changes from branch `$selectedBranch`."
+                            )
                         )
-                    )
-                } else {
-                    sendMessage(
-                        pullCodeResponse.error ?: "Unable to pull latest changes from branch `$selectedBranch`.",
-                        channelId,
-                        null
-                    )
+                    } else {
+                        sendMessage(
+                            pullCodeResponse.error ?: "Unable to pull latest changes from branch `$selectedBranch`.",
+                            channelId,
+                            null
+                        )
+                    }
                 }
             }
 
@@ -470,8 +478,13 @@ class SlackClient(
                 }
             }
 
-            val commandResponse = executableCommand.execute(executionDirectory).await()
-            when (commandResponse) {
+
+            val buildId = UUID.randomUUID().toString()
+            requestExecutor.send(Request(executableCommand, executionDirectory, id = buildId))
+            val buildApkResponseListener = CompletableDeferred<CommandResponse>()
+            responseListeners[buildId] = buildApkResponseListener
+
+            when (val commandResponse = buildApkResponseListener.await()) {
                 is Success -> {
                     val tempDirectory = File(uploadDirPath)
                     if (tempDirectory.exists()) {
@@ -831,7 +844,7 @@ class SlackClient(
         }
     }
 
-    suspend fun sendShowConfirmGenerateApk(channelId: String, branch: String, user: String) {
+    suspend fun sendShowConfirmGenerateApk(channelId: String, branch: String) {
 
         val attachments = mutableListOf(
             Attachment(
