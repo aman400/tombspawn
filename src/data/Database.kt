@@ -40,7 +40,7 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
         connectionPool = HikariDataSource(config)
         connection = Database.connect(connectionPool)
         transaction(connection) {
-            SchemaUtils.create(Users, UserTypes, Apps, Branches, BuildTypes, Flavours, Subscriptions)
+            SchemaUtils.create(Users, UserTypes, Apps, Branches, BuildTypes, Flavours, Subscriptions, Verbs, Apis)
         }
     }
 
@@ -323,6 +323,66 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
             }
         }
     }
+
+    suspend fun getVerbs() = withContext(dispatcher) {
+        return@withContext transaction(connection) {
+            addLogger(StdOutSqlLogger)
+            Verb.all().map {
+                it.name
+            }
+        }
+    }
+
+    suspend fun addVerbs(verbs: List<String>) = withContext(dispatcher) {
+        return@withContext transaction(connection) {
+            addLogger(StdOutSqlLogger)
+            Verb.all().filterNot {
+                verbs.contains(it.name)
+            }.forEach {
+                it.delete()
+            }
+
+            verbs.forEach { verb ->
+                if(Verb.find { Verbs.name eq verb }.firstOrNull() == null) {
+                    Verb.new {
+                        this.name = verb
+                    }
+                }
+            }
+        }
+    }
+
+    suspend fun getVerb(verb: String) = withContext(dispatcher) {
+        return@withContext transaction(connection) {
+            addLogger(StdOutSqlLogger)
+            Verb.wrapRow(Verbs.select { Verbs.name eq verb }.first())
+        }
+    }
+
+    suspend fun getApi(apiId: String, verbName: String) = withContext(dispatcher) {
+        return@withContext transaction(connection) {
+            addLogger(StdOutSqlLogger)
+            val verb = runBlocking {
+                 getVerb(verbName)
+            }
+            Apis.select { Apis.apiId eq apiId and (Apis.verb eq verb.id)}.firstOrNull()?.let {
+                Api.wrapRow(it)
+            }
+        }
+    }
+
+    suspend fun addApi(apiId: String, verb: String, response: String) = withContext(dispatcher) {
+        return@withContext transaction(connection) {
+            addLogger(StdOutSqlLogger)
+            Verb.find { Verbs.name eq verb }.firstOrNull()?.let { verb ->
+                Api.new {
+                    this.response = response
+                    this.verb = verb
+                    this.apiId = apiId
+                }
+            }
+        }
+    }
 }
 
 object Users : IntIdTable() {
@@ -399,6 +459,30 @@ class Flavour(id: EntityID<Int>) : IntEntity(id) {
 
     var name by Flavours.name
     var appId by App referencedOn Flavours.appId
+}
+
+object Verbs: IntIdTable() {
+    val name = varchar("name", 20)
+}
+
+class Verb(id: EntityID<Int>): IntEntity(id) {
+    companion object : IntEntityClass<Verb>(Verbs)
+
+    var name by Verbs.name
+}
+
+object Apis: IntIdTable() {
+    val apiId = varchar("api_id", 100).uniqueIndex().primaryKey()
+    val verb = reference("verb", Verbs, ReferenceOption.CASCADE, ReferenceOption.RESTRICT).primaryKey()
+    val response = text("response")
+}
+
+class Api(id: EntityID<Int>): IntEntity(id) {
+    companion object : IntEntityClass<Api>(Apis)
+
+    var apiId by Apis.apiId
+    var verb by Verb referencedOn Apis.verb
+    var response by Apis.response
 }
 
 object Subscriptions : IntIdTable() {

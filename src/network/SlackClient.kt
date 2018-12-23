@@ -2,23 +2,29 @@ package com.ramukaka.network
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import com.ramukaka.data.Branch
 import com.ramukaka.data.Database
-import com.ramukaka.extensions.*
+import com.ramukaka.extensions.await
+import com.ramukaka.extensions.random
+import com.ramukaka.extensions.toMap
 import com.ramukaka.models.*
 import com.ramukaka.models.Command
 import com.ramukaka.models.Failure
 import com.ramukaka.models.Success
+import com.ramukaka.models.locations.ApiMock
 import com.ramukaka.models.locations.Slack
 import com.ramukaka.models.slack.*
 import com.ramukaka.utils.Constants
 import io.ktor.application.call
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
-import io.ktor.locations.post
+import io.ktor.locations.*
 import io.ktor.request.receive
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
+import io.ktor.response.respondText
 import io.ktor.routing.Routing
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.SendChannel
@@ -57,6 +63,49 @@ private val randomWaitingMessages = listOf(
 
 val LOGGER = Logger.getLogger("com.application.slack.routing")
 
+
+fun Routing.mockApi(database: Database) {
+    get<ApiMock.GeneratedApi> {
+        database.getApi(it.apiId, Constants.Common.GET)?.let { api ->
+            call.respondText(api.response, ContentType.parse("application/json; charset=UTF-8"), HttpStatusCode.OK)
+        } ?: call.respond(HttpStatusCode.NotFound, "Api not found")
+    }
+    put<ApiMock.GeneratedApi> {
+        database.getApi(it.apiId, Constants.Common.PUT)?.let { api ->
+            call.respondText(api.response, ContentType.parse("application/json; charset=UTF-8"), HttpStatusCode.OK)
+        } ?: call.respond(HttpStatusCode.NotFound, "Api not found")
+    }
+    post<ApiMock.GeneratedApi> {
+        database.getApi(it.apiId, Constants.Common.POST)?.let { api ->
+            call.response.status(HttpStatusCode.OK)
+            call.respondText(api.response, ContentType.parse("application/json; charset=UTF-8"), HttpStatusCode.OK)
+        } ?: call.respond(HttpStatusCode.NotFound, "Api not found")
+    }
+    delete<ApiMock.GeneratedApi> {
+        database.getApi(it.apiId, Constants.Common.DELETE)?.let { api ->
+            call.respondText(api.response, ContentType.parse("application/json; charset=UTF-8"), HttpStatusCode.OK)
+        } ?: call.respond(HttpStatusCode.NotFound, "Api not found")
+    }
+    patch<ApiMock.GeneratedApi> {
+        database.getApi(it.apiId, Constants.Common.PATCH)?.let { api ->
+            call.respondText(api.response, ContentType.parse("application/json; charset=UTF-8"), HttpStatusCode.OK)
+        } ?: call.respond(HttpStatusCode.NotFound, "Api not found")
+    }
+    head<ApiMock.GeneratedApi> {
+        database.getApi(it.apiId, Constants.Common.HEAD)?.let { api ->
+            call.respondText(api.response, ContentType.parse("application/json; charset=UTF-8"), HttpStatusCode.OK)
+        } ?: call.respond(HttpStatusCode.NotFound, "Api not found")
+    }
+    options<ApiMock.GeneratedApi> {
+        database.getApi(it.apiId, Constants.Common.OPTIONS)?.let { api ->
+            call.respondText(api.response, ContentType.parse("application/json; charset=UTF-8"), HttpStatusCode.OK)
+        } ?: call.respond(HttpStatusCode.NotFound, "Api not found")
+    }
+
+
+}
+
+
 fun Routing.subscribe() {
     post<Slack.Subscribe> {
         call.respond("")
@@ -90,7 +139,7 @@ fun Routing.slackEvent(database: Database, slackClient: SlackClient) {
     }
 }
 
-fun Routing.slackAction(database: Database, slackClient: SlackClient, consumerAppDir: String) {
+fun Routing.slackAction(database: Database, slackClient: SlackClient, consumerAppDir: String, baseUrl: String) {
     post<Slack.Action> {
         val params = call.receive<Parameters>()
         val payload = params["payload"]
@@ -168,6 +217,12 @@ fun Routing.slackAction(database: Database, slackClient: SlackClient, consumerAp
                             )
                         }
                     }
+
+                    Constants.Slack.TYPE_CREATE_MOCK_API -> {
+                        launch {
+                            slackClient.sendShowCreateApiDialog(database.getVerbs(), slackEvent.triggerId!!)
+                        }
+                    }
                 }
             }
             Constants.Slack.EVENT_TYPE_DIALOG -> {
@@ -230,6 +285,28 @@ fun Routing.slackAction(database: Database, slackClient: SlackClient, consumerAp
                             consumerAppDir,
                             slackEvent.responseUrl
                         )
+                    }
+
+                    Constants.Slack.CALLBACK_CREATE_API -> {
+                        val verb = slackEvent.dialogResponse?.get(Constants.Slack.TYPE_SELECT_VERB)
+                        val response = slackEvent.dialogResponse?.get(Constants.Slack.TYPE_SELECT_RESPONSE)
+
+                        val id = UUID.randomUUID().toString().replace("-", "", true)
+
+                        try {
+                            JsonParser().parse(response).asJsonObject
+                            database.addApi(id, verb!!, response!!)
+
+                            slackClient.sendMessage(
+                                slackEvent.responseUrl!!,
+                                RequestData(response = "Your `$verb` call is ready with url `${baseUrl}api/mock/$id`")
+                            )
+                        } catch (exception: Exception) {
+                            slackClient.sendMessage(
+                                slackEvent.responseUrl!!,
+                                RequestData(response = "Invalid JSON")
+                            )
+                        }
                     }
                 }
             }
@@ -735,7 +812,7 @@ class SlackClient(
         }
     }
 
-    private suspend fun sendMessage(message: String, channelId: String, attachments: List<Attachment>?) {
+    suspend fun sendMessage(message: String, channelId: String, attachments: List<Attachment>?) {
         val body = mutableMapOf<String, String?>()
         attachments?.let {
             body[Constants.Slack.ATTACHMENTS] = gson.toJson(attachments)
@@ -889,6 +966,70 @@ class SlackClient(
         sendMessage("New changes are available in `$branch` branch.", channelId, attachments)
     }
 
+    suspend fun sendShowCreateApiDialog(verbs: List<String>?, triggerId: String) {
+        val dialogElementList = mutableListOf<Element>()
+
+        val verbElements = verbs?.map { verb ->
+            Element.Option(verb, verb)
+        }
+
+        verbElements?.let {
+            dialogElementList.add(
+                Element(
+                    ElementType.SELECT, "Select verb",
+                    Constants.Slack.TYPE_SELECT_VERB,
+                    options = it
+                )
+            )
+        }
+
+        dialogElementList.add(
+            Element(
+                ElementType.TEXT_AREA,
+                "Expected Response",
+                Constants.Slack.TYPE_SELECT_RESPONSE,
+                optional = false,
+                hint = "Type your expected response here.",
+                maxLength = 3000
+            )
+        )
+
+        val dialog = Dialog(
+            Constants.Slack.CALLBACK_CREATE_API, "Create API", "Submit", false,
+            elements = dialogElementList
+        )
+
+        val body = mutableMapOf<String, String?>()
+        body[Constants.Slack.DIALOG] = gson.toJson(dialog)
+        body[Constants.Slack.TOKEN] = slackBotToken
+        body[Constants.Slack.TRIGGER_ID] = triggerId
+        val api = ServiceGenerator.createService(
+            SlackApi::class.java,
+            SlackApi.BASE_URL,
+            true
+        )
+        val headers = mutableMapOf(Constants.Common.HEADER_CONTENT_TYPE to Constants.Common.VALUE_FORM_ENCODE)
+
+        withContext(Dispatchers.IO) {
+            when (val response = api.sendActionOpenDialog(headers, body).await()) {
+                is com.ramukaka.network.Success -> {
+                    LOGGER.info("Posted dialog successfully")
+                    LOGGER.info(response.data.toString())
+                }
+                is com.ramukaka.network.Failure -> {
+                    LOGGER.info("Dialog posting failed")
+                    LOGGER.fine(response.errorBody)
+                }
+                is CallError -> {
+                    LOGGER.info("Dialog posting failed")
+                    LOGGER.log(Level.SEVERE, "Unable to post dialog", response.throwable)
+                }
+            }.exhaustive
+        }
+
+    }
+
+
     suspend fun sendShowGenerateApkDialog(
         branches: List<String>?,
         buildTypes: List<String>?,
@@ -974,7 +1115,7 @@ class SlackClient(
                 Constants.Slack.TYPE_ADDITIONAL_PARAMS,
                 optional = true,
                 hint = "Advanced Options for Android Devs",
-                maxLength = 1000
+                maxLength = 3000
             )
         )
 

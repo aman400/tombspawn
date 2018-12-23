@@ -41,6 +41,7 @@ private var O_AUTH_TOKEN = System.getenv()["O_AUTH_TOKEN"]!!
 private var DB_URL = System.getenv()["DB_URL"]!!
 private var DB_USER = System.getenv()["DB_USER"]!!
 private var DB_PASSWORD = System.getenv()["DB_PASSWORD"]!!
+private var BASE_URL = System.getenv()["BASE_URL"]!!
 
 @KtorExperimentalLocationsAPI
 @Suppress("unused") // Referenced in application.conf
@@ -120,29 +121,45 @@ fun Application.module() {
 
     val gradleBotClient = GradleBotClient(GRADLE_PATH, CONSUMER_APP_DIR, responseListener, requestExecutor)
 
-    GlobalScope.launch(Dispatchers.IO) {
+    launch {
+        database.addVerbs(
+            listOf(
+                Constants.Common.GET,
+                Constants.Common.PUT,
+                Constants.Common.POST,
+                Constants.Common.DELETE,
+                Constants.Common.PATCH,
+                Constants.Common.HEAD,
+                Constants.Common.OPTIONS
+            )
+        )
+    }
+
+    launch(Dispatchers.IO) {
         val branches = gradleBotClient.fetchAllBranches()
         branches?.let {
             database.addBranches(it, Constants.Common.APP_CONSUMER)
         }
     }
 
-    GlobalScope.launch(Dispatchers.IO) {
+    launch(Dispatchers.IO) {
         val productFlavours = gradleBotClient.fetchProductFlavours()
         productFlavours?.let {
             database.addFlavours(it, Constants.Common.APP_CONSUMER)
         }
     }
 
-    GlobalScope.launch(Dispatchers.IO) {
+    launch(Dispatchers.IO) {
         val buildVariants = gradleBotClient.fetchBuildVariants()
         buildVariants?.let {
             database.addBuildVariants(it, Constants.Common.APP_CONSUMER)
         }
     }
 
-    val slackClient = SlackClient(O_AUTH_TOKEN, DEFAULT_APP_URL, GRADLE_PATH, UPLOAD_DIR_PATH, gradleBotClient,
-        database, BOT_TOKEN, requestExecutor, responseListener)
+    val slackClient = SlackClient(
+        O_AUTH_TOKEN, DEFAULT_APP_URL, GRADLE_PATH, UPLOAD_DIR_PATH, gradleBotClient,
+        database, BOT_TOKEN, requestExecutor, responseListener
+    )
 
     routing {
         status()
@@ -152,8 +169,9 @@ fun Application.module() {
         receiveApk(UPLOAD_DIR_PATH)
         slackEvent(database, slackClient)
         subscribe()
-        slackAction(database, slackClient, CONSUMER_APP_DIR)
+        slackAction(database, slackClient, CONSUMER_APP_DIR, BASE_URL)
         githubWebhook(database, slackClient)
+        mockApi(database)
     }
 }
 
