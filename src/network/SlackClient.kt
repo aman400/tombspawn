@@ -144,7 +144,9 @@ fun Routing.slackAction(
     slackClient: SlackClient,
     consumerAppDir: String,
     baseUrl: String,
-    fleetAppDir: String
+    fleetAppDir: String,
+    consumerAppUrl: String,
+    fleetAppUrl: String
 ) {
     post<Slack.Action> {
         val params = call.receive<Parameters>()
@@ -185,7 +187,8 @@ fun Routing.slackAction(
                                 slackClient.sendShowGenerateApkDialog(
                                     branchList, buildTypes, flavours, Gson().toJson(updatedMessage),
                                     slackEvent.triggerId!!,
-                                    Constants.Slack.CALLBACK_GENERATE_CONSUMER_APK
+                                    Constants.Slack.CALLBACK_GENERATE_CONSUMER_APK,
+                                    consumerAppUrl
                                 )
                             } else {
                                 updatedMessage?.apply {
@@ -221,7 +224,8 @@ fun Routing.slackAction(
                                 flavourList?.map { flavour -> flavour.name },
                                 null,
                                 slackEvent.triggerId!!,
-                                Constants.Slack.CALLBACK_GENERATE_CONSUMER_APK
+                                Constants.Slack.CALLBACK_GENERATE_CONSUMER_APK,
+                                consumerAppUrl
                             )
                         }
                     }
@@ -238,7 +242,8 @@ fun Routing.slackAction(
                                 flavourList?.map { flavour -> flavour.name },
                                 null,
                                 slackEvent.triggerId!!,
-                                Constants.Slack.CALLBACK_GENERATE_FLEET_APK
+                                Constants.Slack.CALLBACK_GENERATE_FLEET_APK,
+                                fleetAppUrl
                             )
                         }
                     }
@@ -358,7 +363,7 @@ fun Routing.slackAction(
     }
 }
 
-fun Routing.buildConsumer(appDir: String, slackClient: SlackClient, database: Database) {
+fun Routing.buildConsumer(appDir: String, slackClient: SlackClient, database: Database, defaultAppUrl: String) {
     post<Slack.Consumer> {
         val params = call.receiveParameters()
 
@@ -386,7 +391,8 @@ fun Routing.buildConsumer(appDir: String, slackClient: SlackClient, database: Da
                 flavourList?.map { flavour -> flavour.name },
                 null,
                 triggerId!!,
-                Constants.Slack.CALLBACK_GENERATE_CONSUMER_APK
+                Constants.Slack.CALLBACK_GENERATE_CONSUMER_APK,
+                defaultAppUrl
             )
             call.respond(HttpStatusCode.OK)
         }
@@ -416,7 +422,7 @@ fun Routing.createApi(slackClient: SlackClient, database: Database) {
 }
 
 
-fun Routing.buildFleet(appDir: String, slackClient: SlackClient, database: Database) {
+fun Routing.buildFleet(appDir: String, slackClient: SlackClient, database: Database, defaultAppUrl: String) {
     post<Slack.Fleet> {
         val params = call.receiveParameters()
 
@@ -444,7 +450,8 @@ fun Routing.buildFleet(appDir: String, slackClient: SlackClient, database: Datab
                 flavourList?.map { flavour -> flavour.name },
                 null,
                 triggerId!!,
-                Constants.Slack.CALLBACK_GENERATE_FLEET_APK
+                Constants.Slack.CALLBACK_GENERATE_FLEET_APK,
+                defaultAppUrl
             )
             call.respond(HttpStatusCode.OK)
         }
@@ -452,7 +459,7 @@ fun Routing.buildFleet(appDir: String, slackClient: SlackClient, database: Datab
 }
 
 class SlackClient(
-    private val slackAuthToken: String, private val defaultAppUrl: String,
+    private val slackAuthToken: String,
     private val gradlePath: String, private val uploadDirPath: String,
     private val gradleBotClient: GradleBotClient, private val database: Database,
     private val slackBotToken: String,
@@ -1124,7 +1131,8 @@ class SlackClient(
         flavours: List<String>?,
         echo: String?,
         triggerId: String,
-        callbackId: String
+        callbackId: String,
+        defaultAppUrl: String
     ) {
         val dialogElementList = mutableListOf<Element>()
         val branchList = mutableListOf<Element.Option>()

@@ -36,7 +36,8 @@ private var GRADLE_PATH = "./gradlew"
 private var CONSUMER_APP_DIR = System.getenv()["CONSUMER_APP_DIR"]!!
 private var FLEET_APP_DIR = System.getenv()["FLEET_APP_DIR"]!!
 private var BOT_TOKEN = System.getenv()["SLACK_TOKEN"]!!
-private var DEFAULT_APP_URL = System.getenv()["DEFAULT_APP_URL"]!!
+private var CONSUMER_APP_URL = System.getenv()["CONSUMER_APP_URL"]!!
+private var FLEET_APP_URL = System.getenv()["CONSUMER_APP_URL"]!!
 private var O_AUTH_TOKEN = System.getenv()["O_AUTH_TOKEN"]!!
 private var DB_URL = System.getenv()["DB_URL"]!!
 private var DB_USER = System.getenv()["DB_USER"]!!
@@ -143,19 +144,19 @@ fun Application.module() {
     }
 
     val slackClient = SlackClient(
-        O_AUTH_TOKEN, DEFAULT_APP_URL, GRADLE_PATH, UPLOAD_DIR_PATH, gradleBotClient,
+        O_AUTH_TOKEN, GRADLE_PATH, UPLOAD_DIR_PATH, gradleBotClient,
         database, BOT_TOKEN, requestExecutor, responseListener
     )
 
     routing {
         status()
         health()
-        buildConsumer(CONSUMER_APP_DIR, slackClient, database)
-        buildFleet(FLEET_APP_DIR, slackClient, database)
+        buildConsumer(CONSUMER_APP_DIR, slackClient, database, CONSUMER_APP_URL)
+        buildFleet(FLEET_APP_DIR, slackClient, database, FLEET_APP_URL)
         receiveApk(UPLOAD_DIR_PATH)
         slackEvent(database, slackClient)
         subscribe()
-        slackAction(database, slackClient, CONSUMER_APP_DIR, BASE_URL, FLEET_APP_DIR)
+        slackAction(database, slackClient, CONSUMER_APP_DIR, BASE_URL, FLEET_APP_DIR, CONSUMER_APP_URL, FLEET_APP_URL)
         githubWebhook(database, slackClient)
         mockApi(database)
         createApi(slackClient, database)
