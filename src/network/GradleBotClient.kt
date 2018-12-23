@@ -11,11 +11,10 @@ import java.util.*
 
 class GradleBotClient(
     private val gradlePath: String,
-    private val appDir: String,
     private val responseListeners: MutableMap<String, CompletableDeferred<CommandResponse>>,
     private val requestExecutor: SendChannel<Command>
 ) {
-    suspend fun fetchAllBranches(): List<String>? {
+    suspend fun fetchAllBranches(appDir: String): List<String>? {
         val executableCommand =
             "$gradlePath fetchRemoteBranches -P${Constants.Common.ARG_OUTPUT_SEPARATOR}=${Constants.Common.OUTPUT_SEPARATOR}"
         val id = UUID.randomUUID().toString()
@@ -40,7 +39,7 @@ class GradleBotClient(
         return null
     }
 
-    suspend fun fetchProductFlavours(): List<String>? {
+    suspend fun fetchProductFlavours(appDir: String): List<String>? {
         val executableCommand =
             "$gradlePath getProductFlavours -P${Constants.Common.ARG_OUTPUT_SEPARATOR}=${Constants.Common.OUTPUT_SEPARATOR}"
         val id = UUID.randomUUID().toString()
@@ -62,7 +61,7 @@ class GradleBotClient(
         return null
     }
 
-    suspend fun fetchBuildVariants(): List<String>? {
+    suspend fun fetchBuildVariants(appDir: String): List<String>? {
         val executableCommand =
             "$gradlePath getBuildVariants -P${Constants.Common.ARG_OUTPUT_SEPARATOR}=${Constants.Common.OUTPUT_SEPARATOR}"
         val id = UUID.randomUUID().toString()

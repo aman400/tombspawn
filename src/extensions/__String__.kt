@@ -17,6 +17,8 @@ fun String.toMap(): MutableMap<String, String>? {
                 return null
             }
         }
+    } else {
+        return null
     }
     return returnValue
 

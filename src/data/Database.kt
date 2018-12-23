@@ -239,14 +239,14 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
             addLogger(StdOutSqlLogger)
 
             App.find { Apps.name eq app }.firstOrNull()?.let { application ->
-                Branch.all().filterNot {
-                    branches.contains(it.branchName)
-                }.forEach {
-                    it.delete()
+                Branch.wrapRows(Branches.select { Branches.appId eq application.id }).forEach {
+                    if (it.branchName !in branches) {
+                        it.delete()
+                    }
                 }
 
                 branches.forEach {
-                    if(Branch.find { Branches.name eq it }.firstOrNull() == null) {
+                    if (Branch.find { (Branches.name eq it) and (Branches.appId eq application.id) }.firstOrNull() == null) {
                         Branch.new {
                             this.branchName = it
                             this.deleted = false
@@ -282,14 +282,14 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
             addLogger(StdOutSqlLogger)
             App.find { Apps.name eq appName }.firstOrNull()?.let { application ->
 
-                Flavour.all().filterNot {
-                    flavours.contains(it.name)
-                }.forEach {
-                    it.delete()
+                Flavour.wrapRows(Flavours.select { Flavours.appId eq application.id }).forEach {
+                    if (it.name !in flavours) {
+                        it.delete()
+                    }
                 }
 
                 flavours.forEach { flavour ->
-                    if(Flavour.find { Flavours.name eq flavour }.firstOrNull() == null) {
+                    if (Flavour.find { (Flavours.name eq flavour) and (Flavours.appId eq application.id) }.firstOrNull() == null) {
                         Flavour.new {
                             this.name = flavour
                             this.appId = application
@@ -305,14 +305,15 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
             addLogger(StdOutSqlLogger)
             App.find { Apps.name eq appName }.firstOrNull()?.let { application ->
 
-                BuildType.all().filterNot {
-                    buildTypes.contains(it.name)
-                }.forEach {
-                    it.delete()
+                BuildType.wrapRows(BuildTypes.select { BuildTypes.appId eq application.id }).forEach {
+                    if (it.name !in buildTypes) {
+                        it.delete()
+                    }
                 }
 
+
                 buildTypes.forEach { buildType ->
-                    if(BuildType.find { BuildTypes.name eq buildType }.firstOrNull() == null) {
+                    if (BuildType.find { (BuildTypes.name eq buildType) and (BuildTypes.appId eq application.id) }.firstOrNull() == null) {
 
                         BuildType.new {
                             this.name = buildType
@@ -343,7 +344,7 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
             }
 
             verbs.forEach { verb ->
-                if(Verb.find { Verbs.name eq verb }.firstOrNull() == null) {
+                if (Verb.find { Verbs.name eq verb }.firstOrNull() == null) {
                     Verb.new {
                         this.name = verb
                     }
@@ -363,9 +364,9 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
         return@withContext transaction(connection) {
             addLogger(StdOutSqlLogger)
             val verb = runBlocking {
-                 getVerb(verbName)
+                getVerb(verbName)
             }
-            Apis.select { Apis.apiId eq apiId and (Apis.verb eq verb.id)}.firstOrNull()?.let {
+            Apis.select { Apis.apiId eq apiId and (Apis.verb eq verb.id) }.firstOrNull()?.let {
                 Api.wrapRow(it)
             }
         }
@@ -423,7 +424,7 @@ class App(id: EntityID<Int>) : IntEntity(id) {
 }
 
 object Branches : IntIdTable() {
-    val name = varchar("branch_name", 100).uniqueIndex().primaryKey()
+    val name = varchar("branch_name", 100).primaryKey()
     val deleted = bool("deleted").default(false)
     val appId = reference("app_id", Apps, ReferenceOption.CASCADE, ReferenceOption.RESTRICT).primaryKey()
 }
@@ -438,7 +439,7 @@ class Branch(id: EntityID<Int>) : IntEntity(id) {
 }
 
 object BuildTypes : IntIdTable() {
-    val name = varchar("name", 100).uniqueIndex().primaryKey()
+    val name = varchar("name", 100).primaryKey()
     val appId = reference("app_id", Apps, ReferenceOption.CASCADE, ReferenceOption.RESTRICT).primaryKey()
 }
 
@@ -450,7 +451,7 @@ class BuildType(id: EntityID<Int>) : IntEntity(id) {
 }
 
 object Flavours : IntIdTable() {
-    val name = varchar("name", 100).uniqueIndex().primaryKey()
+    val name = varchar("name", 100).primaryKey()
     val appId = reference("app_id", Apps, ReferenceOption.CASCADE, ReferenceOption.RESTRICT).primaryKey()
 }
 
@@ -461,23 +462,23 @@ class Flavour(id: EntityID<Int>) : IntEntity(id) {
     var appId by App referencedOn Flavours.appId
 }
 
-object Verbs: IntIdTable() {
+object Verbs : IntIdTable() {
     val name = varchar("name", 20)
 }
 
-class Verb(id: EntityID<Int>): IntEntity(id) {
+class Verb(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<Verb>(Verbs)
 
     var name by Verbs.name
 }
 
-object Apis: IntIdTable() {
+object Apis : IntIdTable() {
     val apiId = varchar("api_id", 100).uniqueIndex().primaryKey()
     val verb = reference("verb", Verbs, ReferenceOption.CASCADE, ReferenceOption.RESTRICT).primaryKey()
     val response = text("response")
 }
 
-class Api(id: EntityID<Int>): IntEntity(id) {
+class Api(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<Api>(Apis)
 
     var apiId by Apis.apiId

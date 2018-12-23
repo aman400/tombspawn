@@ -119,7 +119,12 @@ fun Application.module() {
     val responseListener = mutableMapOf<String, CompletableDeferred<CommandResponse>>()
     val requestExecutor = commandExecutor(responseListener)
 
-    val gradleBotClient = GradleBotClient(GRADLE_PATH, CONSUMER_APP_DIR, responseListener, requestExecutor)
+    val gradleBotClient = GradleBotClient(GRADLE_PATH, responseListener, requestExecutor)
+
+    launch {
+        initApp(gradleBotClient, database, CONSUMER_APP_DIR, Constants.Common.APP_CONSUMER)
+        initApp(gradleBotClient, database, FLEET_APP_DIR, Constants.Common.APP_FLEET)
+    }
 
     launch {
         database.addVerbs(
@@ -135,27 +140,6 @@ fun Application.module() {
         )
     }
 
-    launch(Dispatchers.IO) {
-        val branches = gradleBotClient.fetchAllBranches()
-        branches?.let {
-            database.addBranches(it, Constants.Common.APP_CONSUMER)
-        }
-    }
-
-    launch(Dispatchers.IO) {
-        val productFlavours = gradleBotClient.fetchProductFlavours()
-        productFlavours?.let {
-            database.addFlavours(it, Constants.Common.APP_CONSUMER)
-        }
-    }
-
-    launch(Dispatchers.IO) {
-        val buildVariants = gradleBotClient.fetchBuildVariants()
-        buildVariants?.let {
-            database.addBuildVariants(it, Constants.Common.APP_CONSUMER)
-        }
-    }
-
     val slackClient = SlackClient(
         O_AUTH_TOKEN, DEFAULT_APP_URL, GRADLE_PATH, UPLOAD_DIR_PATH, gradleBotClient,
         database, BOT_TOKEN, requestExecutor, responseListener
@@ -164,14 +148,39 @@ fun Application.module() {
     routing {
         status()
         health()
-        buildConsumer(CONSUMER_APP_DIR, slackClient)
-        buildFleet(FLEET_APP_DIR, slackClient)
+        buildConsumer(CONSUMER_APP_DIR, slackClient, database)
+        buildFleet(FLEET_APP_DIR, slackClient, database)
         receiveApk(UPLOAD_DIR_PATH)
         slackEvent(database, slackClient)
         subscribe()
-        slackAction(database, slackClient, CONSUMER_APP_DIR, BASE_URL)
+        slackAction(database, slackClient, CONSUMER_APP_DIR, BASE_URL, FLEET_APP_DIR)
         githubWebhook(database, slackClient)
         mockApi(database)
+        createApi(slackClient, database)
+    }
+}
+
+
+suspend fun initApp(gradleBotClient: GradleBotClient, database: Database, appDir: String, appName: String)= withContext(Dispatchers.IO) {
+    launch {
+        val branches = gradleBotClient.fetchAllBranches(appDir)
+        branches?.let {
+            database.addBranches(it, appName)
+        }
+    }
+
+    launch {
+        val productFlavours = gradleBotClient.fetchProductFlavours(appDir)
+        productFlavours?.let {
+            database.addFlavours(it, appName)
+        }
+    }
+
+    launch {
+        val buildVariants = gradleBotClient.fetchBuildVariants(appDir)
+        buildVariants?.let {
+            database.addBuildVariants(it, appName)
+        }
     }
 }
 

@@ -29,7 +29,8 @@ class Constants {
 
             const val SUBSCRIBE_GENERATE_APK = "subscribe_generate_apk"
             const val CALLBACK_CONFIRM_GENERATE_APK = "confirm_generate_apk"
-            const val CALLBACK_GENERATE_APK = "generate_apk"
+            const val CALLBACK_GENERATE_CONSUMER_APK = "generate_consumer_apk"
+            const val CALLBACK_GENERATE_FLEET_APK = "generate_fleet_apk"
             const val CALLBACK_CREATE_API = "create_api"
             const val EVENT_TYPE_MESSAGE = "message"
             const val EVENT_TYPE_APP_MENTION = "app_mention"
@@ -50,6 +51,7 @@ class Constants {
 
             const val TYPE_SUBSCRIBE_CONSUMER = "subscribe-consumer"
             const val TYPE_GENERATE_CONSUMER = "generate-consumer"
+            const val TYPE_GENERATE_FLEET = "generate-fleet"
             const val TYPE_SUBSCRIBE_FLEET = "subscribe-fleet"
             const val ACTION_CHOOSE_BRANCH: String = "choose_branch"
             const val TRIGGER_ID: String = "trigger_id"
