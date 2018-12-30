@@ -36,8 +36,7 @@ fun Routing.githubWebhook(database: Database, slackClient: SlackClient) {
                     launch(Dispatchers.IO) {
                         slackClient.sendShowConfirmGenerateApk(
                             resultRow[Subscriptions.channel],
-                            resultRow[Branches.name],
-                            resultRow[Users.slackId]
+                            resultRow[Branches.name]
                         )
                     }
                 }

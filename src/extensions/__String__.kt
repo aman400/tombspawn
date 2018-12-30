@@ -1,48 +1,8 @@
 package com.ramukaka.extensions
 
-import com.ramukaka.models.CommandResponse
-import com.ramukaka.models.Failure
-import com.ramukaka.models.Success
-import kotlinx.coroutines.*
-import java.io.File
-import java.io.IOException
-import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
-import kotlin.coroutines.coroutineContext
-
 
 private val LOGGER = Logger.getLogger("com.application.StringUtils")
-
-suspend fun String.execute(
-    workingDir: File = File("."),
-    timeoutAmount: Long = 15,
-    timeoutUnit: TimeUnit = TimeUnit.MINUTES
-): Deferred<CommandResponse> = GlobalScope.async(coroutineContext) {
-     try {
-        val strings = split(Regex("\\s+"))
-        val builder = ProcessBuilder(strings)
-            .directory(workingDir)
-            .redirectOutput(ProcessBuilder.Redirect.PIPE)
-            .redirectError(ProcessBuilder.Redirect.PIPE)
-            .start()
-         val response = builder.inputStream.bufferedReader().readText()
-         val errorText = builder.errorStream.bufferedReader().readText()
-         builder.apply {
-             waitFor(timeoutAmount, timeoutUnit)
-
-         }
-         val exitValue = builder.exitValue()
-
-         println(response)
-
-         if(exitValue == 0) Success(response) else Failure(errorText)
-
-
-    } catch (exception: IOException) {
-        exception.printStackTrace()
-        Failure(throwable = exception)
-    }
-}
 
 fun String.toMap(): MutableMap<String, String>? {
     val returnValue = mutableMapOf<String, String>()
@@ -57,6 +17,8 @@ fun String.toMap(): MutableMap<String, String>? {
                 return null
             }
         }
+    } else {
+        return null
     }
     return returnValue
 
