@@ -30,6 +30,7 @@ fun Routing.githubWebhook(database: Database, slackClient: SlackClient, consumer
         val headers = call.request.headers
         when {
             headers[Constants.Github.HEADER_KEY_EVENT] == Constants.Github.HEADER_VALUE_EVENT_PUSH -> payload.ref?.let { ref ->
+                call.respond(HttpStatusCode.OK)
                 val branch = ref.substringAfter("refs/heads/")
                 val subscriptions = database.findSubscriptions(branch)
                 subscriptions.orEmpty().forEach { resultRow ->

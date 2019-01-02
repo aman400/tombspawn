@@ -71,7 +71,7 @@ fun Application.module() {
     }
 
     install(CallLogging) {
-        level = Level.WARN
+        level = Level.INFO
         filter { call -> call.request.path().startsWith("/slack/app") }
         filter { call -> call.request.path().startsWith("/github") }
         filter { call -> call.request.path().startsWith("/api/mock") }

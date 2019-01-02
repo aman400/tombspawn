@@ -403,9 +403,6 @@ fun Routing.createApi(slackClient: SlackClient, database: Database) {
     post<Slack.MockApi> {
         val params = call.receiveParameters()
 
-        val channelId = params["channel_id"]
-        val text = params["text"]
-        val responseUrl = params["response_url"]
         val triggerId = params["trigger_id"]
 
         params.forEach { key, list ->
