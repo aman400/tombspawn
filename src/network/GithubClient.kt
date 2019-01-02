@@ -24,7 +24,7 @@ class GithubApi {
     class Webhook
 }
 
-fun Routing.githubWebhook(database: Database, slackClient: SlackClient) {
+fun Routing.githubWebhook(database: Database, slackClient: SlackClient, consumerAppID: String, fleetAppId: String) {
     post<GithubApi.Webhook> {
         val payload = call.receive<Payload>()
         val headers = call.request.headers
@@ -40,23 +40,36 @@ fun Routing.githubWebhook(database: Database, slackClient: SlackClient) {
                         )
                     }
                 }
-                if (branch == "development") {
-                    call.respond(HttpStatusCode.OK)
-                } else {
-                    call.respond("Not development branch")
-                }
-            } ?: call.respond("Not development branch")
+            }
             headers[Constants.Github.HEADER_KEY_EVENT] == Constants.Github.HEADER_VALUE_EVENT_CREATE -> {
                 call.respond(HttpStatusCode.OK)
                 launch {
-                    if(payload.refType!! == RefType.BRANCH) {
-                        database.addBranch(payload.ref!!, Constants.Common.APP_CONSUMER)
+                    if (payload.refType!! == RefType.BRANCH) {
+                        when (payload.repository!!.id!!) {
+                            consumerAppID -> {
+                                database.addBranch(payload.ref!!, Constants.Common.APP_CONSUMER)
+                            }
+                            fleetAppId -> {
+                                database.addBranch(payload.ref!!, Constants.Common.APP_FLEET)
+                            }
+                        }
                     }
                 }
             }
             headers[Constants.Github.HEADER_KEY_EVENT] == Constants.Github.HEADER_VALUE_EVENT_DELETE -> {
                 call.respond(HttpStatusCode.OK)
-                database.deleteBranch(payload.ref!!)
+                launch {
+                    if (payload.refType!! == RefType.BRANCH) {
+                        when (payload.repository!!.id!!) {
+                            consumerAppID -> {
+                                database.deleteBranch(payload.ref!!, Constants.Common.APP_CONSUMER)
+                            }
+                            fleetAppId -> {
+                                database.deleteBranch(payload.ref!!, Constants.Common.APP_FLEET)
+                            }
+                        }
+                    }
+                }
                 LOGGER.info("deleted branch: ${payload.ref}")
             }
 

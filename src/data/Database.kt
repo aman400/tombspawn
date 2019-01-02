@@ -227,10 +227,12 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
         }
     }
 
-    suspend fun deleteBranch(branch: String) = withContext(dispatcher) {
+    suspend fun deleteBranch(branch: String, appName: String) = withContext(dispatcher) {
         return@withContext transaction(connection) {
             addLogger(StdOutSqlLogger)
-            Branches.deleteWhere { Branches.name eq branch }
+            App.find { Apps.name eq appName }.firstOrNull()?.let { application ->
+                Branches.deleteWhere { (Branches.name eq branch) and (Branches.appId eq application.id) }
+            }
         }
     }
 

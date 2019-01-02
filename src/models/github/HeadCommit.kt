@@ -4,36 +4,36 @@ import com.google.gson.annotations.SerializedName
 
 data class HeadCommit(
 
-    @field:SerializedName("committer")
+    @SerializedName("committer")
 	val committer: Committer? = null,
 
-    @field:SerializedName("removed")
+    @SerializedName("removed")
 	val removed: List<Any?>? = null,
 
-    @field:SerializedName("tree_id")
+    @SerializedName("tree_id")
 	val treeId: String? = null,
 
-    @field:SerializedName("added")
+    @SerializedName("added")
 	val added: List<String?>? = null,
 
-    @field:SerializedName("author")
+    @SerializedName("author")
 	val author: Author? = null,
 
-    @field:SerializedName("distinct")
+    @SerializedName("distinct")
 	val distinct: Boolean? = null,
 
-    @field:SerializedName("modified")
+    @SerializedName("modified")
 	val modified: List<Any?>? = null,
 
-    @field:SerializedName("id")
+    @SerializedName("id")
 	val id: String? = null,
 
-    @field:SerializedName("message")
+    @SerializedName("message")
 	val message: String? = null,
 
-    @field:SerializedName("url")
+    @SerializedName("url")
 	val url: String? = null,
 
-    @field:SerializedName("timestamp")
+    @SerializedName("timestamp")
 	val timestamp: String? = null
 )

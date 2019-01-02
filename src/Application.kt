@@ -43,6 +43,8 @@ private var DB_URL = System.getenv()["DB_URL"]!!
 private var DB_USER = System.getenv()["DB_USER"]!!
 private var DB_PASSWORD = System.getenv()["DB_PASSWORD"]!!
 private var BASE_URL = System.getenv()["BASE_URL"]!!
+private var CONSUMER_APP_ID = System.getenv()["CONSUMER_APP_GITHUB_REPO_ID"]
+private var FLEET_APP_ID = System.getenv()["FLEET_APP_GITHUB_REPO_ID"]
 
 @KtorExperimentalLocationsAPI
 @Suppress("unused") // Referenced in application.conf
@@ -157,7 +159,7 @@ fun Application.module() {
         slackEvent(database, slackClient)
         subscribe()
         slackAction(database, slackClient, CONSUMER_APP_DIR, BASE_URL, FLEET_APP_DIR, CONSUMER_APP_URL, FLEET_APP_URL)
-        githubWebhook(database, slackClient)
+        githubWebhook(database, slackClient, CONSUMER_APP_ID!!, FLEET_APP_ID!!)
         mockApi(database)
         createApi(slackClient, database)
     }
