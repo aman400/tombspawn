@@ -4,9 +4,9 @@ import com.google.gson.annotations.SerializedName
 
 data class SlackUser(
 
-	@field:SerializedName("name")
+	@SerializedName("name")
 	val name: String? = null,
 
-	@field:SerializedName("id")
+	@SerializedName("id")
 	val id: String? = null
 )

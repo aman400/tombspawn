@@ -4,9 +4,9 @@ import com.google.gson.annotations.SerializedName
 
 data class Option(
 
-	@field:SerializedName("text")
+	@SerializedName("text")
 	val text: String? = null,
 
-	@field:SerializedName("value")
+	@SerializedName("value")
 	val value: String? = null
 )

@@ -33,7 +33,7 @@ class GradleBotClient(
                 }
             }
             is Failure -> {
-
+                response.throwable?.printStackTrace()
             }
         }
         return null

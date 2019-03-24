@@ -4,21 +4,21 @@ import com.google.gson.annotations.SerializedName
 
 data class Event(
 
-	@field:SerializedName("event_ts")
+	@SerializedName("event_ts")
 	val eventTimestamp: String? = null,
 
-	@field:SerializedName("channel")
+	@SerializedName("channel")
 	val channel: String? = null,
 
-	@field:SerializedName("text")
+	@SerializedName("text")
 	val text: String? = null,
 
-	@field:SerializedName("type")
+	@SerializedName("type")
 	val type: String? = null,
 
-	@field:SerializedName("user")
+	@SerializedName("user")
 	val user: String? = null,
 
-	@field:SerializedName("ts")
+	@SerializedName("ts")
 	val ts: String? = null
 )

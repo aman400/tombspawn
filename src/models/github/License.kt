@@ -4,18 +4,18 @@ import com.google.gson.annotations.SerializedName
 
 data class License(
 
-	@field:SerializedName("name")
+	@SerializedName("name")
 	val name: String? = null,
 
-	@field:SerializedName("spdx_id")
+	@SerializedName("spdx_id")
 	val spdxId: String? = null,
 
-	@field:SerializedName("key")
+	@SerializedName("key")
 	val key: String? = null,
 
-	@field:SerializedName("url")
+	@SerializedName("url")
 	val url: String? = null,
 
-	@field:SerializedName("node_id")
+	@SerializedName("node_id")
 	val nodeId: String? = null
 )

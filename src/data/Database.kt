@@ -3,7 +3,6 @@ package com.ramukaka.data
 import com.ramukaka.utils.Constants
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import io.ktor.application.Application
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -19,7 +18,7 @@ import java.util.concurrent.Executors
 import kotlin.coroutines.CoroutineContext
 
 
-class Database(application: Application, dbUrl: String, dbUsername: String, dbPass: String) {
+class Database(dbUrl: String, dbUsername: String, dbPass: String) {
     private val dispatcher: CoroutineContext
     private val connectionPool: HikariDataSource
     private val connection: Database

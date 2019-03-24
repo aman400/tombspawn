@@ -1,6 +1,7 @@
 package com.ramukaka
 
 import com.ramukaka.data.Database
+import com.ramukaka.di.dbModule
 import com.ramukaka.extensions.commandExecutor
 import com.ramukaka.models.CommandResponse
 import com.ramukaka.network.*
@@ -25,31 +26,53 @@ import network.fetchBotData
 import network.health
 import network.receiveApk
 import network.status
+import org.koin.core.logger.Logger
+import org.koin.core.logger.MESSAGE
+import org.koin.ktor.ext.inject
+import org.koin.ktor.ext.installKoin
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import java.io.File
 
 fun main(args: Array<String>): Unit = EngineMain.main(args)
 
+private val env = System.getenv()
+
 private var UPLOAD_DIR_PATH = "${System.getProperty("user.dir")}/temp"
 private var GRADLE_PATH = "./gradlew"
-private var CONSUMER_APP_DIR = System.getenv()["CONSUMER_APP_DIR"]!!
-private var FLEET_APP_DIR = System.getenv()["FLEET_APP_DIR"]!!
-private var BOT_TOKEN = System.getenv()["SLACK_TOKEN"]!!
-private var CONSUMER_APP_URL = System.getenv()["CONSUMER_APP_URL"]!!
-private var FLEET_APP_URL = System.getenv()["FLEET_APP_URL"]!!
-private var O_AUTH_TOKEN = System.getenv()["O_AUTH_TOKEN"]!!
-private var DB_URL = System.getenv()["DB_URL"]!!
-private var DB_USER = System.getenv()["DB_USER"]!!
-private var DB_PASSWORD = System.getenv()["DB_PASSWORD"]!!
-private var BASE_URL = System.getenv()["BASE_URL"]!!
-private var CONSUMER_APP_ID = System.getenv()["CONSUMER_APP_GITHUB_REPO_ID"]
-private var FLEET_APP_ID = System.getenv()["FLEET_APP_GITHUB_REPO_ID"]
+private var CONSUMER_APP_DIR = env["CONSUMER_APP_DIR"]!!
+private var FLEET_APP_DIR = env["FLEET_APP_DIR"]!!
+private var BOT_TOKEN = env["SLACK_TOKEN"]!!
+private var CONSUMER_APP_URL = env["CONSUMER_APP_URL"]!!
+private var FLEET_APP_URL = env["FLEET_APP_URL"]!!
+private var O_AUTH_TOKEN = env["O_AUTH_TOKEN"]!!
+
+private var BASE_URL = env["BASE_URL"]!!
+private var CONSUMER_APP_ID = env["CONSUMER_APP_GITHUB_REPO_ID"]
+private var FLEET_APP_ID = env["FLEET_APP_GITHUB_REPO_ID"]
 
 @KtorExperimentalLocationsAPI
 @Suppress("unused") // Referenced in application.conf
 fun Application.module() {
     val LOGGER = LoggerFactory.getLogger("com.application")
+    installKoin {
+        modules(dbModule)
+        logger(object : Logger() {
+            override fun log(level: org.koin.core.logger.Level, msg: MESSAGE) {
+                when (level) {
+                    org.koin.core.logger.Level.DEBUG -> {
+                        println(msg)
+                    }
+                    org.koin.core.logger.Level.INFO -> {
+                        println(msg)
+                    }
+                    org.koin.core.logger.Level.ERROR -> {
+                        println(msg)
+                    }
+                }.exhaustive
+            }
+        })
+    }
     install(StatusPages) {
         exception<Throwable> { cause ->
             LOGGER.error(cause)
@@ -71,7 +94,7 @@ fun Application.module() {
     }
 
     install(CallLogging) {
-        level = Level.INFO
+        level = Level.TRACE
         filter { call -> call.request.path().startsWith("/slack/app") }
         filter { call -> call.request.path().startsWith("/github") }
         filter { call -> call.request.path().startsWith("/api/mock") }
@@ -89,6 +112,8 @@ fun Application.module() {
             setPrettyPrinting()
         }
     }
+
+    val database: Database by inject()
 
     intercept(ApplicationCallPipeline.Monitoring) {
 
@@ -114,7 +139,6 @@ fun Application.module() {
         }
     }
 
-    val database = Database(this, DB_URL, DB_USER, DB_PASSWORD)
     runBlocking {
         fetchBotData(database, BOT_TOKEN)
     }
@@ -126,7 +150,7 @@ fun Application.module() {
 
     val gradleBotClient = GradleBotClient(GRADLE_PATH, responseListener, requestExecutor)
 
-    launch {
+    launch(Dispatchers.IO) {
         initApp(gradleBotClient, database, CONSUMER_APP_DIR, Constants.Common.APP_CONSUMER)
         initApp(gradleBotClient, database, FLEET_APP_DIR, Constants.Common.APP_FLEET)
     }
@@ -166,27 +190,31 @@ fun Application.module() {
 }
 
 
-suspend fun initApp(gradleBotClient: GradleBotClient, database: Database, appDir: String, appName: String)= withContext(Dispatchers.IO) {
-    launch {
+suspend fun initApp(gradleBotClient: GradleBotClient, database: Database, appDir: String, appName: String) = coroutineScope {
+    val branchJob = async {
         val branches = gradleBotClient.fetchAllBranches(appDir)
         branches?.let {
             database.addBranches(it, appName)
         }
     }
 
-    launch {
+    val flavourJob = async {
         val productFlavours = gradleBotClient.fetchProductFlavours(appDir)
         productFlavours?.let {
             database.addFlavours(it, appName)
         }
     }
 
-    launch {
+    val variantJob = async {
         val buildVariants = gradleBotClient.fetchBuildVariants(appDir)
         buildVariants?.let {
             database.addBuildVariants(it, appName)
         }
     }
+
+    branchJob.start()
+    flavourJob.start()
+    variantJob.start()
 }
 
 @Location("/app")

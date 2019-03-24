@@ -125,9 +125,7 @@ fun Routing.slackEvent(database: Database, slackClient: SlackClient) {
             }
             Constants.Slack.EVENT_TYPE_CALLBACK -> {
                 call.respond("")
-                launch {
-                    slackClient.subscribeSlackEvent(database, slackEvent)
-                }
+                slackClient.subscribeSlackEvent(database, slackEvent)
             }
             "interactive_message" -> {
 
@@ -213,62 +211,53 @@ fun Routing.slackAction(
                             slackEvent.triggerId!!
                         )
                     Constants.Slack.TYPE_GENERATE_CONSUMER -> {
-                        launch {
-                            val branchList = database.getBranches(Constants.Common.APP_CONSUMER)
-                            val flavourList = database.getFlavours(Constants.Common.APP_CONSUMER)
-                            val buildTypesList = database.getBuildTypes(Constants.Common.APP_CONSUMER)
+                        val branchList = database.getBranches(Constants.Common.APP_CONSUMER)
+                        val flavourList = database.getFlavours(Constants.Common.APP_CONSUMER)
+                        val buildTypesList = database.getBuildTypes(Constants.Common.APP_CONSUMER)
 
-                            slackClient.sendShowGenerateApkDialog(
-                                branchList?.map { branch -> branch.branchName },
-                                buildTypesList?.map { buildType -> buildType.name },
-                                flavourList?.map { flavour -> flavour.name },
-                                null,
-                                slackEvent.triggerId!!,
-                                Constants.Slack.CALLBACK_GENERATE_CONSUMER_APK,
-                                consumerAppUrl
-                            )
-                        }
+                        slackClient.sendShowGenerateApkDialog(
+                            branchList?.map { branch -> branch.branchName },
+                            buildTypesList?.map { buildType -> buildType.name },
+                            flavourList?.map { flavour -> flavour.name },
+                            null,
+                            slackEvent.triggerId!!,
+                            Constants.Slack.CALLBACK_GENERATE_CONSUMER_APK,
+                            consumerAppUrl
+                        )
                     }
 
                     Constants.Slack.TYPE_GENERATE_FLEET -> {
-                        launch {
-                            val branchList = database.getBranches(Constants.Common.APP_FLEET)
-                            val flavourList = database.getFlavours(Constants.Common.APP_FLEET)
-                            val buildTypesList = database.getBuildTypes(Constants.Common.APP_FLEET)
+                        val branchList = database.getBranches(Constants.Common.APP_FLEET)
+                        val flavourList = database.getFlavours(Constants.Common.APP_FLEET)
+                        val buildTypesList = database.getBuildTypes(Constants.Common.APP_FLEET)
 
-                            slackClient.sendShowGenerateApkDialog(
-                                branchList?.map { branch -> branch.branchName },
-                                buildTypesList?.map { buildType -> buildType.name },
-                                flavourList?.map { flavour -> flavour.name },
-                                null,
-                                slackEvent.triggerId!!,
-                                Constants.Slack.CALLBACK_GENERATE_FLEET_APK,
-                                fleetAppUrl
-                            )
-                        }
+                        slackClient.sendShowGenerateApkDialog(
+                            branchList?.map { branch -> branch.branchName },
+                            buildTypesList?.map { buildType -> buildType.name },
+                            flavourList?.map { flavour -> flavour.name },
+                            null,
+                            slackEvent.triggerId!!,
+                            Constants.Slack.CALLBACK_GENERATE_FLEET_APK,
+                            fleetAppUrl
+                        )
                     }
 
                     Constants.Slack.TYPE_CREATE_MOCK_API -> {
-                        launch {
-                            slackClient.sendShowCreateApiDialog(database.getVerbs(), slackEvent.triggerId!!)
-                        }
+                        slackClient.sendShowCreateApiDialog(database.getVerbs(), slackEvent.triggerId!!)
                     }
                 }
             }
             Constants.Slack.EVENT_TYPE_DIALOG -> {
                 when (slackEvent.callbackId) {
                     Constants.Slack.CALLBACK_SUBSCRIBE_CONSUMER -> {
-                        launch {
+                        launch(Dispatchers.IO) {
                             slackEvent.user?.id?.let { userId ->
                                 if (!database.userExists(userId)) {
-                                    runBlocking {
-                                        slackClient.fetchUser(userId, database)
-                                    }
+                                    slackClient.fetchUser(userId, database)
                                 }
                                 val branch = slackEvent.dialogResponse?.get(Constants.Slack.TYPE_SELECT_BRANCH)
                                 val channelId = slackEvent.channel?.id
                                 if (branch != null) {
-
                                     if (slackEvent.responseUrl != null) {
                                         if (database.subscribeUser(
                                                 userId,
@@ -277,19 +266,15 @@ fun Routing.slackAction(
                                                 channelId!!
                                             )
                                         ) {
-                                            launch(Dispatchers.IO) {
-                                                slackClient.sendMessage(
-                                                    slackEvent.responseUrl,
-                                                    RequestData(response = "You are successfully subscribed to `$branch`")
-                                                )
-                                            }
+                                            slackClient.sendMessage(
+                                                slackEvent.responseUrl,
+                                                RequestData(response = "You are successfully subscribed to `$branch`")
+                                            )
                                         } else {
-                                            launch(Dispatchers.IO) {
-                                                slackClient.sendMessage(
-                                                    slackEvent.responseUrl,
-                                                    RequestData(response = "You are already subscribed to `$branch`")
-                                                )
-                                            }
+                                            slackClient.sendMessage(
+                                                slackEvent.responseUrl,
+                                                RequestData(response = "You are already subscribed to `$branch`")
+                                            )
                                         }
                                     }
                                 }
@@ -379,7 +364,7 @@ fun Routing.buildConsumer(appDir: String, slackClient: SlackClient, database: Da
         text?.trim()?.toMap()?.let { buildData ->
             slackClient.generateAndUploadApk(buildData, channelId!!, appDir, responseUrl, Constants.Common.APP_CONSUMER)
             call.respond(HttpStatusCode.OK)
-        } ?: launch {
+        } ?: run {
             LOGGER.warning("Command options not set. These options can set using '/build-consumer BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'")
             val branchList = database.getBranches(Constants.Common.APP_CONSUMER)
             val flavourList = database.getFlavours(Constants.Common.APP_CONSUMER)
@@ -409,7 +394,7 @@ fun Routing.createApi(slackClient: SlackClient, database: Database) {
             LOGGER.info("$key: $list")
         }
 
-        launch {
+        launch(Dispatchers.IO) {
             val verbs = database.getVerbs()
             slackClient.sendShowCreateApiDialog(verbs, triggerId!!)
         }
@@ -435,7 +420,7 @@ fun Routing.buildFleet(appDir: String, slackClient: SlackClient, database: Datab
         text?.trim()?.toMap()?.let { buildData ->
             slackClient.generateAndUploadApk(buildData, channelId!!, appDir, responseUrl, Constants.Common.APP_FLEET)
             call.respond(HttpStatusCode.OK)
-        } ?: launch {
+        } ?: run {
             LOGGER.warning("Command options not set. These options can be set using '/build-fleet BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'")
             val branchList = database.getBranches(Constants.Common.APP_FLEET)
             val flavourList = database.getFlavours(Constants.Common.APP_FLEET)
@@ -1121,7 +1106,6 @@ class SlackClient(
 
     }
 
-
     suspend fun sendShowGenerateApkDialog(
         branches: List<String>?,
         buildTypes: List<String>?,
@@ -1247,5 +1231,10 @@ class SlackClient(
             }.exhaustive
         }
 
+    }
+
+    companion object {
+        @JvmStatic
+        val logger by com.ramukaka.logging.Logger()
     }
 }

@@ -3,7 +3,6 @@ package com.ramukaka.network
 import com.ramukaka.data.Branches
 import com.ramukaka.data.Database
 import com.ramukaka.data.Subscriptions
-import com.ramukaka.data.Users
 import com.ramukaka.models.github.RefType
 import com.ramukaka.utils.Constants
 import io.ktor.application.call
