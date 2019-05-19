@@ -808,14 +808,12 @@ class SlackClient(
 
 
     suspend fun fetchUser(userId: String, database: Database) {
-        runBlocking {
-            database.addUser(
-                userId,
-                null,
-                null,
-                Constants.Database.USER_TYPE_USER
-            )
-        }
+        database.addUser(
+            userId,
+            null,
+            null,
+            Constants.Database.USER_TYPE_USER
+        )
 
         fetchAndUpdateUser(userId, database)
     }
@@ -856,9 +854,7 @@ class SlackClient(
         slackEvent.event?.let { event ->
             if (!database.userExists(event.user)) {
                 event.user?.let { user ->
-                    runBlocking {
-                        fetchUser(user, database)
-                    }
+                    fetchUser(user, database)
                 }
             }
             when (event.type) {
@@ -1235,6 +1231,6 @@ class SlackClient(
 
     companion object {
         @JvmStatic
-        val logger by com.ramukaka.logging.Logger()
+        val logger by com.ramukaka.log.Logger()
     }
 }

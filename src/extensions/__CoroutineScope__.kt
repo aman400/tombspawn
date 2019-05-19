@@ -59,9 +59,10 @@ suspend fun <T> retryCall(
 ): RetrofitResponse<T> {
     var currentDelay = initialDelay
     repeat(times) {
-        when (block()) {
+        val data = block()
+        when (data) {
             is com.ramukaka.network.Success -> {
-                return block()
+                return data
             }
         }
         delay(currentDelay)

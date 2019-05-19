@@ -7,27 +7,27 @@ object Headers {
     /**
      * The constant APP_CLIENT.
      */
-    private const val APP_CLIENT = "client"
+    const val APP_CLIENT = "client"
     /**
      * The constant APP_CLIENT_VALUE.
      */
-    private const val APP_CLIENT_VALUE = "android"
+    const val APP_CLIENT_VALUE = "android"
     /**
      * The constant ACCEPT.
      */
-    private const val ACCEPT = "Accept"
+    const val ACCEPT = "Accept"
     /**
      * The constant CONTENT_TYPE.
      */
-    private const val CONTENT_TYPE = "Content-Type"
+    const val CONTENT_TYPE = "Content-Type"
     /**
      * The constant TYPE_JSON.
      */
-    private const val TYPE_JSON = "application/json"
+    const val TYPE_JSON = "application/json"
     /**
      * The constant HEADER_ENCODING.
      */
-    private const val HEADER_ENCODING = "Content-Encoding"
+    const val HEADER_ENCODING = "Content-Encoding"
 
     val basicHeaders: MutableMap<String, String> = mutableMapOf()
         get() {

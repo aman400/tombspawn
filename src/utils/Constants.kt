@@ -12,6 +12,8 @@ class Constants {
             const val OUTPUT_SEPARATOR = "##***##"
             const val ARG_OUTPUT_SEPARATOR = "OUTPUT_SEPARATOR"
 
+            const val COMMAND_GRADLE = "./gradlew"
+
             const val GET = "GET"
             const val PUT = "PUT"
             const val POST = "POST"
@@ -19,6 +21,15 @@ class Constants {
             const val PATCH = "PATCH"
             const val HEAD = "HEAD"
             const val OPTIONS = "OPTIONS"
+        }
+    }
+
+    class EnvironmentVariables {
+        companion object {
+            const val ENV_O_AUTH_TOKEN = "O_AUTH_TOKEN"
+            const val ENV_SLACK_TOKEN = "SLACK_TOKEN"
+            const val ENV_GRADLE_PATH = "GRADLE_PATH"
+            const val ENV_UPLOAD_DIR_PATH = "UPLOAD_DIR_PATH"
         }
     }
 
