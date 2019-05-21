@@ -3,6 +3,7 @@ package com.ramukaka.network
 import com.ramukaka.data.Branches
 import com.ramukaka.data.Database
 import com.ramukaka.data.Subscriptions
+import com.ramukaka.models.Reference
 import com.ramukaka.models.github.RefType
 import com.ramukaka.utils.Constants
 import io.ktor.application.call
@@ -47,10 +48,19 @@ fun Routing.githubWebhook(database: Database, slackClient: SlackClient, consumer
                     if (payload.refType!! == RefType.BRANCH) {
                         when (payload.repository!!.id!!) {
                             consumerAppID -> {
-                                database.addBranch(payload.ref!!, Constants.Common.APP_CONSUMER)
+                                database.addRef(Constants.Common.APP_CONSUMER, Reference(payload.ref!!, RefType.BRANCH))
                             }
                             fleetAppId -> {
-                                database.addBranch(payload.ref!!, Constants.Common.APP_FLEET)
+                                database.addRef(Constants.Common.APP_FLEET, Reference(payload.ref!!, RefType.BRANCH))
+                            }
+                        }
+                    } else if(payload.refType == RefType.TAG) {
+                        when(payload.repository?.id) {
+                            consumerAppID -> {
+                                database.addRef(Constants.Common.APP_CONSUMER, Reference(payload.ref!!, RefType.TAG))
+                            }
+                            fleetAppId -> {
+                                database.addRef(Constants.Common.APP_FLEET, Reference(payload.ref!!, RefType.TAG))
                             }
                         }
                     }
@@ -62,10 +72,20 @@ fun Routing.githubWebhook(database: Database, slackClient: SlackClient, consumer
                     if (payload.refType!! == RefType.BRANCH) {
                         when (payload.repository!!.id!!) {
                             consumerAppID -> {
-                                database.deleteBranch(payload.ref!!, Constants.Common.APP_CONSUMER)
+                                database.deleteRef(Constants.Common.APP_CONSUMER, Reference(payload.ref!!, RefType.BRANCH))
                             }
                             fleetAppId -> {
-                                database.deleteBranch(payload.ref!!, Constants.Common.APP_FLEET)
+                                database.deleteRef(Constants.Common.APP_FLEET, Reference(payload.ref!!, RefType.BRANCH))
+                            }
+                        }
+                    }
+                    else if(payload.refType == RefType.TAG) {
+                        when(payload.repository?.id) {
+                            consumerAppID -> {
+                                database.deleteRef(Constants.Common.APP_CONSUMER, Reference(payload.ref!!, RefType.TAG))
+                            }
+                            fleetAppId -> {
+                                database.deleteRef(Constants.Common.APP_FLEET, Reference(payload.ref!!, RefType.TAG))
                             }
                         }
                     }

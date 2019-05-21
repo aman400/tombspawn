@@ -3,8 +3,8 @@ package com.ramukaka.network
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import com.ramukaka.data.Branch
 import com.ramukaka.data.Database
+import com.ramukaka.data.Ref
 import com.ramukaka.extensions.await
 import com.ramukaka.extensions.random
 import com.ramukaka.extensions.toMap
@@ -12,6 +12,7 @@ import com.ramukaka.models.*
 import com.ramukaka.models.Command
 import com.ramukaka.models.Failure
 import com.ramukaka.models.Success
+import com.ramukaka.models.github.RefType
 import com.ramukaka.models.locations.ApiMock
 import com.ramukaka.models.locations.Slack
 import com.ramukaka.models.slack.*
@@ -163,9 +164,9 @@ fun Routing.slackAction(
                             val updatedMessage = slackEvent.originalMessage?.copy(attachments = null)
                             val callback: GenerateCallback = Gson().fromJson(action.value, GenerateCallback::class.java)
                             if (callback.generate) {
-                                var branchList: List<String>? = null
+                                var branchList: List<Reference>? = null
                                 callback.data?.get(Constants.Slack.TYPE_SELECT_BRANCH)?.let { branch ->
-                                    branchList = listOf(branch)
+                                    branchList = listOf(Reference(branch, RefType.BRANCH))
                                 }
                                 updatedMessage?.apply {
                                     attachments = mutableListOf(
@@ -207,16 +208,18 @@ fun Routing.slackAction(
                 when (slackEvent.callbackId) {
                     Constants.Slack.TYPE_SUBSCRIBE_CONSUMER ->
                         slackClient.sendShowSubscriptionDialog(
-                            database.getBranches(Constants.Common.APP_CONSUMER),
+                            database.getRefs(Constants.Common.APP_CONSUMER),
                             slackEvent.triggerId!!
                         )
                     Constants.Slack.TYPE_GENERATE_CONSUMER -> {
-                        val branchList = database.getBranches(Constants.Common.APP_CONSUMER)
+                        val branchList = database.getRefs(Constants.Common.APP_CONSUMER)?.map {
+                            Reference(it.name, it.type)
+                        }
                         val flavourList = database.getFlavours(Constants.Common.APP_CONSUMER)
                         val buildTypesList = database.getBuildTypes(Constants.Common.APP_CONSUMER)
 
                         slackClient.sendShowGenerateApkDialog(
-                            branchList?.map { branch -> branch.branchName },
+                            branchList,
                             buildTypesList?.map { buildType -> buildType.name },
                             flavourList?.map { flavour -> flavour.name },
                             null,
@@ -227,12 +230,14 @@ fun Routing.slackAction(
                     }
 
                     Constants.Slack.TYPE_GENERATE_FLEET -> {
-                        val branchList = database.getBranches(Constants.Common.APP_FLEET)
+                        val branchList = database.getRefs(Constants.Common.APP_FLEET)?.map {
+                            Reference(it.name, it.type)
+                        }
                         val flavourList = database.getFlavours(Constants.Common.APP_FLEET)
                         val buildTypesList = database.getBuildTypes(Constants.Common.APP_FLEET)
 
                         slackClient.sendShowGenerateApkDialog(
-                            branchList?.map { branch -> branch.branchName },
+                            branchList,
                             buildTypesList?.map { buildType -> buildType.name },
                             flavourList?.map { flavour -> flavour.name },
                             null,
@@ -366,12 +371,14 @@ fun Routing.buildConsumer(appDir: String, slackClient: SlackClient, database: Da
             call.respond(HttpStatusCode.OK)
         } ?: run {
             LOGGER.warning("Command options not set. These options can set using '/build-consumer BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'")
-            val branchList = database.getBranches(Constants.Common.APP_CONSUMER)
+            val branchList = database.getRefs(Constants.Common.APP_CONSUMER)?.map {
+                Reference(it.name, it.type)
+            }
             val flavourList = database.getFlavours(Constants.Common.APP_CONSUMER)
             val buildTypesList = database.getBuildTypes(Constants.Common.APP_CONSUMER)
 
             slackClient.sendShowGenerateApkDialog(
-                branchList?.map { branch -> branch.branchName },
+                branchList,
                 buildTypesList?.map { buildType -> buildType.name },
                 flavourList?.map { flavour -> flavour.name },
                 null,
@@ -422,12 +429,14 @@ fun Routing.buildFleet(appDir: String, slackClient: SlackClient, database: Datab
             call.respond(HttpStatusCode.OK)
         } ?: run {
             LOGGER.warning("Command options not set. These options can be set using '/build-fleet BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'")
-            val branchList = database.getBranches(Constants.Common.APP_FLEET)
+            val branchList = database.getRefs(Constants.Common.APP_FLEET)?.map {
+                Reference(it.name, it.type)
+            }
             val flavourList = database.getFlavours(Constants.Common.APP_FLEET)
             val buildTypesList = database.getBuildTypes(Constants.Common.APP_FLEET)
 
             slackClient.sendShowGenerateApkDialog(
-                branchList?.map { branch -> branch.branchName },
+                branchList,
                 buildTypesList?.map { buildType -> buildType.name },
                 flavourList?.map { flavour -> flavour.name },
                 null,
@@ -864,8 +873,11 @@ class SlackClient(
                         user?.let { bot ->
                             when (event.text?.substringAfter("<@${bot.slackId}>", event.text)?.trim()) {
                                 Constants.Slack.TYPE_SUBSCRIBE_CONSUMER -> {
-                                    database.getBranches(Constants.Common.APP_CONSUMER)?.forEach {
-                                        println(it.branchName)
+                                    database.getRefs(Constants.Common.APP_CONSUMER)?.
+                                        filter {
+                                            it.type == RefType.BRANCH
+                                        }?.forEach {
+                                        println(it.name)
                                     }
                                 }
                                 Constants.Slack.TYPE_SUBSCRIBE_FLEET -> {
@@ -950,12 +962,12 @@ class SlackClient(
     }
 
     suspend fun sendShowSubscriptionDialog(
-        branches: List<Branch>?,
+        branches: List<Ref>?,
         triggerId: String
     ) {
         val branchList = mutableListOf<Element.Option>()
         branches?.forEach { branch ->
-            branchList.add(Element.Option(branch.branchName, branch.branchName))
+            branchList.add(Element.Option("${branch.name}(${branch.type.type})", branch.name))
         }
         val dialog = Dialog(
             Constants.Slack.CALLBACK_SUBSCRIBE_CONSUMER, "Subscription Details", "Submit", false, null,
@@ -1103,7 +1115,7 @@ class SlackClient(
     }
 
     suspend fun sendShowGenerateApkDialog(
-        branches: List<String>?,
+        branches: List<Reference>?,
         buildTypes: List<String>?,
         flavours: List<String>?,
         echo: String?,
@@ -1114,9 +1126,9 @@ class SlackClient(
         val dialogElementList = mutableListOf<Element>()
         val branchList = mutableListOf<Element.Option>()
         branches?.forEach { branch ->
-            branchList.add(Element.Option(branch, branch))
+            branchList.add(Element.Option("${branch.name}(${branch.type.type})", branch.name))
         }
-        val defaultValue: String? = if (branches?.size == 1) branches[0] else null
+        val defaultValue: String? = if (branches?.size == 1) branchList[0].label else null
         if (branchList.size > 0) {
             dialogElementList.add(
                 Element(

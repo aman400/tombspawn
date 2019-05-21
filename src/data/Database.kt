@@ -1,5 +1,7 @@
 package com.ramukaka.data
 
+import com.ramukaka.models.Reference
+import com.ramukaka.models.github.RefType
 import com.ramukaka.utils.Constants
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
@@ -39,7 +41,7 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
         connectionPool = HikariDataSource(config)
         connection = Database.connect(connectionPool)
         transaction(connection) {
-            SchemaUtils.create(Users, UserTypes, Apps, Branches, BuildTypes, Flavours, Subscriptions, Verbs, Apis)
+            SchemaUtils.create(Users, UserTypes, Apps, Branches, BuildTypes, Flavours, Subscriptions, Verbs, Apis, Refs)
         }
     }
 
@@ -55,7 +57,7 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
                 }).innerJoin(Users, {
                     Subscriptions.userId
                 }, {
-                    Users.id
+                    id
                 }).slice(Users.slackId, Subscriptions.channel, Branches.name).select {
                     Branches.name eq branchName
                 }.withDistinct(true)
@@ -192,7 +194,7 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
                 val query = Users.innerJoin(UserTypes, {
                     Users.userType
                 }, {
-                    UserTypes.id
+                    id
                 }).slice(Users.columns).select {
                     UserTypes.type eq userType
                 }.withDistinct().first()
@@ -204,53 +206,57 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
         }
     }
 
-    suspend fun getBranches(app: String): List<Branch>? = withContext(dispatcher) {
+    suspend fun getRefs(app: String): List<Ref>? = withContext(dispatcher) {
         return@withContext transaction(connection) {
             addLogger(StdOutSqlLogger)
-            Branch.wrapRows(Branches.leftJoin(Apps, { Branches.appId }, { Apps.id }).select { Apps.name eq app })
-                .toList()
+            Ref.wrapRows(Refs.leftJoin(Apps, { appId }, { id }).select { Apps.name eq app }).toList()
         }
     }
 
-    suspend fun addBranch(branch: String, app: String) = withContext(dispatcher) {
+    suspend fun addRef(app: String, ref: Reference) = withContext(dispatcher) {
         return@withContext transaction(connection) {
             addLogger(StdOutSqlLogger)
             val application = App.find { Apps.name eq app }.first()
-            if (Branch.find { (Branches.name eq branch) and (Branches.appId eq application.id) }.empty()) {
-                Branch.new {
-                    this.branchName = branch
+            if (Ref.find { (Refs.name eq ref.name) and (Refs.appId eq application.id) and (Refs.type eq ref.type) }.empty()) {
+                Ref.new {
+                    this.name = ref.name
                     this.deleted = false
                     this.appId = application
+                    this.type = ref.type
                 }
             }
         }
     }
 
-    suspend fun deleteBranch(branch: String, appName: String) = withContext(dispatcher) {
+    suspend fun deleteRef(appName: String, reference: Reference)= withContext(dispatcher) {
         return@withContext transaction(connection) {
             addLogger(StdOutSqlLogger)
             App.find { Apps.name eq appName }.firstOrNull()?.let { application ->
-                Branches.deleteWhere { (Branches.name eq branch) and (Branches.appId eq application.id) }
+                Refs.deleteWhere { (Refs.name eq reference.name) and (Refs.appId eq application.id) and (Refs.type eq reference.type) }
             }
         }
     }
 
-    suspend fun addBranches(branches: List<String>, app: String) = withContext(dispatcher) {
+    suspend fun addRefs(refs: List<Reference>, appName: String) = withContext(dispatcher) {
         return@withContext transaction(connection) {
             addLogger(StdOutSqlLogger)
-
-            App.find { Apps.name eq app }.firstOrNull()?.let { application ->
-                Branch.wrapRows(Branches.select { Branches.appId eq application.id }).forEach {
-                    if (it.branchName !in branches) {
-                        it.delete()
+            App.find { Apps.name eq appName }.firstOrNull()?.let { application ->
+                Ref.wrapRows(Refs.select {Refs.appId eq application.id}).forEach { ref ->
+                    if(refs.firstOrNull {
+                        ref.name == it.name && ref.type == it.type
+                    } == null) {
+                        ref.delete()
                     }
                 }
 
-                branches.forEach {
-                    if (Branch.find { (Branches.name eq it) and (Branches.appId eq application.id) }.firstOrNull() == null) {
-                        Branch.new {
-                            this.branchName = it
+                refs.forEach {
+                    if(Ref.find { (Refs.name eq it.name) and
+                                (Refs.appId eq application.id) and
+                                (Refs.type eq it.type)}.firstOrNull() == null) {
+                        Ref.new {
+                            this.name = it.name
                             this.deleted = false
+                            this.type = it.type
                             this.appId = application
                         }
                     }
@@ -262,7 +268,7 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
     suspend fun getFlavours(app: String): List<Flavour>? = withContext(dispatcher) {
         return@withContext transaction(connection) {
             addLogger(StdOutSqlLogger)
-            Flavour.wrapRows(Flavours.leftJoin(Apps, { Flavours.appId }, { Apps.id }).select { Apps.name eq app })
+            Flavour.wrapRows(Flavours.leftJoin(Apps, { Flavours.appId }, { id }).select { Apps.name eq app })
                 .toList()
         }
     }
@@ -272,8 +278,8 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
             addLogger(StdOutSqlLogger)
             BuildType.wrapRows(BuildTypes.leftJoin(
                 Apps,
-                { BuildTypes.appId },
-                { Apps.id }).select { Apps.name eq app })
+                { appId },
+                { id }).select { Apps.name eq app })
                 .toList()
         }
     }
@@ -426,17 +432,26 @@ class App(id: EntityID<Int>) : IntEntity(id) {
 
 object Branches : IntIdTable() {
     val name = varchar("branch_name", 100).primaryKey()
+}
+
+object Refs: IntIdTable() {
+    val name = varchar("name", 100).primaryKey()
     val deleted = bool("deleted").default(false)
+    val type = enumeration("type", RefType::class).default(RefType.BRANCH)
     val appId = reference("app_id", Apps, ReferenceOption.CASCADE, ReferenceOption.RESTRICT).primaryKey()
 }
 
+class Ref(id: EntityID<Int>) : IntEntity(id) {
+    companion object: IntEntityClass<Ref>(Refs)
+
+    var name by Refs.name
+    var deleted by Refs.deleted
+    var appId by App referencedOn Refs.appId
+    var type by Refs.type
+}
 
 class Branch(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<Branch>(Branches)
-
-    var branchName by Branches.name
-    var appId by App referencedOn Branches.appId
-    var deleted by Branches.deleted
 }
 
 object BuildTypes : IntIdTable() {

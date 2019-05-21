@@ -192,7 +192,7 @@ suspend fun initApp(gradleBotClient: GradleBotClient, database: Database, appDir
         val branchJob = async {
             val branches = gradleBotClient.fetchAllBranches(appDir)
             branches?.let {
-                database.addBranches(it, appName)
+                database.addRefs(it, appName)
             }
         }
 
