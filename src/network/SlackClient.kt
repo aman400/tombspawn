@@ -511,7 +511,7 @@ class SlackClient(
             @Part("filetype") filetype: RequestBody,
             @Part("channels") channels: RequestBody,
             @Part body: MultipartBody.Part
-        ): Call<com.ramukaka.models.Response>
+        ): Call<Response>
 
         @POST
         fun sendMessage(
@@ -768,13 +768,13 @@ class SlackClient(
             MultipartBody.Part.createFormData("file", "App-debug.apk", requestBody)
 
         val appToken = RequestBody.create(
-            okhttp3.MultipartBody.FORM,
+            MultipartBody.FORM,
             slackBotToken
         )
-        val title = RequestBody.create(okhttp3.MultipartBody.FORM, file.nameWithoutExtension)
-        val filename = RequestBody.create(okhttp3.MultipartBody.FORM, file.name)
-        val fileType = RequestBody.create(okhttp3.MultipartBody.FORM, "auto")
-        val channels = RequestBody.create(okhttp3.MultipartBody.FORM, channelId)
+        val title = RequestBody.create(MultipartBody.FORM, file.nameWithoutExtension)
+        val filename = RequestBody.create(MultipartBody.FORM, file.name)
+        val fileType = RequestBody.create(MultipartBody.FORM, "auto")
+        val channels = RequestBody.create(MultipartBody.FORM, channelId)
 
         val api = ServiceGenerator.createService(SlackApi::class.java, SlackApi.BASE_URL, false)
         val call = api.pushApp(appToken, title, filename, fileType, channels, multipartBody)
