@@ -20,8 +20,6 @@ import io.ktor.client.features.json.JsonSerializer
 import io.ktor.client.features.logging.LogLevel
 import io.ktor.client.features.logging.Logger
 import io.ktor.client.features.observer.ResponseObserver
-import io.ktor.client.request.headers
-import io.ktor.http.HeadersBuilder
 import io.ktor.http.URLProtocol
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.SendChannel
@@ -39,14 +37,6 @@ val dbModule = module {
 }
 
 val httpClientModule = module {
-
-    single {
-        HeadersBuilder().apply {
-            append(Headers.APP_CLIENT, Headers.APP_CLIENT_VALUE)
-            append(Headers.CONTENT_TYPE, Headers.TYPE_JSON)
-            append(Headers.ACCEPT, Headers.TYPE_JSON)
-        }
-    }
 
     single {
         GsonSerializer {
@@ -76,8 +66,6 @@ val httpClientModule = module {
     }
 
     single {
-        val headersBuilder: HeadersBuilder = get()
-
         HttpClient(Apache) {
             engine {
             }
@@ -95,12 +83,14 @@ val httpClientModule = module {
             install(JsonFeature) {
                 serializer = get()
             }
-        }.config {
             defaultRequest {
-                headers { headersBuilder.build() }
+                headers.append(Headers.APP_CLIENT, Headers.APP_CLIENT_VALUE)
+                headers.append(Headers.ACCEPT, Headers.TYPE_JSON)
                 url {
-                    protocol = URLProtocol.HTTPS
-                    host = "slack.com"
+                    if(host == "localhost") {
+                        protocol = URLProtocol.HTTPS
+                        host = "slack.com"
+                    }
                 }
             }
         }
@@ -110,6 +100,7 @@ val httpClientModule = module {
 val slackModule = module {
     single { (responseListener: MutableMap<String, CompletableDeferred<CommandResponse>>, requestExecutor: SendChannel<Command>) ->
         SlackClient(
+            get(),
             get(StringQualifier(Constants.EnvironmentVariables.ENV_O_AUTH_TOKEN)),
             get(StringQualifier(Constants.EnvironmentVariables.ENV_GRADLE_PATH)),
             get(StringQualifier(Constants.EnvironmentVariables.ENV_UPLOAD_DIR_PATH)),

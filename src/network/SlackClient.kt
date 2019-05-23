@@ -18,9 +18,12 @@ import com.ramukaka.models.locations.Slack
 import com.ramukaka.models.slack.*
 import com.ramukaka.utils.Constants
 import io.ktor.application.call
-import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.Parameters
+import io.ktor.client.HttpClient
+import io.ktor.client.call.call
+import io.ktor.client.request.*
+import io.ktor.client.request.forms.formData
+import io.ktor.http.*
+import io.ktor.http.content.PartData
 import io.ktor.locations.*
 import io.ktor.request.receive
 import io.ktor.request.receiveParameters
@@ -36,8 +39,10 @@ import okhttp3.MediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.ResponseBody
+import org.apache.http.client.methods.HttpHead
 import retrofit2.Call
 import retrofit2.http.*
+import retrofit2.http.Url
 import java.io.File
 import java.util.*
 import java.util.logging.Level
@@ -450,6 +455,7 @@ fun Routing.buildFleet(appDir: String, slackClient: SlackClient, database: Datab
 }
 
 class SlackClient(
+    private val httpClient: HttpClient,
     private val slackAuthToken: String,
     private val gradlePath: String, private val uploadDirPath: String,
     private val gradleBotClient: GradleBotClient, private val database: Database,
@@ -470,9 +476,6 @@ class SlackClient(
             const val PARAM_TOKEN = "token"
             const val PARAM_USER_ID = "user"
         }
-
-        @GET("/api/users.profile.get")
-        fun getProfile(@QueryMap queryMap: MutableMap<String, String>): Call<SlackProfileResponse>
 
         @FormUrlEncoded
         @POST("/api/chat.postMessage")
@@ -511,19 +514,13 @@ class SlackClient(
             @Part("filetype") filetype: RequestBody,
             @Part("channels") channels: RequestBody,
             @Part body: MultipartBody.Part
-        ): Call<Response>
+        ): Call<CallResponse>
 
         @POST
         fun sendMessage(
             @HeaderMap header: MutableMap<String, String>, @Url url: String,
             @Body requestBody: RequestData?
         ): Call<ResponseBody>
-
-        @GET("/api/rtm.connect")
-        fun fetchBotInfo(
-            @HeaderMap headers: MutableMap<String, String>,
-            @Query("token") botToken: String
-        ): Call<BotInfo>
     }
 
     suspend fun updateMessage(updatedMessage: SlackMessage, channel: String) {
@@ -740,22 +737,25 @@ class SlackClient(
         }
     }
 
-    suspend fun sendMessage(url: String, data: RequestData?) {
-        val headers = mutableMapOf("Content-type" to "application/json")
-        val api = ServiceGenerator.createService(SlackApi::class.java, isLoggingEnabled = true)
-        withContext(Dispatchers.IO) {
-            val response = api.sendMessage(headers, url, data).await()
-            when (response) {
-                is com.ramukaka.network.Success -> {
-                    LOGGER.info(response.data.toString())
-                }
-                is com.ramukaka.network.Failure -> {
-                    LOGGER.fine(response.errorBody)
-                }
+    suspend fun sendMessage(url: String, data: RequestData?) = withContext(Dispatchers.IO) {
+        val call = httpClient.call {
+            url(url)
+            method = HttpMethod.Post
+            headers.append(HttpHeaders.ContentType, ContentType.Application.Json)
+            data?.let {
+                body = it
+            }
+        }
 
-                is CallError -> {
-                    LOGGER.log(Level.SEVERE, "Unable to send message", response.throwable)
-                }
+        when(val response = call.await<JsonObject>()) {
+            is com.ramukaka.network.Success -> {
+                LOGGER.info(response.data.toString())
+            }
+            is com.ramukaka.network.Failure -> {
+                LOGGER.fine(response.errorBody)
+            }
+            is CallError -> {
+                LOGGER.log(Level.SEVERE, "Unable to send message", response.throwable)
             }
         }
     }
@@ -828,15 +828,18 @@ class SlackClient(
     }
 
     private suspend fun fetchAndUpdateUser(userId: String, database: Database) {
-        val api = ServiceGenerator.createService(
-            SlackApi::class.java, SlackApi.BASE_URL,
-            true
-        )
-        val queryParams = mutableMapOf<String, String>()
-        queryParams[SlackApi.PARAM_TOKEN] = slackAuthToken
-        queryParams[SlackApi.PARAM_USER_ID] = userId
         withContext(Dispatchers.IO) {
-            when (val response = api.getProfile(queryParams).await()) {
+            val call = httpClient.call {
+                method = HttpMethod.Get
+                url {
+                    encodedPath = "/api/users.profile.get"
+                    parameter(SlackApi.PARAM_TOKEN, slackAuthToken)
+                    parameter(SlackApi.PARAM_USER_ID, userId)
+
+                }
+            }
+
+            when(val response = call.await<SlackProfileResponse>()) {
                 is com.ramukaka.network.Success -> {
                     response.data?.user?.let { user ->
                         database.updateUser(
@@ -854,7 +857,7 @@ class SlackClient(
                 is CallError -> {
                     LOGGER.log(Level.SEVERE, response.throwable, null)
                 }
-            }.exhaustive
+            }
         }
     }
 
@@ -914,7 +917,6 @@ class SlackClient(
         withContext(Dispatchers.IO) {
             val response = api.postAction(headers, body).await()
             when (response) {
-
                 is com.ramukaka.network.Success -> {
                     LOGGER.info("message successfully sent")
                 }
@@ -988,10 +990,19 @@ class SlackClient(
             SlackApi.BASE_URL,
             true
         )
-        val headers = mutableMapOf(Constants.Common.HEADER_CONTENT_TYPE to Constants.Common.VALUE_FORM_ENCODE)
 
         withContext(Dispatchers.IO) {
-            when (val response = api.sendActionOpenDialog(headers, body).await()) {
+            val call = httpClient.call {
+                method = HttpMethod.Get
+                url {
+                    encodedPath = "/api/dialog.open"
+                    parametersOf()
+                }
+                header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded)
+                this.body = body
+            }
+
+            when(val response = call.await<JsonObject>()) {
                 is com.ramukaka.network.Success -> {
                     LOGGER.info(response.data.toString())
                 }
@@ -1000,9 +1011,8 @@ class SlackClient(
                 }
                 is CallError -> {
                     LOGGER.info(response.throwable?.message)
-
                 }
-            }.exhaustive
+            }
         }
     }
 
@@ -1239,10 +1249,5 @@ class SlackClient(
             }.exhaustive
         }
 
-    }
-
-    companion object {
-        @JvmStatic
-        val logger by com.ramukaka.log.Logger()
     }
 }
