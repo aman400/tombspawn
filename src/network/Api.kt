@@ -13,7 +13,6 @@ import io.ktor.application.call
 import io.ktor.client.HttpClient
 import io.ktor.client.call.call
 import io.ktor.client.request.parameter
-import io.ktor.client.response.readBytes
 import io.ktor.http.HttpMethod
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart

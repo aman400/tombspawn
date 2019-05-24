@@ -24,16 +24,4 @@ object Headers {
      * The constant TYPE_JSON.
      */
     const val TYPE_JSON = "application/json"
-    /**
-     * The constant HEADER_ENCODING.
-     */
-    const val HEADER_ENCODING = "Content-Encoding"
-
-    val basicHeaders: MutableMap<String, String> = mutableMapOf()
-        get() {
-            field[Headers.APP_CLIENT] = Headers.APP_CLIENT_VALUE
-            field[CONTENT_TYPE] = TYPE_JSON
-            field[ACCEPT] = TYPE_JSON
-            return field
-        }
 }

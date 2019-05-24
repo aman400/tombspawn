@@ -20,38 +20,41 @@ import com.ramukaka.utils.Constants
 import io.ktor.application.call
 import io.ktor.client.HttpClient
 import io.ktor.client.call.call
-import io.ktor.client.request.*
-import io.ktor.client.request.forms.*
-import io.ktor.client.utils.buildHeaders
+import io.ktor.client.request.forms.FormDataContent
+import io.ktor.client.request.forms.MultiPartFormDataContent
+import io.ktor.client.request.forms.formData
+import io.ktor.client.request.header
+import io.ktor.client.request.parameter
+import io.ktor.client.request.url
 import io.ktor.http.*
-import io.ktor.http.Headers
-import io.ktor.http.content.JarFileContent
-import io.ktor.http.content.PartData
 import io.ktor.locations.*
 import io.ktor.request.receive
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.response.respondText
 import io.ktor.routing.Routing
-import io.ktor.util.InternalAPI
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.SendChannel
 import models.slack.Action
-import models.slack.BotInfo
 import models.slack.Confirm
-import okhttp3.MediaType
-import okhttp3.MultipartBody
-import okhttp3.RequestBody
-import okhttp3.ResponseBody
-import org.apache.http.client.methods.HttpHead
-import retrofit2.Call
-import retrofit2.http.*
-import retrofit2.http.Url
 import java.io.File
 import java.io.FileInputStream
 import java.util.*
 import java.util.logging.Level
 import java.util.logging.Logger
+import kotlin.collections.List
+import kotlin.collections.MutableMap
+import kotlin.collections.filter
+import kotlin.collections.filterValues
+import kotlin.collections.firstOrNull
+import kotlin.collections.forEach
+import kotlin.collections.listOf
+import kotlin.collections.map
+import kotlin.collections.mapValues
+import kotlin.collections.mutableListOf
+import kotlin.collections.mutableMapOf
+import kotlin.collections.set
+import kotlin.collections.toMutableMap
 
 
 private val randomWaitingMessages = listOf(
@@ -477,65 +480,28 @@ class SlackClient(
 
     interface SlackApi {
         companion object {
-            const val BASE_URL = "https://slack.com"
             const val PARAM_TOKEN = "token"
             const val PARAM_USER_ID = "user"
         }
-
-        @FormUrlEncoded
-        @POST("/api/chat.postMessage")
-        fun postAction(@HeaderMap headers: MutableMap<String, String>, @FieldMap body: MutableMap<String, String?>): Call<JsonObject>
-
-        @FormUrlEncoded
-        @POST("/api/dialog.open")
-        fun sendActionOpenDialog(@HeaderMap headers: MutableMap<String, String>, @FieldMap body: MutableMap<String, String?>): Call<JsonObject>
-
-        @FormUrlEncoded
-        @POST("/api/chat.postEphemeral")
-        fun sendMessageEphemeral(@HeaderMap headers: MutableMap<String, String>, @FieldMap body: MutableMap<String, String?>): Call<JsonObject>
-
-        @GET("/api/channels.info")
-        fun getChannelInfo(
-            @HeaderMap headers: MutableMap<String, String>, @Query(Constants.Slack.TOKEN) token: String,
-            @Query(Constants.Slack.CHANNEL) channelId: String
-        ): Call<ChannelInfoResponse>
-
-        @FormUrlEncoded
-        @POST("/api/chat.update")
-        fun updateMessage(
-            @Field(Constants.Slack.TOKEN) token: String,
-            @Field(Constants.Slack.CHANNEL) channel: String,
-            @Field(Constants.Slack.TEXT) text: String,
-            @Field(Constants.Slack.TS) timestamp: String,
-            @Field(Constants.Slack.ATTACHMENTS) attachments: String?
-        ): Call<JsonObject>
-
-        @Multipart
-        @POST("/api/files.upload")
-        fun pushApp(
-            @Part("token") token: RequestBody,
-            @Part("title") title: RequestBody,
-            @Part("filename") filename: RequestBody,
-            @Part("filetype") filetype: RequestBody,
-            @Part("channels") channels: RequestBody,
-            @Part body: MultipartBody.Part
-        ): Call<CallResponse>
-
-        @POST
-        fun sendMessage(
-            @HeaderMap header: MutableMap<String, String>, @Url url: String,
-            @Body requestBody: RequestData?
-        ): Call<ResponseBody>
     }
 
     suspend fun updateMessage(updatedMessage: SlackMessage, channel: String) {
-        val api = ServiceGenerator.createService(SlackApi::class.java, isLoggingEnabled = true)
-
         withContext(Dispatchers.IO) {
-            when (val response = api.updateMessage(
-                slackBotToken, channel, updatedMessage.message ?: "",
-                updatedMessage.timestamp!!, gson.toJson(updatedMessage.attachments)
-            ).await()) {
+            val params = ParametersBuilder().apply {
+                append(Constants.Slack.TOKEN, slackBotToken)
+                append(Constants.Slack.CHANNEL, channel)
+                append(Constants.Slack.TEXT, updatedMessage.message ?: "")
+                append(Constants.Slack.TS, updatedMessage.timestamp!!)
+                append(Constants.Slack.ATTACHMENTS, gson.toJson(updatedMessage.attachments))
+            }.build()
+            val call = httpClient.call {
+                method = HttpMethod.Post
+                url {
+                    encodedPath = "/api/chat.update"
+                }
+                body = FormDataContent(params)
+            }
+            when (val response = call.await<JsonObject>()) {
                 is com.ramukaka.network.Success -> {
                     LOGGER.info("Posted dialog successfully")
                     LOGGER.info(response.data.toString())
@@ -916,29 +882,30 @@ class SlackClient(
     }
 
     suspend fun sendMessage(message: String, channelId: String, attachments: List<Attachment>?) {
-        val body = mutableMapOf<String, String?>()
-        attachments?.let {
-            body[Constants.Slack.ATTACHMENTS] = gson.toJson(attachments)
+        val params = ParametersBuilder().apply {
+            append(Constants.Slack.TEXT, message)
+            append(Constants.Slack.CHANNEL, channelId)
+            append(Constants.Slack.TOKEN, slackBotToken)
+            attachments?.let {
+                append(Constants.Slack.ATTACHMENTS, gson.toJson(attachments))
+            }
+        }.build()
+
+        val call = httpClient.call {
+            method = HttpMethod.Post
+            url {
+                encodedPath = "/api/chat.postMessage"
+            }
+            body = FormDataContent(params)
         }
-        body[Constants.Slack.TEXT] = message
-        body[Constants.Slack.CHANNEL] = channelId
-        body[Constants.Slack.TOKEN] = slackBotToken
-        val api = ServiceGenerator.createService(
-            SlackApi::class.java,
-            SlackApi.BASE_URL,
-            true
-        )
-        val headers = mutableMapOf(Constants.Common.HEADER_CONTENT_TYPE to Constants.Common.VALUE_FORM_ENCODE)
-        withContext(Dispatchers.IO) {
-            val response = api.postAction(headers, body).await()
-            when (response) {
-                is com.ramukaka.network.Success -> {
-                    LOGGER.info("message successfully sent")
-                }
-                else -> {
-                    LOGGER.info("message sending failed")
-                }
-            }.exhaustive
+
+        when(call.await<JsonObject>()) {
+            is com.ramukaka.network.Success -> {
+                LOGGER.info("message successfully sent")
+            }
+            else -> {
+                LOGGER.info("message sending failed")
+            }
         }
     }
 
@@ -948,31 +915,31 @@ class SlackClient(
         userId: String,
         attachments: List<Attachment>?
     ) {
-        val body = mutableMapOf<String, String?>()
-        body[Constants.Slack.ATTACHMENTS] = gson.toJson(attachments)
-        body[Constants.Slack.TEXT] = message
-        body[Constants.Slack.USER] = userId
-        body[Constants.Slack.CHANNEL] = channelId
-        body[Constants.Slack.TOKEN] = slackBotToken
-        val api = ServiceGenerator.createService(
-            SlackApi::class.java,
-            SlackApi.BASE_URL,
-            true
-        )
-        val headers = mutableMapOf(Constants.Common.HEADER_CONTENT_TYPE to Constants.Common.VALUE_FORM_ENCODE)
-        withContext(Dispatchers.IO) {
-            val response = api.sendMessageEphemeral(headers, body).await()
-            when (response) {
 
+        val params = ParametersBuilder().apply {
+            append(Constants.Slack.ATTACHMENTS, gson.toJson(attachments))
+            append(Constants.Slack.TEXT, message)
+            append(Constants.Slack.USER, userId)
+            append(Constants.Slack.CHANNEL, channelId)
+            append(Constants.Slack.TOKEN, slackBotToken)
+        }.build()
+        val call = httpClient.call {
+            method = HttpMethod.Post
+            url {
+                encodedPath = "/api/chat.postEphemeral"
+            }
+            body = FormDataContent(params)
+        }
+        withContext(Dispatchers.IO) {
+            when (val response = call.await<JsonObject>()) {
                 is com.ramukaka.network.Success -> {
                     LOGGER.info(response.data.toString())
                 }
                 is com.ramukaka.network.Failure -> {
-                    LOGGER.info(response.errorBody.toString())
+                    LOGGER.fine(response.errorBody)
                 }
                 is CallError -> {
                     LOGGER.info(response.throwable?.message)
-
                 }
             }.exhaustive
         }
@@ -1000,11 +967,6 @@ class SlackClient(
         body[Constants.Slack.DIALOG] = gson.toJson(dialog)
         body[Constants.Slack.TOKEN] = slackBotToken
         body[Constants.Slack.TRIGGER_ID] = triggerId
-        val api = ServiceGenerator.createService(
-            SlackApi::class.java,
-            SlackApi.BASE_URL,
-            true
-        )
 
         withContext(Dispatchers.IO) {
             val call = httpClient.call {
@@ -1109,32 +1071,8 @@ class SlackClient(
             elements = dialogElementList
         )
 
-        val body = mutableMapOf<String, String?>()
-        body[Constants.Slack.DIALOG] = gson.toJson(dialog)
-        body[Constants.Slack.TOKEN] = slackBotToken
-        body[Constants.Slack.TRIGGER_ID] = triggerId
-        val api = ServiceGenerator.createService(
-            SlackApi::class.java,
-            SlackApi.BASE_URL,
-            true
-        )
-        val headers = mutableMapOf(Constants.Common.HEADER_CONTENT_TYPE to Constants.Common.VALUE_FORM_ENCODE)
-
         withContext(Dispatchers.IO) {
-            when (val response = api.sendActionOpenDialog(headers, body).await()) {
-                is com.ramukaka.network.Success -> {
-                    LOGGER.info("Posted dialog successfully")
-                    LOGGER.info(response.data.toString())
-                }
-                is com.ramukaka.network.Failure -> {
-                    LOGGER.info("Dialog posting failed")
-                    LOGGER.fine(response.errorBody)
-                }
-                is CallError -> {
-                    LOGGER.info("Dialog posting failed")
-                    LOGGER.log(Level.SEVERE, "Unable to post dialog", response.throwable)
-                }
-            }.exhaustive
+            openActionDialog(dialog, slackBotToken, triggerId)
         }
 
     }
@@ -1235,19 +1173,26 @@ class SlackClient(
             dialogElementList
         )
 
-        val body = mutableMapOf<String, String?>()
-        body[Constants.Slack.DIALOG] = gson.toJson(dialog)
-        body[Constants.Slack.TOKEN] = slackBotToken
-        body[Constants.Slack.TRIGGER_ID] = triggerId
-        val api = ServiceGenerator.createService(
-            SlackApi::class.java,
-            SlackApi.BASE_URL,
-            true
-        )
-        val headers = mutableMapOf(Constants.Common.HEADER_CONTENT_TYPE to Constants.Common.VALUE_FORM_ENCODE)
-
         withContext(Dispatchers.IO) {
-            when (val response = api.sendActionOpenDialog(headers, body).await()) {
+            openActionDialog(dialog, slackBotToken, triggerId)
+        }
+    }
+
+    suspend fun openActionDialog(dialog: Dialog, slackBotToken: String, triggerId: String) {
+        val params = ParametersBuilder().apply {
+            append(Constants.Slack.DIALOG, gson.toJson(dialog))
+            append(Constants.Slack.TOKEN, slackBotToken)
+            append(Constants.Slack.TRIGGER_ID, triggerId)
+        }.build()
+        val call = httpClient.call {
+            method = HttpMethod.Post
+            url {
+                encodedPath = "/api/dialog.open"
+            }
+            body = FormDataContent(params)
+        }
+        withContext(Dispatchers.IO) {
+            when (val response = call.await<JsonObject>()) {
                 is com.ramukaka.network.Success -> {
                     LOGGER.info("Posted dialog successfully")
                     LOGGER.info(response.data.toString())
@@ -1256,13 +1201,11 @@ class SlackClient(
                     LOGGER.info("Dialog posting failed")
                     LOGGER.fine(response.errorBody)
                 }
-
                 is CallError -> {
                     LOGGER.info("Dialog posting failed")
                     LOGGER.log(Level.SEVERE, "Unable to post dialog", response.throwable)
                 }
             }.exhaustive
         }
-
     }
 }
