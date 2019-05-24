@@ -478,13 +478,6 @@ class SlackClient(
         LOGGER.level = Level.ALL
     }
 
-    interface SlackApi {
-        companion object {
-            const val PARAM_TOKEN = "token"
-            const val PARAM_USER_ID = "user"
-        }
-    }
-
     suspend fun updateMessage(updatedMessage: SlackMessage, channel: String) {
         withContext(Dispatchers.IO) {
             val params = ParametersBuilder().apply {
@@ -815,8 +808,8 @@ class SlackClient(
                 method = HttpMethod.Get
                 url {
                     encodedPath = "/api/users.profile.get"
-                    parameter(SlackApi.PARAM_TOKEN, slackAuthToken)
-                    parameter(SlackApi.PARAM_USER_ID, userId)
+                    parameter("token", slackAuthToken)
+                    parameter("user", userId)
 
                 }
             }
