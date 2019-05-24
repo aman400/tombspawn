@@ -725,7 +725,7 @@ class SlackClient(
     }
 
 
-    suspend fun uploadFile(file: File, channelId: String, deleteFile: Boolean = true) {
+    private suspend fun uploadFile(file: File, channelId: String, deleteFile: Boolean = true) {
         val buf = ByteArray( file.length().toInt())
         FileInputStream( file ).use {
             it.read( buf )
@@ -874,7 +874,7 @@ class SlackClient(
         }
     }
 
-    suspend fun sendMessage(message: String, channelId: String, attachments: List<Attachment>?) {
+    private suspend fun sendMessage(message: String, channelId: String, attachments: List<Attachment>?) {
         val params = ParametersBuilder().apply {
             append(Constants.Slack.TEXT, message)
             append(Constants.Slack.CHANNEL, channelId)
@@ -1171,7 +1171,7 @@ class SlackClient(
         }
     }
 
-    suspend fun openActionDialog(dialog: Dialog, slackBotToken: String, triggerId: String) {
+    private suspend fun openActionDialog(dialog: Dialog, slackBotToken: String, triggerId: String) {
         val params = ParametersBuilder().apply {
             append(Constants.Slack.DIALOG, gson.toJson(dialog))
             append(Constants.Slack.TOKEN, slackBotToken)
