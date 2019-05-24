@@ -21,8 +21,11 @@ import io.ktor.application.call
 import io.ktor.client.HttpClient
 import io.ktor.client.call.call
 import io.ktor.client.request.*
-import io.ktor.client.request.forms.formData
+import io.ktor.client.request.forms.*
+import io.ktor.client.utils.buildHeaders
 import io.ktor.http.*
+import io.ktor.http.Headers
+import io.ktor.http.content.JarFileContent
 import io.ktor.http.content.PartData
 import io.ktor.locations.*
 import io.ktor.request.receive
@@ -30,6 +33,7 @@ import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.response.respondText
 import io.ktor.routing.Routing
+import io.ktor.util.InternalAPI
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.SendChannel
 import models.slack.Action
@@ -44,6 +48,7 @@ import retrofit2.Call
 import retrofit2.http.*
 import retrofit2.http.Url
 import java.io.File
+import java.io.FileInputStream
 import java.util.*
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -747,7 +752,7 @@ class SlackClient(
             }
         }
 
-        when(val response = call.await<JsonObject>()) {
+        when (val response = call.await<JsonObject>()) {
             is com.ramukaka.network.Success -> {
                 LOGGER.info(response.data.toString())
             }
@@ -762,25 +767,36 @@ class SlackClient(
 
 
     suspend fun uploadFile(file: File, channelId: String, deleteFile: Boolean = true) {
-        val requestBody =
-            RequestBody.create(MediaType.parse(ServiceGenerator.MULTIPART_FORM_DATA), file)
-        val multipartBody =
-            MultipartBody.Part.createFormData("file", "App-debug.apk", requestBody)
+        val buf = ByteArray( file.length().toInt())
+        FileInputStream( file ).use {
+            it.read( buf )
+        }
+        val formData = formData {
+            append("token", slackAuthToken)
+            append("title", file.nameWithoutExtension)
+            append("filename", file.name)
+            append("filetype", "auto")
+            append("channels", channelId)
+            append(
+                "file",
+                buf,
+                Headers.build {
+                    append(HttpHeaders.ContentType, ContentType.Application.OctetStream)
+                    append(HttpHeaders.ContentDisposition, " filename=${file.name}")
+                }
+            )
+        }
 
-        val appToken = RequestBody.create(
-            MultipartBody.FORM,
-            slackBotToken
-        )
-        val title = RequestBody.create(MultipartBody.FORM, file.nameWithoutExtension)
-        val filename = RequestBody.create(MultipartBody.FORM, file.name)
-        val fileType = RequestBody.create(MultipartBody.FORM, "auto")
-        val channels = RequestBody.create(MultipartBody.FORM, channelId)
-
-        val api = ServiceGenerator.createService(SlackApi::class.java, SlackApi.BASE_URL, false)
-        val call = api.pushApp(appToken, title, filename, fileType, channels, multipartBody)
         withContext(Dispatchers.IO) {
+            val call = httpClient.call {
+                url {
+                    encodedPath = "/api/files.upload"
+                }
+                method = HttpMethod.Post
+                body = MultiPartFormDataContent(formData)
+            }
             try {
-                val response = call.await()
+                val response = call.await<CallResponse>()
                 when (response) {
                     is com.ramukaka.network.Success -> {
                         if (response.data?.delivered == true) {
@@ -839,7 +855,7 @@ class SlackClient(
                 }
             }
 
-            when(val response = call.await<SlackProfileResponse>()) {
+            when (val response = call.await<SlackProfileResponse>()) {
                 is com.ramukaka.network.Success -> {
                     response.data?.user?.let { user ->
                         database.updateUser(
@@ -876,10 +892,9 @@ class SlackClient(
                         user?.let { bot ->
                             when (event.text?.substringAfter("<@${bot.slackId}>", event.text)?.trim()) {
                                 Constants.Slack.TYPE_SUBSCRIBE_CONSUMER -> {
-                                    database.getRefs(Constants.Common.APP_CONSUMER)?.
-                                        filter {
-                                            it.type == RefType.BRANCH
-                                        }?.forEach {
+                                    database.getRefs(Constants.Common.APP_CONSUMER)?.filter {
+                                        it.type == RefType.BRANCH
+                                    }?.forEach {
                                         println(it.name)
                                     }
                                 }
@@ -1002,7 +1017,7 @@ class SlackClient(
                 this.body = body
             }
 
-            when(val response = call.await<JsonObject>()) {
+            when (val response = call.await<JsonObject>()) {
                 is com.ramukaka.network.Success -> {
                     LOGGER.info(response.data.toString())
                 }
