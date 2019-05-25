@@ -37,6 +37,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.SendChannel
 import models.slack.Action
 import models.slack.Confirm
+import models.slack.Event
 import java.io.File
 import java.io.FileInputStream
 import java.util.*
@@ -503,7 +504,6 @@ class SlackClient(
                     LOGGER.info("Dialog posting failed")
                     LOGGER.fine(response.errorBody)
                 }
-
                 is CallError -> {
                     LOGGER.info("Dialog posting failed")
                     LOGGER.log(Level.SEVERE, "Unable to post dialog", response.throwable)
@@ -845,7 +845,7 @@ class SlackClient(
                 }
             }
             when (event.type) {
-                Constants.Slack.EVENT_TYPE_APP_MENTION, Constants.Slack.EVENT_TYPE_MESSAGE -> {
+                Event.EventType.APP_MENTION, Event.EventType.MESSAGE -> {
                     withContext(Dispatchers.IO) {
                         val user = database.getUser(Constants.Database.USER_TYPE_BOT)
                         user?.let { bot ->
