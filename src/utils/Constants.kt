@@ -36,6 +36,7 @@ class Constants {
     class Slack {
         companion object {
 
+            const val DEFAULT_BOT_ID: String = "USLACKBOT"
             const val TYPE = "type"
 
             const val SUBSCRIBE_GENERATE_APK = "subscribe_generate_apk"
@@ -43,11 +44,6 @@ class Constants {
             const val CALLBACK_GENERATE_CONSUMER_APK = "generate_consumer_apk"
             const val CALLBACK_GENERATE_FLEET_APK = "generate_fleet_apk"
             const val CALLBACK_CREATE_API = "create_api"
-            const val EVENT_TYPE_MESSAGE = "message"
-            const val EVENT_TYPE_APP_MENTION = "app_mention"
-            const val EVENT_TYPE_VERIFICATION = "url_verification"
-            const val EVENT_TYPE_CALLBACK = "event_callback"
-            const val EVENT_TYPE_RATE_LIMIT = "app_rate_limited"
 
             const val TOKEN = "token"
             const val CHANNEL = "channel"
@@ -57,6 +53,8 @@ class Constants {
             const val ATTACHMENTS = "attachments"
             const val DIALOG = "dialog"
             const val USER = "user"
+            const val CURSOR = "cursor"
+            const val LIMIT = "limit"
 
             const val CALLBACK_SUBSCRIBE_CONSUMER = "subscribe_consumer_details"
 

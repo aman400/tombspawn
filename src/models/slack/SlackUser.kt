@@ -8,5 +8,14 @@ data class SlackUser(
 	val name: String? = null,
 
 	@SerializedName("id")
-	val id: String? = null
+	val id: String? = null,
+
+	@SerializedName("is_bot")
+	val bot: Boolean? = false,
+
+	@SerializedName("deleted")
+	val deleted: Boolean? = false,
+
+	@SerializedName("profile")
+	val profile: UserProfile? = null
 )

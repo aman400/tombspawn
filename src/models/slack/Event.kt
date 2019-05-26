@@ -51,6 +51,15 @@ data class Event(
         RATE_LIMIT("app_rate_limited"),
 
         @SerializedName("app_mention")
-        APP_MENTION("app_mention")
+        APP_MENTION("app_mention"),
+
+        @SerializedName("interactive_message")
+        INTERACTIVE_MESSAGE("interactive_message"),
+
+        @SerializedName("message_action")
+        MESSAGE_ACTION("message_action"),
+
+        @SerializedName("dialog_submission")
+        DIALOG_SUBMISSION("dialog_submission")
     }
 }

@@ -61,7 +61,7 @@ suspend fun <T> retryCall(
     repeat(times) {
         val data = block()
         when (data) {
-            is com.ramukaka.network.Success -> {
+            is com.ramukaka.network.CallSuccess -> {
                 return data
             }
         }

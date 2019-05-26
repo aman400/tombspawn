@@ -5,8 +5,8 @@ import com.ramukaka.data.Database
 import com.ramukaka.extensions.await
 import com.ramukaka.extensions.copyToSuspend
 import com.ramukaka.network.CallError
-import com.ramukaka.network.Failure
-import com.ramukaka.network.Success
+import com.ramukaka.network.CallFailure
+import com.ramukaka.network.CallSuccess
 import com.ramukaka.network.exhaustive
 import com.ramukaka.utils.Constants
 import io.ktor.application.call
@@ -85,7 +85,7 @@ suspend fun fetchBotData(client: HttpClient, database: Database, botToken: Strin
     }
 
     when(val response = call.await<BotInfo>()) {
-        is Success -> {
+        is CallSuccess -> {
             response.data?.let { botInfo ->
                 if (botInfo.ok) {
                     botInfo.self?.let { about ->
@@ -94,7 +94,7 @@ suspend fun fetchBotData(client: HttpClient, database: Database, botToken: Strin
                 }
             }
         }
-        is Failure -> {
+        is CallFailure -> {
             println(response.errorBody)
         }
         is CallError -> {

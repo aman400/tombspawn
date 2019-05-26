@@ -23,6 +23,8 @@ import io.ktor.routing.routing
 import io.ktor.server.netty.EngineMain
 import io.ktor.util.error
 import kotlinx.coroutines.*
+import models.slack.IMListData
+import models.slack.SlackUser
 import network.fetchBotData
 import network.health
 import network.receiveApk
@@ -170,6 +172,21 @@ fun Application.module() {
     }
 
     val slackClient: SlackClient by inject { parametersOf(responseListener, requestExecutor) }
+
+    launch(Dispatchers.IO) {
+        val users = slackClient.getSlackUsers(BOT_TOKEN, slackClient, null)
+        val ims = slackClient.getSlackBotImIds(BOT_TOKEN, slackClient, null)
+        users.forEach { user ->
+            val im = ims.firstOrNull { im ->
+                im.user == user.id
+            }
+            im?.let {
+                if(im.isUserDeleted == false && user.bot == false && user.id != Constants.Slack.DEFAULT_BOT_ID) {
+                    database.addUser(user.id!!, user.name, user.profile?.email, Constants.Database.USER_TYPE_USER, im.id)
+                }
+            }
+        }
+    }
 
     routing {
         status()

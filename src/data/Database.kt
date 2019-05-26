@@ -17,6 +17,7 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.concurrent.Executors
+import javax.xml.validation.Schema
 import kotlin.coroutines.CoroutineContext
 
 
@@ -41,7 +42,7 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
         connectionPool = HikariDataSource(config)
         connection = Database.connect(connectionPool)
         transaction(connection) {
-            SchemaUtils.create(Users, UserTypes, Apps, Branches, BuildTypes, Flavours, Subscriptions, Verbs, Apis, Refs)
+            SchemaUtils.createMissingTablesAndColumns(Users, UserTypes, Apps, Branches, BuildTypes, Flavours, Subscriptions, Verbs, Apis, Refs)
         }
     }
 
@@ -147,7 +148,8 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
         userId: String,
         name: String? = null,
         email: String? = null,
-        typeString: String = Constants.Database.USER_TYPE_USER
+        typeString: String = Constants.Database.USER_TYPE_USER,
+        imId: String? = null
     ) = withContext(dispatcher) {
         transaction(connection) {
             addLogger(StdOutSqlLogger)
@@ -161,6 +163,7 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
                         this.name = name
                         this.email = email
                         this.slackId = userId
+                        this.imId = imId
                         this.userType = type
                     }
                 }
@@ -397,6 +400,7 @@ object Users : IntIdTable() {
     val name = varchar("name", 100).nullable()
     val email = varchar("email", 50).nullable()
     val slackId = varchar("slack_id", 50).index(isUnique = true)
+    val imId = varchar("im_id", 100).nullable()
     val userType =
         reference("user_type", UserTypes, onDelete = ReferenceOption.CASCADE, onUpdate = ReferenceOption.RESTRICT)
 }
@@ -407,6 +411,7 @@ class User(id: EntityID<Int>) : IntEntity(id) {
     var name by Users.name
     var email by Users.email
     var slackId by Users.slackId
+    var imId by Users.imId
     var userType by UserType referencedOn Users.userType
 }
 

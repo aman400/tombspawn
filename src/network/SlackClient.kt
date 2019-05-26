@@ -35,9 +35,7 @@ import io.ktor.response.respondText
 import io.ktor.routing.Routing
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.SendChannel
-import models.slack.Action
-import models.slack.Confirm
-import models.slack.Event
+import models.slack.*
 import java.io.File
 import java.io.FileInputStream
 import java.util.*
@@ -132,17 +130,17 @@ fun Routing.slackEvent(database: Database, slackClient: SlackClient) {
         val slackEvent = call.receive<SlackEvent>()
         println(slackEvent.toString())
         when (slackEvent.type) {
-            Constants.Slack.EVENT_TYPE_VERIFICATION -> call.respond(slackEvent)
-            Constants.Slack.EVENT_TYPE_RATE_LIMIT -> {
+            Event.EventType.URL_VERIFICATION -> call.respond(slackEvent)
+            Event.EventType.RATE_LIMIT -> {
                 call.respond("")
                 LOGGER.severe("Slack Api Rate Limit")
                 println("Api rate limit")
             }
-            Constants.Slack.EVENT_TYPE_CALLBACK -> {
+            Event.EventType.EVENT_CALLBACK -> {
                 call.respond("")
                 slackClient.subscribeSlackEvent(database, slackEvent)
             }
-            "interactive_message" -> {
+            Event.EventType.INTERACTIVE_MESSAGE -> {
 
             }
             else -> {
@@ -170,7 +168,7 @@ fun Routing.slackAction(
 
         call.respond("")
         when (slackEvent.type) {
-            Constants.Slack.EVENT_TYPE_INTERACTIVE_MESSAGE -> {
+            Event.EventType.INTERACTIVE_MESSAGE -> {
                 slackEvent.actions?.forEach { action ->
                     when (action.name) {
                         // User confirmed APK Generation from dialog box
@@ -218,7 +216,7 @@ fun Routing.slackAction(
                     }
                 }
             }
-            Constants.Slack.EVENT_TYPE_MESSAGE_ACTION -> {
+            Event.EventType.MESSAGE_ACTION -> {
                 when (slackEvent.callbackId) {
                     Constants.Slack.TYPE_SUBSCRIBE_CONSUMER ->
                         slackClient.sendShowSubscriptionDialog(
@@ -266,7 +264,7 @@ fun Routing.slackAction(
                     }
                 }
             }
-            Constants.Slack.EVENT_TYPE_DIALOG -> {
+            Event.EventType.DIALOG_SUBMISSION -> {
                 when (slackEvent.callbackId) {
                     Constants.Slack.CALLBACK_SUBSCRIBE_CONSUMER -> {
                         launch(Dispatchers.IO) {
@@ -496,11 +494,11 @@ class SlackClient(
                 body = FormDataContent(params)
             }
             when (val response = call.await<JsonObject>()) {
-                is com.ramukaka.network.Success -> {
+                is CallSuccess -> {
                     LOGGER.info("Posted dialog successfully")
                     LOGGER.info(response.data.toString())
                 }
-                is com.ramukaka.network.Failure -> {
+                is CallFailure -> {
                     LOGGER.info("Dialog posting failed")
                     LOGGER.fine(response.errorBody)
                 }
@@ -712,10 +710,10 @@ class SlackClient(
         }
 
         when (val response = call.await<JsonObject>()) {
-            is com.ramukaka.network.Success -> {
+            is CallSuccess -> {
                 LOGGER.info(response.data.toString())
             }
-            is com.ramukaka.network.Failure -> {
+            is CallFailure -> {
                 LOGGER.fine(response.errorBody)
             }
             is CallError -> {
@@ -757,7 +755,7 @@ class SlackClient(
             try {
                 val response = call.await<CallResponse>()
                 when (response) {
-                    is com.ramukaka.network.Success -> {
+                    is CallSuccess -> {
                         if (response.data?.delivered == true) {
                             LOGGER.info("delivered")
                         } else {
@@ -769,7 +767,7 @@ class SlackClient(
                             LOGGER.severe("Not delivered")
                         }
                     }
-                    is com.ramukaka.network.Failure -> {
+                    is CallFailure -> {
                         LOGGER.severe("Not delivered")
                         LOGGER.log(Level.SEVERE, response.errorBody, response.throwable)
                     }
@@ -810,12 +808,11 @@ class SlackClient(
                     encodedPath = "/api/users.profile.get"
                     parameter("token", slackAuthToken)
                     parameter("user", userId)
-
                 }
             }
 
             when (val response = call.await<SlackProfileResponse>()) {
-                is com.ramukaka.network.Success -> {
+                is CallSuccess -> {
                     response.data?.user?.let { user ->
                         database.updateUser(
                             userId,
@@ -825,7 +822,7 @@ class SlackClient(
                     }
                 }
 
-                is com.ramukaka.network.Failure -> {
+                is CallFailure -> {
                     LOGGER.log(Level.SEVERE, response.errorBody, response.throwable)
                 }
 
@@ -893,7 +890,7 @@ class SlackClient(
         }
 
         when(call.await<JsonObject>()) {
-            is com.ramukaka.network.Success -> {
+            is CallSuccess -> {
                 LOGGER.info("message successfully sent")
             }
             else -> {
@@ -925,10 +922,10 @@ class SlackClient(
         }
         withContext(Dispatchers.IO) {
             when (val response = call.await<JsonObject>()) {
-                is com.ramukaka.network.Success -> {
+                is CallSuccess -> {
                     LOGGER.info(response.data.toString())
                 }
-                is com.ramukaka.network.Failure -> {
+                is CallFailure -> {
                     LOGGER.fine(response.errorBody)
                 }
                 is CallError -> {
@@ -973,10 +970,10 @@ class SlackClient(
             }
 
             when (val response = call.await<JsonObject>()) {
-                is com.ramukaka.network.Success -> {
+                is CallSuccess -> {
                     LOGGER.info(response.data.toString())
                 }
-                is com.ramukaka.network.Failure -> {
+                is CallFailure -> {
                     LOGGER.info(response.errorBody.toString())
                 }
                 is CallError -> {
@@ -1186,11 +1183,11 @@ class SlackClient(
         }
         withContext(Dispatchers.IO) {
             when (val response = call.await<JsonObject>()) {
-                is com.ramukaka.network.Success -> {
+                is CallSuccess -> {
                     LOGGER.info("Posted dialog successfully")
                     LOGGER.info(response.data.toString())
                 }
-                is com.ramukaka.network.Failure -> {
+                is CallFailure -> {
                     LOGGER.info("Dialog posting failed")
                     LOGGER.fine(response.errorBody)
                 }
@@ -1200,5 +1197,105 @@ class SlackClient(
                 }
             }.exhaustive
         }
+    }
+
+    private suspend fun getUserList(token: String, cursor: String? = null, limit: Int? = null): UserResponse? {
+        val call = httpClient.call {
+            url {
+                encodedPath = "/api/users.list"
+                parameters.append(Constants.Slack.TOKEN, token)
+                cursor?.let {
+                    parameters.append(Constants.Slack.CURSOR, cursor)
+                }
+                limit?.let{
+                    parameters.append(Constants.Slack.LIMIT, it.toString())
+                }
+            }
+        }
+
+        return when(val response = call.await<UserResponse>()) {
+            is CallSuccess -> {
+                response.data?.let {
+                    if(it.successful == true) {
+                        it
+                    } else {
+                        null
+                    }
+                }
+            }
+            is CallFailure -> {
+                LOGGER.log(Level.FINE, response.throwable, null)
+                null
+            }
+            is CallError -> {
+                LOGGER.log(Level.FINE, response.throwable, null)
+                null
+            }
+        }
+    }
+
+    private suspend fun getIMList(token: String, cursor: String? = null, limit: Int? = null): IMListData? {
+        val call = httpClient.call {
+            url {
+                encodedPath = "/api/im.list"
+                parameters.append(Constants.Slack.TOKEN, token)
+                cursor?.let {
+                    parameters.append(Constants.Slack.CURSOR, cursor)
+                }
+                limit?.let{
+                    parameters.append(Constants.Slack.LIMIT, it.toString())
+                }
+            }
+            method = HttpMethod.Get
+        }
+        return when(val response = call.await<IMListData>()) {
+            is CallSuccess -> {
+                response.data?.let {
+                    if(it.ok == true) {
+                        it
+                    } else {
+                        null
+                    }
+                }
+            }
+            is CallFailure -> {
+                null
+            }
+            is CallError -> {
+                null
+            }
+        }
+    }
+
+
+
+    suspend fun getSlackUsers(token: String, slackClient: SlackClient, nextCursor: String?): List<SlackUser> {
+        val data = slackClient.getUserList(token, nextCursor, 1)
+        val cursor = data?.responseMetadata?.nextCursor
+        val users = mutableListOf<SlackUser>()
+
+        data?.members?.let {
+            users.addAll(it)
+        }
+
+        if(!cursor.isNullOrEmpty()) {
+            users.addAll(getSlackUsers(token, slackClient, cursor))
+        }
+
+        return users
+    }
+
+    suspend fun getSlackBotImIds(token: String, slackClient: SlackClient, nextCursor: String?): List<IMListData.IM> {
+        val data = slackClient.getIMList(token, nextCursor, 1)
+        val cursor = data?.responseMetadata?.nextCursor
+        val ims = mutableListOf<IMListData.IM>()
+        data?.ims?.let {
+            ims.addAll(it)
+        }
+        if(!cursor.isNullOrEmpty()) {
+            ims.addAll(getSlackBotImIds(token, slackClient, cursor))
+        }
+
+        return ims
     }
 }

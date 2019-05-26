@@ -20,6 +20,7 @@ import io.ktor.client.features.json.JsonSerializer
 import io.ktor.client.features.logging.LogLevel
 import io.ktor.client.features.logging.Logger
 import io.ktor.client.features.observer.ResponseObserver
+import io.ktor.http.HttpHeaders
 import io.ktor.http.URLProtocol
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.SendChannel
@@ -85,7 +86,7 @@ val httpClientModule = module {
             }
             defaultRequest {
                 headers.append(Headers.APP_CLIENT, Headers.APP_CLIENT_VALUE)
-                headers.append(Headers.ACCEPT, Headers.TYPE_JSON)
+                headers.append(HttpHeaders.Accept, Headers.TYPE_JSON)
                 url {
                     if(host == "localhost") {
                         protocol = URLProtocol.HTTPS

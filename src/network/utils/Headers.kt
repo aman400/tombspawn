@@ -13,14 +13,6 @@ object Headers {
      */
     const val APP_CLIENT_VALUE = "android"
     /**
-     * The constant ACCEPT.
-     */
-    const val ACCEPT = "Accept"
-    /**
-     * The constant CONTENT_TYPE.
-     */
-    const val CONTENT_TYPE = "Content-Type"
-    /**
      * The constant TYPE_JSON.
      */
     const val TYPE_JSON = "application/json"
