@@ -1267,10 +1267,8 @@ class SlackClient(
         }
     }
 
-
-
     suspend fun getSlackUsers(token: String, slackClient: SlackClient, nextCursor: String?): List<SlackUser> {
-        val data = slackClient.getUserList(token, nextCursor, 1)
+        val data = slackClient.getUserList(token, nextCursor)
         val cursor = data?.responseMetadata?.nextCursor
         val users = mutableListOf<SlackUser>()
 
@@ -1286,7 +1284,7 @@ class SlackClient(
     }
 
     suspend fun getSlackBotImIds(token: String, slackClient: SlackClient, nextCursor: String?): List<IMListData.IM> {
-        val data = slackClient.getIMList(token, nextCursor, 1)
+        val data = slackClient.getIMList(token, nextCursor)
         val cursor = data?.responseMetadata?.nextCursor
         val ims = mutableListOf<IMListData.IM>()
         data?.ims?.let {

@@ -2,6 +2,7 @@ package com.ramukaka
 
 import com.google.gson.Gson
 import com.ramukaka.data.Database
+import com.ramukaka.data.Redis
 import com.ramukaka.di.*
 import com.ramukaka.extensions.commandExecutor
 import com.ramukaka.models.CommandResponse
@@ -23,8 +24,6 @@ import io.ktor.routing.routing
 import io.ktor.server.netty.EngineMain
 import io.ktor.util.error
 import kotlinx.coroutines.*
-import models.slack.IMListData
-import models.slack.SlackUser
 import network.fetchBotData
 import network.health
 import network.receiveApk
@@ -34,6 +33,8 @@ import org.koin.core.logger.MESSAGE
 import org.koin.core.parameter.parametersOf
 import org.koin.ktor.ext.Koin
 import org.koin.ktor.ext.inject
+import org.redisson.api.map.event.EntryEvent
+import org.redisson.api.map.event.EntryExpiredListener
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 
@@ -57,7 +58,7 @@ private var FLEET_APP_ID = env["FLEET_APP_GITHUB_REPO_ID"]
 fun Application.module() {
     val LOGGER = LoggerFactory.getLogger("com.application")
     install(Koin) {
-        modules(dbModule, httpClientModule, envVariables, gradleBotClient, slackModule)
+        modules(dbModule, httpClientModule, envVariables, gradleBotClient, slackModule, redis)
         logger(object : Logger() {
             override fun log(level: org.koin.core.logger.Level, msg: MESSAGE) {
                 when (level) {
@@ -151,6 +152,15 @@ fun Application.module() {
     val requestExecutor = commandExecutor(responseListener)
 
     val gradleBotClient: GradleBotClient by inject { parametersOf(responseListener, requestExecutor) }
+    val redis: Redis by inject {
+        parametersOf(object : EntryExpiredListener<String, Any> {
+            override fun onExpired(entry: EntryEvent<String, Any>?) {
+                entry?.let {
+                    println("Entry removed ${it.key} : ${it.value}")
+                }
+            }
+        })
+    }
 
     launch(Dispatchers.IO) {
         initApp(gradleBotClient, database, CONSUMER_APP_DIR, Constants.Common.APP_CONSUMER)
@@ -181,8 +191,14 @@ fun Application.module() {
                 im.user == user.id
             }
             im?.let {
-                if(im.isUserDeleted == false && user.bot == false && user.id != Constants.Slack.DEFAULT_BOT_ID) {
-                    database.addUser(user.id!!, user.name, user.profile?.email, Constants.Database.USER_TYPE_USER, im.id)
+                if (im.isUserDeleted == false && user.bot == false && user.id != Constants.Slack.DEFAULT_BOT_ID) {
+                    database.addUser(
+                        user.id!!,
+                        user.name,
+                        user.profile?.email,
+                        Constants.Database.USER_TYPE_USER,
+                        im.id
+                    )
                 }
             }
         }
@@ -202,7 +218,6 @@ fun Application.module() {
         createApi(slackClient, database)
     }
 }
-
 
 suspend fun initApp(gradleBotClient: GradleBotClient, database: Database, appDir: String, appName: String) =
     coroutineScope {

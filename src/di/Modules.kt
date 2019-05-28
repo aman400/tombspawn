@@ -5,6 +5,7 @@ import annotations.DoNotSerialize
 import com.google.gson.ExclusionStrategy
 import com.google.gson.FieldAttributes
 import com.ramukaka.data.Database
+import com.ramukaka.data.Redis
 import com.ramukaka.models.Command
 import com.ramukaka.models.CommandResponse
 import com.ramukaka.network.GradleBotClient
@@ -26,6 +27,11 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.SendChannel
 import org.koin.core.qualifier.StringQualifier
 import org.koin.dsl.module
+import org.redisson.Redisson
+import org.redisson.api.RedissonClient
+import org.redisson.api.map.event.EntryExpiredListener
+import org.redisson.config.Config
+import org.redisson.config.TransportMode
 
 
 val dbModule = module {
@@ -120,6 +126,21 @@ val gradleBotClient = module {
             get(StringQualifier(Constants.EnvironmentVariables.ENV_GRADLE_PATH)),
             responseListener,
             requestExecutor
+        )
+    }
+}
+
+val redis = module {
+    single {
+        val config = Config()
+        config.transportMode = TransportMode.NIO
+        Redisson.create()
+    }
+
+    single { (entryExpiredListener: EntryExpiredListener<String, Any>) ->
+        Redis(
+            get(),
+            entryExpiredListener
         )
     }
 }
