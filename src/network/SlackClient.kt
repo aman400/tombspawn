@@ -24,6 +24,7 @@ import io.ktor.client.request.forms.FormDataContent
 import io.ktor.client.request.forms.MultiPartFormDataContent
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.header
+import io.ktor.client.request.headers
 import io.ktor.client.request.parameter
 import io.ktor.client.request.url
 import io.ktor.http.*
@@ -36,6 +37,7 @@ import io.ktor.routing.Routing
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.SendChannel
 import models.slack.*
+import java.awt.Color
 import java.io.File
 import java.io.FileInputStream
 import java.util.*
@@ -407,7 +409,7 @@ fun Routing.createApi(slackClient: SlackClient, database: Database) {
     post<Slack.MockApi> {
         val params = call.receiveParameters()
 
-        val triggerId = params["trigger_id"]
+        val triggerId = params[Constants.Slack.TRIGGER_ID]
 
         params.forEach { key, list ->
             LOGGER.info("$key: $list")
@@ -418,6 +420,28 @@ fun Routing.createApi(slackClient: SlackClient, database: Database) {
             slackClient.sendShowCreateApiDialog(verbs, triggerId!!)
         }
 
+        call.respond(HttpStatusCode.OK)
+    }
+}
+
+fun Routing.standup(slackClient: SlackClient) {
+    post<Slack.Standup> {
+        val params = call.receiveParameters()
+
+        val channel = params[Constants.Slack.CHANNEL_ID]
+        params.forEach { key, list ->
+            LOGGER.info("$key: $list")
+        }
+
+        launch(Dispatchers.IO) {
+            val attachment = Attachment(Constants.Slack.CALLBACK_STANDUP_DIALOG,
+                "Please post your standup updates", "Please post your standup updates.", 1, "#0000FF",
+                mutableListOf(
+                    Action(null, Constants.Slack.CALLBACK_CONFIRM, "Update", Action.ActionType.BUTTON, style = Action.ActionStyle.PRIMARY)
+                )
+            )
+            slackClient.sendMessage("Please update your standup notes", channel!!, listOf(attachment))
+        }
         call.respond(HttpStatusCode.OK)
     }
 }
@@ -871,7 +895,7 @@ class SlackClient(
         }
     }
 
-    private suspend fun sendMessage(message: String, channelId: String, attachments: List<Attachment>?) {
+    suspend fun sendMessage(message: String, channelId: String, attachments: List<Attachment>?) {
         val params = ParametersBuilder().apply {
             append(Constants.Slack.TEXT, message)
             append(Constants.Slack.CHANNEL, channelId)
@@ -899,7 +923,7 @@ class SlackClient(
         }
     }
 
-    private suspend fun sendMessageEphemeral(
+    suspend fun sendMessageEphemeral(
         message: String,
         channelId: String,
         userId: String,

@@ -216,6 +216,7 @@ fun Application.module() {
         githubWebhook(database, slackClient, CONSUMER_APP_ID!!, FLEET_APP_ID!!)
         mockApi(database)
         createApi(slackClient, database)
+        standup(slackClient)
     }
 }
 
