@@ -7,6 +7,7 @@ import com.ramukaka.di.*
 import com.ramukaka.extensions.commandExecutor
 import com.ramukaka.models.CommandResponse
 import com.ramukaka.network.*
+import com.ramukaka.slackbot.*
 import com.ramukaka.utils.Constants
 import io.ktor.application.Application
 import io.ktor.application.ApplicationCallPipeline

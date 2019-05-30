@@ -16,6 +16,7 @@ import io.ktor.routing.Routing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import models.github.Payload
+import java.util.logging.Logger
 
 @Location("/github")
 class GithubApi {
@@ -23,6 +24,8 @@ class GithubApi {
     @Location("/payload")
     class Webhook
 }
+
+val LOGGER = Logger.getLogger("com.ramukaka.network.GithubClient")
 
 fun Routing.githubWebhook(database: Database, slackClient: SlackClient, consumerAppID: String, fleetAppId: String) {
     post<GithubApi.Webhook> {
