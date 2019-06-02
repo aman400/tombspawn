@@ -1,10 +1,11 @@
 package com.ramukaka.network
 
-import com.ramukaka.data.Branches
 import com.ramukaka.data.Database
+import com.ramukaka.data.Refs
 import com.ramukaka.data.Subscriptions
 import com.ramukaka.models.Reference
 import com.ramukaka.models.github.RefType
+import com.ramukaka.slackbot.SlackClient
 import com.ramukaka.utils.Constants
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
@@ -40,7 +41,7 @@ fun Routing.githubWebhook(database: Database, slackClient: SlackClient, consumer
                     launch(Dispatchers.IO) {
                         slackClient.sendShowConfirmGenerateApk(
                             resultRow[Subscriptions.channel],
-                            resultRow[Branches.name]
+                            resultRow[Refs.name]
                         )
                     }
                 }

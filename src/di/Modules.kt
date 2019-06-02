@@ -9,7 +9,7 @@ import com.ramukaka.data.Redis
 import com.ramukaka.models.Command
 import com.ramukaka.models.CommandResponse
 import com.ramukaka.network.GradleBotClient
-import com.ramukaka.network.SlackClient
+import com.ramukaka.slackbot.SlackClient
 import com.ramukaka.network.utils.Headers
 import com.ramukaka.utils.Constants
 import io.ktor.client.HttpClient
@@ -28,7 +28,6 @@ import kotlinx.coroutines.channels.SendChannel
 import org.koin.core.qualifier.StringQualifier
 import org.koin.dsl.module
 import org.redisson.Redisson
-import org.redisson.api.RedissonClient
 import org.redisson.api.map.event.EntryExpiredListener
 import org.redisson.config.Config
 import org.redisson.config.TransportMode

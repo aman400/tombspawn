@@ -17,7 +17,6 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.concurrent.Executors
-import javax.xml.validation.Schema
 import kotlin.coroutines.CoroutineContext
 
 
@@ -42,25 +41,25 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
         connectionPool = HikariDataSource(config)
         connection = Database.connect(connectionPool)
         transaction(connection) {
-            SchemaUtils.createMissingTablesAndColumns(Users, UserTypes, Apps, Branches, BuildTypes, Flavours, Subscriptions, Verbs, Apis, Refs)
+            SchemaUtils.createMissingTablesAndColumns(Users, UserTypes, Apps, BuildTypes, Flavours, Subscriptions, Verbs, Apis, Refs)
         }
     }
 
-    suspend fun findSubscriptions(branchName: String): List<ResultRow>? = withContext(dispatcher) {
+    suspend fun findSubscriptions(refName: String): List<ResultRow>? = withContext(dispatcher) {
         try {
             return@withContext transaction(connection) {
                 addLogger(StdOutSqlLogger)
 
-                val query = Subscriptions.leftJoin(Branches, {
-                    this.branchId
+                val query = Subscriptions.leftJoin(Refs, {
+                    this.refId
                 }, {
                     this.id
                 }).innerJoin(Users, {
                     Subscriptions.userId
                 }, {
                     id
-                }).slice(Users.slackId, Subscriptions.channel, Branches.name).select {
-                    Branches.name eq branchName
+                }).slice(Users.slackId, Subscriptions.channel, Refs.name).select {
+                    Refs.name eq refName
                 }.withDistinct(true)
 
                 return@transaction query.toList()
@@ -74,17 +73,17 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
     /**
      * Subscribe user to a branch
      */
-    suspend fun subscribeUser(userId: String, appName: String, branchName: String, channel: String): Boolean =
+    suspend fun subscribeUser(userId: String, appName: String, refName: String, channel: String): Boolean =
         withContext(dispatcher) {
             return@withContext transaction(connection) {
                 addLogger(StdOutSqlLogger)
                 val user = User.find { Users.slackId eq userId }.first()
                 val app = App.find { Apps.name eq appName }.first()
-                val branch = Branch.find { Branches.name eq branchName }.first()
-                if (runBlocking(coroutineContext) { !isUserSubscribed(user, app, branch, channel) }) {
+                val ref = Ref.find { Refs.name eq refName }.first()
+                if (runBlocking(coroutineContext) { !isUserSubscribed(user, app, ref, channel) }) {
                     Subscription.new {
                         this.appId = app
-                        this.branchId = branch
+                        this.refId = ref
                         this.channel = channel
                         this.userId = user
                     }
@@ -98,12 +97,12 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
     /**
      * Checks if user is already subscribed to a branch or not.
      */
-    suspend fun isUserSubscribed(user: User, app: App, branch: Branch, channel: String): Boolean =
+    suspend fun isUserSubscribed(user: User, app: App, ref: Ref, channel: String): Boolean =
         withContext(dispatcher) {
             return@withContext transaction(connection) {
                 addLogger(StdOutSqlLogger)
                 return@transaction !Subscription.find {
-                    (Subscriptions.userId eq user.id) and (Subscriptions.appId eq app.id) and (Subscriptions.branchId eq branch.id) and (Subscriptions.channel eq channel)
+                    (Subscriptions.userId eq user.id) and (Subscriptions.appId eq app.id) and (Subscriptions.refId eq ref.id) and (Subscriptions.channel eq channel)
                 }.empty()
             }
         }
@@ -435,10 +434,6 @@ class App(id: EntityID<Int>) : IntEntity(id) {
     var name by Apps.name
 }
 
-object Branches : IntIdTable() {
-    val name = varchar("branch_name", 100).primaryKey()
-}
-
 object Refs: IntIdTable() {
     val name = varchar("name", 100).primaryKey()
     val deleted = bool("deleted").default(false)
@@ -453,10 +448,6 @@ class Ref(id: EntityID<Int>) : IntEntity(id) {
     var deleted by Refs.deleted
     var appId by App referencedOn Refs.appId
     var type by Refs.type
-}
-
-class Branch(id: EntityID<Int>) : IntEntity(id) {
-    companion object : IntEntityClass<Branch>(Branches)
 }
 
 object BuildTypes : IntIdTable() {
@@ -514,9 +505,9 @@ object Subscriptions : IntIdTable() {
         onDelete = ReferenceOption.CASCADE,
         onUpdate = ReferenceOption.RESTRICT
     ).primaryKey()
-    val branchId = reference(
-        "branch_id",
-        Branches,
+    val refId = reference(
+        "ref_id",
+        Refs,
         onDelete = ReferenceOption.CASCADE,
         onUpdate = ReferenceOption.CASCADE
     ).primaryKey()
@@ -530,7 +521,7 @@ object Subscriptions : IntIdTable() {
     val channel = varchar("channel_id", 100).primaryKey()
 
     init {
-        index(true, userId, branchId, appId, channel)
+        index(true, userId, refId, appId, channel)
     }
 }
 
@@ -538,7 +529,7 @@ class Subscription(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<Subscription>(Subscriptions)
 
     var userId by User referencedOn Subscriptions.userId
-    var branchId by Branch referencedOn Subscriptions.branchId
+    var refId by Ref referencedOn Subscriptions.refId
     var appId by App referencedOn Subscriptions.appId
     var channel by Subscriptions.channel
 }

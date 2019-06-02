@@ -1,8 +1,7 @@
-package com.ramukaka.network
+package com.ramukaka.slackbot
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import com.ramukaka.data.Database
 import com.ramukaka.data.Ref
 import com.ramukaka.extensions.await
@@ -13,31 +12,21 @@ import com.ramukaka.models.Command
 import com.ramukaka.models.Failure
 import com.ramukaka.models.Success
 import com.ramukaka.models.github.RefType
-import com.ramukaka.models.locations.ApiMock
-import com.ramukaka.models.locations.Slack
 import com.ramukaka.models.slack.*
+import com.ramukaka.network.*
 import com.ramukaka.utils.Constants
-import io.ktor.application.call
 import io.ktor.client.HttpClient
 import io.ktor.client.call.call
 import io.ktor.client.request.forms.FormDataContent
 import io.ktor.client.request.forms.MultiPartFormDataContent
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.header
-import io.ktor.client.request.headers
 import io.ktor.client.request.parameter
 import io.ktor.client.request.url
 import io.ktor.http.*
-import io.ktor.locations.*
-import io.ktor.request.receive
-import io.ktor.request.receiveParameters
-import io.ktor.response.respond
-import io.ktor.response.respondText
-import io.ktor.routing.Routing
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.SendChannel
 import models.slack.*
-import java.awt.Color
 import java.io.File
 import java.io.FileInputStream
 import java.util.*
@@ -46,16 +35,13 @@ import java.util.logging.Logger
 import kotlin.collections.List
 import kotlin.collections.MutableMap
 import kotlin.collections.filter
-import kotlin.collections.filterValues
 import kotlin.collections.firstOrNull
 import kotlin.collections.forEach
 import kotlin.collections.listOf
 import kotlin.collections.map
-import kotlin.collections.mapValues
 import kotlin.collections.mutableListOf
 import kotlin.collections.mutableMapOf
 import kotlin.collections.set
-import kotlin.collections.toMutableMap
 
 class SlackClient(
     private val httpClient: HttpClient,
@@ -557,86 +543,94 @@ class SlackClient(
         branches?.forEach { branch ->
             branchList.add(Element.Option("${branch.name}(${branch.type.type})", branch.name))
         }
-        val dialog = Dialog(
-            Constants.Slack.CALLBACK_SUBSCRIBE_CONSUMER, "Subscription Details", "Submit", false, null,
-            mutableListOf(
-                Element(
-                    ElementType.SELECT, "Select Branch",
-                    Constants.Slack.TYPE_SELECT_BRANCH, options = branchList
-                )
-            )
-        )
-
-        val body = mutableMapOf<String, String?>()
-        body[Constants.Slack.DIALOG] = gson.toJson(dialog)
-        body[Constants.Slack.TOKEN] = slackBotToken
-        body[Constants.Slack.TRIGGER_ID] = triggerId
-
-        withContext(Dispatchers.IO) {
-            val call = httpClient.call {
-                method = HttpMethod.Get
-                url {
-                    encodedPath = "/api/dialog.open"
-                    parametersOf()
+        val dialog = dialog {
+            callbackId = Constants.Slack.CALLBACK_SUBSCRIBE_CONSUMER
+            title = "Subscription Details"
+            submitLabel = "Submit"
+            notifyOnCancel = false
+            elements {
+                element {
+                    type = ElementType.SELECT
+                    label = "Select Branch"
+                    name = Constants.Slack.TYPE_SELECT_BRANCH
+                    options {
+                        +branchList
+                    }
                 }
-                header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded)
-                this.body = body
             }
+        }
+        sendShowDialog(dialog, triggerId)
+    }
 
-            when (val response = call.await<JsonObject>()) {
-                is CallSuccess -> {
-                    LOGGER.info(response.data.toString())
-                }
-                is CallFailure -> {
-                    LOGGER.info(response.errorBody.toString())
-                }
-                is CallError -> {
-                    LOGGER.info(response.throwable?.message)
-                }
+    suspend fun sendShowDialog(dialog: Dialog, triggerId: String) = withContext(Dispatchers.IO) {
+        val params = Parameters.build {
+            append(Constants.Slack.DIALOG, gson.toJson(dialog))
+            append(Constants.Slack.TOKEN, slackBotToken)
+            append(Constants.Slack.TRIGGER_ID, triggerId)
+        }
+        val call = httpClient.call {
+            method = HttpMethod.Post
+            url {
+                encodedPath = "/api/dialog.open"
+            }
+            this.body = FormDataContent(params)
+        }
+
+        when (val response = call.await<JsonObject>()) {
+            is CallSuccess -> {
+                LOGGER.info(response.data.toString())
+            }
+            is CallFailure -> {
+                LOGGER.info(response.errorBody.toString())
+            }
+            is CallError -> {
+                LOGGER.info(response.throwable?.message)
             }
         }
     }
 
     suspend fun sendShowConfirmGenerateApk(channelId: String, branch: String) {
-
         val attachments = mutableListOf(
-            Attachment(
-                Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK, "Unable to generate the APK",
-                "Do you want to generate the APK?", 1, "#00FF00",
-                mutableListOf(
-                    Action(
+            attachment {
+                callbackId = Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK
+                fallback = "Unable to generate the APK"
+                text = "Do you want to generate the APK?"
+                id = 1
+                color = "#00FF00"
+                actions {
+                    +action {
                         confirm = Confirm(
                             text = "This will take up server resources. Generate APK only if you really want it.",
                             okText = "Yes",
                             dismissText = "No",
                             title = "Are you sure?"
-                        ),
-                        name = Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK,
-                        text = "Yes",
-                        type = Action.ActionType.BUTTON,
-                        style = Action.ActionStyle.PRIMARY,
+                        )
+                        name = Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK
+                        text = "Yes"
+                        type = Action.ActionType.BUTTON
+                        style = Action.ActionStyle.PRIMARY
                         value = gson.toJson(
                             GenerateCallback(
                                 true,
                                 mutableMapOf(Constants.Slack.TYPE_SELECT_BRANCH to branch)
                             )
                         )
-                    ),
-                    Action(
-                        confirm = null,
-                        name = Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK,
-                        text = "No",
-                        type = Action.ActionType.BUTTON,
-                        style = Action.ActionStyle.DEFAULT,
+                    }
+                    +action {
+                        confirm = null
+                        name = Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK
+                        text = "No"
+                        type = Action.ActionType.BUTTON
+                        style = Action.ActionStyle.DEFAULT
                         value = gson.toJson(
                             GenerateCallback(
                                 false,
                                 mutableMapOf(Constants.Slack.TYPE_SELECT_BRANCH to branch)
                             )
                         )
-                    )
-                ), Attachment.AttachmentType.DEFAULT
-            )
+                    }
+                }
+            }
         )
 
         sendMessage("New changes are available in `$branch` branch.", channelId, attachments)
@@ -652,9 +646,10 @@ class SlackClient(
         verbElements?.let {
             dialogElementList.add(
                 Element(
-                    ElementType.SELECT, "Select verb",
+                    ElementType.SELECT,
+                    "Select verb",
                     Constants.Slack.TYPE_SELECT_VERB,
-                    options = it
+                    options = it.toMutableList()
                 )
             )
         }
@@ -772,10 +767,16 @@ class SlackClient(
             )
         )
 
-        val dialog = Dialog(
-            callbackId, "Generate APK", "Submit", false, echo,
-            dialogElementList
-        )
+        val dialog = dialog {
+            this.callbackId = callbackId
+            title = "Generate APK"
+            submitLabel = "Submit"
+            notifyOnCancel = false
+            state = echo
+            elements {
+                +dialogElementList
+            }
+        }
 
         withContext(Dispatchers.IO) {
             openActionDialog(dialog, slackBotToken, triggerId)

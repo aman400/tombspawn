@@ -33,8 +33,8 @@ class Constants {
     class Slack {
         companion object {
 
-            const val CALLBACK_CONFIRM: String = "yes"
-            const val CALLBACK_STANDUP_DIALOG: String = "standup_dialog"
+            const val CALLBACK_STANDUP_MESSAGE: String = "callback_standup_message"
+            const val CALLBACK_STANDUP_DIALOG: String = "callback_standup_dialog"
             const val DEFAULT_BOT_ID: String = "USLACKBOT"
 
             const val CALLBACK_CONFIRM_GENERATE_APK = "confirm_generate_apk"

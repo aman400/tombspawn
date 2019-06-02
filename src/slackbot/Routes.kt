@@ -9,11 +9,7 @@ import com.ramukaka.models.RequestData
 import com.ramukaka.models.github.RefType
 import com.ramukaka.models.locations.ApiMock
 import com.ramukaka.models.locations.Slack
-import com.ramukaka.models.slack.Attachment
-import com.ramukaka.models.slack.GenerateCallback
-import com.ramukaka.models.slack.SlackEvent
-import com.ramukaka.models.slack.SlackMessage
-import com.ramukaka.network.SlackClient
+import com.ramukaka.models.slack.*
 import com.ramukaka.utils.Constants
 import io.ktor.application.call
 import io.ktor.http.ContentType
@@ -126,48 +122,79 @@ fun Routing.slackAction(
         call.respond(HttpStatusCode.OK)
         when (slackEvent.type) {
             Event.EventType.INTERACTIVE_MESSAGE -> {
-                slackEvent.actions?.forEach { action ->
-                    when (action.name) {
-                        // User confirmed APK Generation from dialog box
-                        Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK -> {
-                            val updatedMessage = slackEvent.originalMessage?.copy(attachments = null)
-                            val callback: GenerateCallback = Gson().fromJson(action.value, GenerateCallback::class.java)
-                            if (callback.generate) {
-                                var branchList: List<Reference>? = null
-                                callback.data?.get(Constants.Slack.TYPE_SELECT_BRANCH)?.let { branch ->
-                                    branchList = listOf(Reference(branch, RefType.BRANCH))
+                when(slackEvent.callbackId) {
+                    // For standup bot
+                    Constants.Slack.CALLBACK_STANDUP_MESSAGE -> {
+                        // Handle only single action
+                        val dialog = dialog {
+                            callbackId = Constants.Slack.CALLBACK_STANDUP_DIALOG
+                            title = "Standup notes"
+                            submitLabel = "Submit"
+                            notifyOnCancel = false
+                            elements {
+                                +element {
+                                    type = ElementType.TEXT_AREA
+                                    label = "What did you do on your last working day?"
+                                    hint = "For eg: I did nothing yesterday, I regret it today."
+                                    name = "yesterday"
+                                    maxLength = 3000
                                 }
-                                updatedMessage?.apply {
-                                    attachments = mutableListOf(
-                                        Attachment(text = ":crossed_fingers: Your APK will be generated soon.")
-                                    )
+                                +element {
+                                    type = ElementType.TEXT_AREA
+                                    label = "What will you do today?"
+                                    hint = "For eg: Today I will be wasting most of my time by laughing and gossiping around."
+                                    name = "today"
+                                    maxLength = 3000
                                 }
+                            }
+                        }
+                        slackClient.sendShowDialog(dialog, slackEvent.triggerId!!)
+                    }
+                    else -> {
+                        slackEvent.actions?.forEach { action ->
+                            when (action.name) {
+                                // User confirmed APK Generation from dialog box
+                                Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK -> {
+                                    val updatedMessage = slackEvent.originalMessage?.copy(attachments = null)
+                                    val callback: GenerateCallback = Gson().fromJson(action.value, GenerateCallback::class.java)
+                                    if (callback.generate) {
+                                        var branchList: List<Reference>? = null
+                                        callback.data?.get(Constants.Slack.TYPE_SELECT_BRANCH)?.let { branch ->
+                                            branchList = listOf(Reference(branch, RefType.BRANCH))
+                                        }
+                                        updatedMessage?.apply {
+                                            attachments = mutableListOf(
+                                                Attachment(text = ":crossed_fingers: Your APK will be generated soon.")
+                                            )
+                                        }
 
-                                val flavours = database.getFlavours(Constants.Common.APP_CONSUMER)?.map { flavour ->
-                                    flavour.name
-                                }
+                                        val flavours = database.getFlavours(Constants.Common.APP_CONSUMER)?.map { flavour ->
+                                            flavour.name
+                                        }
 
-                                val buildTypes =
-                                    database.getBuildTypes(Constants.Common.APP_CONSUMER)?.map { buildType ->
-                                        buildType.name
+                                        val buildTypes =
+                                            database.getBuildTypes(Constants.Common.APP_CONSUMER)?.map { buildType ->
+                                                buildType.name
+                                            }
+
+                                        slackClient.sendShowGenerateApkDialog(
+                                            branchList, buildTypes, flavours, Gson().toJson(updatedMessage),
+                                            slackEvent.triggerId!!,
+                                            Constants.Slack.CALLBACK_GENERATE_CONSUMER_APK,
+                                            consumerAppUrl
+                                        )
+                                    } else {
+                                        updatedMessage?.apply {
+                                            attachments = mutableListOf(
+                                                Attachment(text = ":slightly_smiling_face: Thanks for saving the server resources.")
+                                            )
+                                            launch(Dispatchers.IO) {
+                                                slackClient.updateMessage(updatedMessage, slackEvent.channel?.id!!)
+                                            }
+                                        }
+                                        println("Not generating the APK")
                                     }
-
-                                slackClient.sendShowGenerateApkDialog(
-                                    branchList, buildTypes, flavours, Gson().toJson(updatedMessage),
-                                    slackEvent.triggerId!!,
-                                    Constants.Slack.CALLBACK_GENERATE_CONSUMER_APK,
-                                    consumerAppUrl
-                                )
-                            } else {
-                                updatedMessage?.apply {
-                                    attachments = mutableListOf(
-                                        Attachment(text = ":slightly_smiling_face: Thanks for saving the server resources.")
-                                    )
-                                    launch(Dispatchers.IO) {
-                                        slackClient.updateMessage(updatedMessage, slackEvent.channel?.id!!)
-                                    }
                                 }
-                                println("Not generating the APK")
                             }
                         }
                     }
@@ -390,10 +417,10 @@ fun Routing.standup(slackClient: SlackClient) {
 
         launch(Dispatchers.IO) {
             val attachment = Attachment(
-                Constants.Slack.CALLBACK_STANDUP_DIALOG,
+                Constants.Slack.CALLBACK_STANDUP_MESSAGE,
                 "Please post your standup updates", "Please post your standup updates.", 1, "#0000FF",
                 mutableListOf(
-                    Action(null, Constants.Slack.CALLBACK_CONFIRM, "Update", Action.ActionType.BUTTON, style = Action.ActionStyle.PRIMARY)
+                    Action(null, Constants.Slack.CALLBACK_STANDUP_DIALOG, "Update", Action.ActionType.BUTTON, style = Action.ActionStyle.PRIMARY)
                 )
             )
             slackClient.sendMessage("Please update your standup notes", channel!!, listOf(attachment))
@@ -401,7 +428,6 @@ fun Routing.standup(slackClient: SlackClient) {
         call.respond(HttpStatusCode.OK)
     }
 }
-
 
 fun Routing.buildFleet(appDir: String, slackClient: SlackClient, database: Database, defaultAppUrl: String) {
     post<Slack.Fleet> {

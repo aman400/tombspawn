@@ -5,28 +5,28 @@ import com.google.gson.annotations.SerializedName
 data class Action(
 
 	@SerializedName("confirm")
-	val confirm: Confirm? = null,
+	var confirm: Confirm? = null,
 
 	@SerializedName("name")
-	val name: String? = null,
+	var name: String? = null,
 
 	@SerializedName("text")
-	val text: String? = null,
+	var text: String? = null,
 
 	@SerializedName("type")
-	val type: ActionType? = ActionType.DEFAULT,
+	var type: ActionType? = ActionType.DEFAULT,
 
 	@SerializedName("value")
-	val value: String? = null,
+	var value: String? = null,
 
 	@SerializedName("options")
-	val options: List<Option>? = null,
+	var options: List<Option>? = null,
 
 	@SerializedName("url")
-	val url: String? = null,
+	var url: String? = null,
 
 	@SerializedName("style")
-	val style: ActionStyle = ActionStyle.DEFAULT
+	var style: ActionStyle = ActionStyle.DEFAULT
 ) {
 	enum class ActionType(val value: String) {
 		@SerializedName("default")
@@ -46,3 +46,5 @@ data class Action(
 		PRIMARY("primary")
 	}
 }
+
+fun action(block: Action.() -> Unit) = Action().apply(block)
