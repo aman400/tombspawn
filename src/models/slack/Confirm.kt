@@ -5,14 +5,16 @@ import com.google.gson.annotations.SerializedName
 data class Confirm(
 
 	@SerializedName("text")
-	val text: String? = null,
+	var text: String? = null,
 
 	@SerializedName("ok_text")
-	val okText: String? = null,
+	var okText: String? = null,
 
 	@SerializedName("dismiss_text")
-	val dismissText: String? = null,
+	var dismissText: String? = null,
 
 	@SerializedName("title")
-	val title: String? = null
+	var title: String? = null
 )
+
+fun confirm(block: Confirm.() -> Unit) = Confirm().apply(block)

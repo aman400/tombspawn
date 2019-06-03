@@ -25,6 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import models.slack.Action
 import models.slack.Event
+import models.slack.action
 import java.util.*
 import java.util.logging.Logger
 
@@ -132,6 +133,7 @@ fun Routing.slackAction(
                             submitLabel = "Submit"
                             notifyOnCancel = false
                             elements {
+                                // Add text are for what person did on last working day
                                 +element {
                                     type = ElementType.TEXT_AREA
                                     label = "What did you do on your last working day?"
@@ -139,6 +141,7 @@ fun Routing.slackAction(
                                     name = "yesterday"
                                     maxLength = 3000
                                 }
+                                // Add text are for what person is going to do today
                                 +element {
                                     type = ElementType.TEXT_AREA
                                     label = "What will you do today?"
@@ -164,7 +167,9 @@ fun Routing.slackAction(
                                         }
                                         updatedMessage?.apply {
                                             attachments = mutableListOf(
-                                                Attachment(text = ":crossed_fingers: Your APK will be generated soon.")
+                                                attachment {
+                                                    text = ":crossed_fingers: Your APK will be generated soon."
+                                                }
                                             )
                                         }
 
@@ -185,9 +190,12 @@ fun Routing.slackAction(
                                         )
                                     } else {
                                         updatedMessage?.apply {
-                                            attachments = mutableListOf(
-                                                Attachment(text = ":slightly_smiling_face: Thanks for saving the server resources.")
-                                            )
+                                            attachments {
+                                                +attachment {
+                                                    text =
+                                                        ":slightly_smiling_face: Thanks for saving the server resources."
+                                                }
+                                            }
                                             launch(Dispatchers.IO) {
                                                 slackClient.updateMessage(updatedMessage, slackEvent.channel?.id!!)
                                             }
@@ -416,13 +424,22 @@ fun Routing.standup(slackClient: SlackClient) {
         }
 
         launch(Dispatchers.IO) {
-            val attachment = Attachment(
-                Constants.Slack.CALLBACK_STANDUP_MESSAGE,
-                "Please post your standup updates", "Please post your standup updates.", 1, "#0000FF",
-                mutableListOf(
-                    Action(null, Constants.Slack.CALLBACK_STANDUP_DIALOG, "Update", Action.ActionType.BUTTON, style = Action.ActionStyle.PRIMARY)
-                )
-            )
+            val attachment = attachment {
+                callbackId = Constants.Slack.CALLBACK_STANDUP_MESSAGE
+                fallback = "Please post your standup updates"
+                text = "Please post your standup updates."
+                id = 1
+                color = "#0000FF"
+                actions {
+                    +action {
+                        confirm = null
+                        name = Constants.Slack.CALLBACK_STANDUP_DIALOG
+                        text = "Update"
+                        type = Action.ActionType.BUTTON
+                        style = Action.ActionStyle.PRIMARY
+                    }
+                }
+            }
             slackClient.sendMessage("Please update your standup notes", channel!!, listOf(attachment))
         }
         call.respond(HttpStatusCode.OK)

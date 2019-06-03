@@ -20,7 +20,7 @@ data class Action(
 	var value: String? = null,
 
 	@SerializedName("options")
-	var options: List<Option>? = null,
+	var actionOptions: MutableList<Option>? = null,
 
 	@SerializedName("url")
 	var url: String? = null,
@@ -28,6 +28,26 @@ data class Action(
 	@SerializedName("style")
 	var style: ActionStyle = ActionStyle.DEFAULT
 ) {
+
+	operator fun Option.unaryPlus() {
+		if (actionOptions == null) {
+			actionOptions = mutableListOf(this)
+		} else {
+			actionOptions?.add(this)
+		}
+	}
+
+	operator fun MutableList<Option>.unaryPlus() {
+		if (actionOptions == null) {
+			actionOptions = mutableListOf()
+		}
+		actionOptions?.addAll(this)
+	}
+
+	operator fun MutableList<Option>?.invoke(function: MutableList<Option>?.() -> Unit) {
+		function()
+	}
+
 	enum class ActionType(val value: String) {
 		@SerializedName("default")
 		DEFAULT("default"),
@@ -45,6 +65,17 @@ data class Action(
 		@SerializedName("primary")
 		PRIMARY("primary")
 	}
+
+	data class Option(
+
+		@SerializedName("text")
+		val text: String? = null,
+
+		@SerializedName("value")
+		val value: String? = null
+	)
 }
+
+fun actionOption(block: Action.Option.() -> Unit) = Action.Option().apply(block)
 
 fun action(block: Action.() -> Unit) = Action().apply(block)

@@ -59,9 +59,11 @@ class Element(
     }
 
     class Option(
-        @SerializedName("label") val label: String,
-        @SerializedName("value") val value: String
+        @SerializedName("label") var label: String = "",
+        @SerializedName("value") var value: String = ""
     )
 }
+
+fun elementOption(block: Element.Option.() -> Unit) = Element.Option().apply(block)
 
 fun element(block: Element.() -> Unit) = Element().apply(block)

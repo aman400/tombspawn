@@ -599,12 +599,12 @@ class SlackClient(
                 color = "#00FF00"
                 actions {
                     +action {
-                        confirm = Confirm(
-                            text = "This will take up server resources. Generate APK only if you really want it.",
-                            okText = "Yes",
-                            dismissText = "No",
+                        confirm = confirm {
+                            text = "This will take up server resources. Generate APK only if you really want it."
+                            okText = "Yes"
+                            dismissText = "No"
                             title = "Are you sure?"
-                        )
+                        }
                         name = Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK
                         text = "Yes"
                         type = Action.ActionType.BUTTON
@@ -637,38 +637,35 @@ class SlackClient(
     }
 
     suspend fun sendShowCreateApiDialog(verbs: List<String>?, triggerId: String) {
-        val dialogElementList = mutableListOf<Element>()
-
         val verbElements = verbs?.map { verb ->
             Element.Option(verb, verb)
         }
 
-        verbElements?.let {
-            dialogElementList.add(
-                Element(
-                    ElementType.SELECT,
-                    "Select verb",
-                    Constants.Slack.TYPE_SELECT_VERB,
-                    options = it.toMutableList()
-                )
-            )
+        val dialog = dialog {
+            callbackId = Constants.Slack.CALLBACK_CREATE_API
+            title = "Create API"
+            submitLabel = "Submit"
+            notifyOnCancel = false
+            elements {
+                verbElements?.let { verbs ->
+                    +element {
+                        type = ElementType.SELECT
+                        label = "Select verb"
+                        name = Constants.Slack.TYPE_SELECT_VERB
+                        options = verbs.toMutableList()
+                    }
+                }
+
+                +element {
+                    type = ElementType.TEXT_AREA
+                    label = "Expected Response"
+                    name = Constants.Slack.TYPE_SELECT_RESPONSE
+                    optional = false
+                    hint = "Type your expected response here."
+                    maxLength = 3000
+                }
+            }
         }
-
-        dialogElementList.add(
-            Element(
-                ElementType.TEXT_AREA,
-                "Expected Response",
-                Constants.Slack.TYPE_SELECT_RESPONSE,
-                optional = false,
-                hint = "Type your expected response here.",
-                maxLength = 3000
-            )
-        )
-
-        val dialog = Dialog(
-            Constants.Slack.CALLBACK_CREATE_API, "Create API", "Submit", false,
-            elements = dialogElementList
-        )
 
         withContext(Dispatchers.IO) {
             openActionDialog(dialog, slackBotToken, triggerId)
