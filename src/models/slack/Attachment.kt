@@ -27,7 +27,7 @@ class Attachment(
         }
     }
 
-    operator fun MutableList<Action>?.invoke(function: () -> Unit) {
+    operator fun MutableList<Action>?.invoke(function: MutableList<Action>?.() -> Unit) {
         function()
     }
 

@@ -32,7 +32,7 @@ class Element(
         options?.addAll(this)
     }
 
-    operator fun MutableList<Option>?.invoke(function: () -> Unit) {
+    operator fun MutableList<Option>?.invoke(function: MutableList<Option>?.() -> Unit) {
         function()
     }
 

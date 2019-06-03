@@ -610,10 +610,12 @@ class SlackClient(
                         type = Action.ActionType.BUTTON
                         style = Action.ActionStyle.PRIMARY
                         value = gson.toJson(
-                            GenerateCallback(
-                                true,
-                                mutableMapOf(Constants.Slack.TYPE_SELECT_BRANCH to branch)
-                            )
+                            generateCallback {
+                                generate = true
+                                data {
+                                    +Pair(Constants.Slack.TYPE_SELECT_BRANCH, branch)
+                                }
+                            }
                         )
                     }
                     +action {

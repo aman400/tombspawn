@@ -32,7 +32,7 @@ class Dialog(
         elements?.addAll(this)
     }
 
-    operator fun MutableList<Element>?.invoke(function: () -> Unit) {
+    operator fun MutableList<Element>?.invoke(function: MutableList<Element>?.() -> Unit) {
         function()
     }
 }
