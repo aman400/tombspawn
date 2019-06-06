@@ -329,7 +329,7 @@ class SlackClient(
             it.read( buf )
         }
         val formData = formData {
-            append("token", slackAuthToken)
+            append("token", slackBotToken)
             append("title", file.nameWithoutExtension)
             append("filename", file.name)
             append("filetype", "auto")
