@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName
 
 data class UserProfile(
 
-	@SerializedName("image_24")
+	@SerializedName("image_512")
 	val imageUrl: String? = null,
 
 	@SerializedName("real_name_normalized")

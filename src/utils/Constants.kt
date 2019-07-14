@@ -26,13 +26,15 @@ class Constants {
             const val ENV_O_AUTH_TOKEN = "O_AUTH_TOKEN"
             const val ENV_SLACK_TOKEN = "SLACK_TOKEN"
             const val ENV_GRADLE_PATH = "GRADLE_PATH"
+            const val ENV_SLACK_CLIENT_ID = "CLIENT_ID"
+            const val ENV_SLACK_SECRET = "SLACK_SECRET"
             const val ENV_UPLOAD_DIR_PATH = "UPLOAD_DIR_PATH"
         }
     }
 
     class Slack {
         companion object {
-
+            const val SESSION = "slack_session"
             const val CALLBACK_STANDUP_MESSAGE: String = "callback_standup_message"
             const val CALLBACK_STANDUP_DIALOG: String = "callback_standup_dialog"
             const val DEFAULT_BOT_ID: String = "USLACKBOT"
@@ -51,6 +53,9 @@ class Constants {
             const val USER = "user"
             const val CURSOR = "cursor"
             const val LIMIT = "limit"
+            const val CLIENT_ID = "client_id"
+            const val CLIENT_SECRET = "client_secret"
+            const val CODE = "code"
 
             const val CALLBACK_SUBSCRIBE_CONSUMER = "subscribe_consumer_details"
 
@@ -90,5 +95,10 @@ class Constants {
             const val USER_TYPE_USER = "user"
             const val USER_TYPE_BOT = "bot"
         }
+    }
+
+    object RequestErr {
+        const val ERR_CLIENT_ID = "ERR_MISSING_CLIENT_ID"
+        const val ERR_NO_SESSION = "ERR_NO_SESSION_FOUND"
     }
 }

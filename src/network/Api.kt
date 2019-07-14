@@ -1,6 +1,5 @@
 package network
 
-import com.google.gson.Gson
 import com.ramukaka.data.Database
 import com.ramukaka.extensions.await
 import com.ramukaka.extensions.copyToSuspend
@@ -23,6 +22,7 @@ import io.ktor.request.receiveMultipart
 import io.ktor.response.respond
 import io.ktor.routing.Routing
 import io.ktor.routing.get
+import io.ktor.sessions.sessions
 import kotlinx.coroutines.coroutineScope
 import models.slack.BotInfo
 import java.io.File
@@ -30,6 +30,8 @@ import java.io.File
 
 fun Routing.status() {
     get("/") {
+        println(call.sessions.get(Constants.Slack.SESSION))
+
         call.respond(mapOf("status" to "OK"))
     }
 }
@@ -75,7 +77,7 @@ fun Routing.receiveApk(uploadDirPath: String) {
 }
 
 @Throws(Exception::class)
-suspend fun fetchBotData(client: HttpClient, database: Database, botToken: String, gson: Gson) = coroutineScope {
+suspend fun fetchBotData(client: HttpClient, database: Database, botToken: String) = coroutineScope {
     val call = client.call {
         method = HttpMethod.Get
         url {
@@ -101,6 +103,4 @@ suspend fun fetchBotData(client: HttpClient, database: Database, botToken: Strin
             response.throwable?.printStackTrace()
         }
     }.exhaustive
-
-
 }

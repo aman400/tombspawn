@@ -5,6 +5,7 @@ import com.ramukaka.models.github.RefType
 import com.ramukaka.utils.Constants
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import io.ktor.auth.Principal
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -20,7 +21,7 @@ import java.util.concurrent.Executors
 import kotlin.coroutines.CoroutineContext
 
 
-class Database(dbUrl: String, dbUsername: String, dbPass: String) {
+class Database(dbUrl: String, dbUsername: String, dbPass: String, private val isDebug: Boolean) {
     private val dispatcher: CoroutineContext
     private val connectionPool: HikariDataSource
     private val connection: Database
@@ -48,7 +49,9 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
     suspend fun findSubscriptions(refName: String): List<ResultRow>? = withContext(dispatcher) {
         try {
             return@withContext transaction(connection) {
-                addLogger(StdOutSqlLogger)
+                if(isDebug) {
+                    addLogger(StdOutSqlLogger)
+                }
 
                 val query = Subscriptions.leftJoin(Refs, {
                     this.refId
@@ -76,8 +79,10 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
     suspend fun subscribeUser(userId: String, appName: String, refName: String, channel: String): Boolean =
         withContext(dispatcher) {
             return@withContext transaction(connection) {
-                addLogger(StdOutSqlLogger)
-                val user = User.find { Users.slackId eq userId }.first()
+                if(isDebug) {
+                    addLogger(StdOutSqlLogger)
+                }
+                val user = DBUser.find { Users.slackId eq userId }.first()
                 val app = App.find { Apps.name eq appName }.first()
                 val ref = Ref.find { Refs.name eq refName }.first()
                 if (runBlocking(coroutineContext) { !isUserSubscribed(user, app, ref, channel) }) {
@@ -97,10 +102,12 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
     /**
      * Checks if user is already subscribed to a branch or not.
      */
-    suspend fun isUserSubscribed(user: User, app: App, ref: Ref, channel: String): Boolean =
+    suspend fun isUserSubscribed(user: DBUser, app: App, ref: Ref, channel: String): Boolean =
         withContext(dispatcher) {
             return@withContext transaction(connection) {
-                addLogger(StdOutSqlLogger)
+                if(isDebug) {
+                    addLogger(StdOutSqlLogger)
+                }
                 return@transaction !Subscription.find {
                     (Subscriptions.userId eq user.id) and (Subscriptions.appId eq app.id) and (Subscriptions.refId eq ref.id) and (Subscriptions.channel eq channel)
                 }.empty()
@@ -112,15 +119,19 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
             return@withContext false
         }
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
-            val user = User.find { Users.slackId eq userId }
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
+            val user = DBUser.find { Users.slackId eq userId }
             return@transaction !user.empty()
         }
     }
 
     suspend fun addApp(appName: String) = withContext(dispatcher) {
         transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             if (App.find { Apps.name eq appName }.limit(1).firstOrNull() == null) {
                 App.new {
                     name = appName
@@ -132,7 +143,9 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
 
     suspend fun addApps(appNames: List<String>) = withContext(dispatcher) {
         transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             appNames.forEach {
                 if (App.find { Apps.name eq it }.limit(1).firstOrNull() == null) {
                     App.new {
@@ -149,25 +162,26 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
         email: String? = null,
         typeString: String = Constants.Database.USER_TYPE_USER,
         imId: String? = null
-    ) = withContext(dispatcher) {
-        transaction(connection) {
-            addLogger(StdOutSqlLogger)
+    ): DBUser? = withContext(dispatcher) {
+        return@withContext transaction(connection) {
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             val types = UserType.find { UserTypes.type eq typeString }.limit(1)
             val type = types.firstOrNull() ?: UserType.new {
                 this.type = typeString
             }
             try {
-                if (User.find { Users.slackId eq userId }.firstOrNull() == null) {
-                    User.new {
-                        this.name = name
-                        this.email = email
-                        this.slackId = userId
-                        this.imId = imId
-                        this.userType = type
-                    }
+                DBUser.find { Users.slackId eq userId }.firstOrNull() ?: return@transaction DBUser.new {
+                    this.name = name
+                    this.email = email
+                    this.slackId = userId
+                    this.imId = imId
+                    this.userType = type
                 }
             } catch (exception: ExposedSQLException) {
                 exception.printStackTrace()
+                null
             }
         }
     }
@@ -178,8 +192,10 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
         email: String? = null
     ) = withContext(dispatcher) {
         transaction(connection) {
-            addLogger(StdOutSqlLogger)
-            User.find {
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
+            DBUser.find {
                 Users.slackId eq userId
             }.forEach {
                 it.name = name
@@ -189,18 +205,24 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
         }
     }
 
-    suspend fun getUser(userType: String): User? = withContext(dispatcher) {
+    suspend fun getUser(userType: String): DBUser? = withContext(dispatcher) {
         try {
             return@withContext transaction(connection) {
-                addLogger(StdOutSqlLogger)
+                if(isDebug) {
+                    addLogger(StdOutSqlLogger)
+                }
                 val query = Users.innerJoin(UserTypes, {
                     Users.userType
                 }, {
                     id
                 }).slice(Users.columns).select {
                     UserTypes.type eq userType
-                }.withDistinct().first()
-                return@transaction User.wrapRow(query)
+                }.withDistinct().firstOrNull()
+                query?.let {
+                    return@transaction DBUser.wrapRow(it)
+                }
+
+                return@transaction null
             }
         } catch (exception: Exception) {
             exception.printStackTrace()
@@ -208,16 +230,52 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
         }
     }
 
+    suspend fun findUser(slackId: String): DBUser? = withContext(dispatcher) {
+        try {
+            return@withContext transaction(connection) {
+                if(isDebug) {
+                    addLogger(StdOutSqlLogger)
+                }
+                val query = Users.select {
+                    Users.slackId eq slackId
+                }.withDistinct().first()
+                return@transaction DBUser.wrapRow(query)
+            }
+        } catch (exception: Exception) {
+            exception.printStackTrace()
+            return@withContext null
+        }
+    }
+
+    suspend fun getUsers(type: String): List<DBUser> = withContext(dispatcher) {
+        try {
+            return@withContext  transaction(connection) {
+                if(isDebug) {
+                    addLogger(StdOutSqlLogger)
+                }
+                return@transaction DBUser.wrapRows(Users.leftJoin(UserTypes, { this.userType }, { this.type })
+                    .select { UserTypes.type eq type }).toList()
+            }
+        } catch (exception: Exception) {
+            exception.printStackTrace()
+            return@withContext mutableListOf<DBUser>()
+        }
+    }
+
     suspend fun getRefs(app: String): List<Ref>? = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             Ref.wrapRows(Refs.leftJoin(Apps, { appId }, { id }).select { Apps.name eq app }).toList()
         }
     }
 
     suspend fun addRef(app: String, ref: Reference) = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             val application = App.find { Apps.name eq app }.first()
             if (Ref.find { (Refs.name eq ref.name) and (Refs.appId eq application.id) and (Refs.type eq ref.type) }.empty()) {
                 Ref.new {
@@ -232,7 +290,9 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
 
     suspend fun deleteRef(appName: String, reference: Reference)= withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             App.find { Apps.name eq appName }.firstOrNull()?.let { application ->
                 Refs.deleteWhere { (Refs.name eq reference.name) and (Refs.appId eq application.id) and (Refs.type eq reference.type) }
             }
@@ -241,7 +301,9 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
 
     suspend fun addRefs(refs: List<Reference>, appName: String) = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             App.find { Apps.name eq appName }.firstOrNull()?.let { application ->
                 Ref.wrapRows(Refs.select {Refs.appId eq application.id}).forEach { ref ->
                     if(refs.firstOrNull {
@@ -269,7 +331,9 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
 
     suspend fun getFlavours(app: String): List<Flavour>? = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             Flavour.wrapRows(Flavours.leftJoin(Apps, { Flavours.appId }, { id }).select { Apps.name eq app })
                 .toList()
         }
@@ -277,7 +341,9 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
 
     suspend fun getBuildTypes(app: String): List<BuildType>? = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             BuildType.wrapRows(BuildTypes.leftJoin(
                 Apps,
                 { appId },
@@ -288,7 +354,9 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
 
     suspend fun addFlavours(flavours: List<String>, appName: String) = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             App.find { Apps.name eq appName }.firstOrNull()?.let { application ->
 
                 Flavour.wrapRows(Flavours.select { Flavours.appId eq application.id }).forEach {
@@ -311,7 +379,9 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
 
     suspend fun addBuildVariants(buildTypes: List<String>, appName: String) = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             App.find { Apps.name eq appName }.firstOrNull()?.let { application ->
 
                 BuildType.wrapRows(BuildTypes.select { BuildTypes.appId eq application.id }).forEach {
@@ -336,7 +406,9 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
 
     suspend fun getVerbs() = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             Verb.all().map {
                 it.name
             }
@@ -345,7 +417,9 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
 
     suspend fun addVerbs(verbs: List<String>) = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             Verb.all().filterNot {
                 verbs.contains(it.name)
             }.forEach {
@@ -364,14 +438,18 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
 
     suspend fun getVerb(verb: String) = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             Verb.wrapRow(Verbs.select { Verbs.name eq verb }.first())
         }
     }
 
     suspend fun getApi(apiId: String, verbName: String) = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             val verb = runBlocking {
                 getVerb(verbName)
             }
@@ -383,7 +461,9 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String) {
 
     suspend fun addApi(apiId: String, verb: String, response: String) = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             Verb.find { Verbs.name eq verb }.firstOrNull()?.let { verb ->
                 Api.new {
                     this.response = response
@@ -404,8 +484,8 @@ object Users : IntIdTable() {
         reference("user_type", UserTypes, onDelete = ReferenceOption.CASCADE, onUpdate = ReferenceOption.RESTRICT)
 }
 
-class User(id: EntityID<Int>) : IntEntity(id) {
-    companion object : IntEntityClass<User>(Users)
+class DBUser(id: EntityID<Int>) : IntEntity(id), Principal {
+    companion object : IntEntityClass<DBUser>(Users)
 
     var name by Users.name
     var email by Users.email
@@ -528,7 +608,7 @@ object Subscriptions : IntIdTable() {
 class Subscription(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<Subscription>(Subscriptions)
 
-    var userId by User referencedOn Subscriptions.userId
+    var userId by DBUser referencedOn Subscriptions.userId
     var refId by Ref referencedOn Subscriptions.refId
     var appId by App referencedOn Subscriptions.appId
     var channel by Subscriptions.channel

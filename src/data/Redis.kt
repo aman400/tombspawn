@@ -1,30 +1,17 @@
 package com.ramukaka.data
 
-import org.redisson.api.RMapCache
 import org.redisson.api.RedissonClient
 import org.redisson.api.map.event.EntryExpiredListener
 import java.util.concurrent.TimeUnit
 
-class Redis(private val redissonClient: RedissonClient, private val keyExpiryListener: EntryExpiredListener<String, Any>) {
+abstract class Redis<T>(val redissonClient: RedissonClient, val map: String) {
     companion object {
-        private const val ARG_STRING_MAP = "string_map"
+        const val AUTH_MAP = "auth_map"
+        const val SESSION_MAP = "session_map"
     }
 
-    fun getStringData(key: String): String? {
-        val map: RMapCache<String, String> = redissonClient.getMapCache(ARG_STRING_MAP)
-        val data = map[key]
-        map.destroy()
-        return data
-    }
+    abstract fun getData(key: String): T?
 
-    fun setStringData(key: String, value: String, ttl: Long? = null, timeUnit: TimeUnit? = null) {
-        val map: RMapCache<String, String> = redissonClient.getMapCache(ARG_STRING_MAP)
-        if(ttl != null && timeUnit != null) {
-            map.put(key, value, ttl, timeUnit)
-        } else {
-            map[key] = value
-        }
-        map.addListener(keyExpiryListener)
-        map.destroy()
-    }
+    abstract fun setData(key: String, value: T, ttl: Long? = null, timeUnit: TimeUnit? = null,
+                      keyExpiryListener: EntryExpiredListener<String, Any>? = null)
 }

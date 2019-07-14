@@ -17,5 +17,8 @@ data class SlackUser(
 	val deleted: Boolean? = false,
 
 	@SerializedName("profile")
-	val profile: UserProfile? = null
+	val profile: UserProfile? = null,
+
+	@SerializedName("email")
+	val email: String? = null
 )

@@ -4,8 +4,9 @@ import annotations.DoNotDeserialize
 import annotations.DoNotSerialize
 import com.google.gson.ExclusionStrategy
 import com.google.gson.FieldAttributes
+import com.ramukaka.auth.JWTConfig
 import com.ramukaka.data.Database
-import com.ramukaka.data.Redis
+import com.ramukaka.data.StringMap
 import com.ramukaka.models.Command
 import com.ramukaka.models.CommandResponse
 import com.ramukaka.network.GradleBotClient
@@ -20,30 +21,26 @@ import io.ktor.client.features.json.JsonFeature
 import io.ktor.client.features.json.JsonSerializer
 import io.ktor.client.features.logging.LogLevel
 import io.ktor.client.features.logging.Logger
-import io.ktor.client.features.observer.ResponseObserver
-import io.ktor.http.HttpHeaders
 import io.ktor.http.URLProtocol
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.SendChannel
 import org.koin.core.qualifier.StringQualifier
 import org.koin.dsl.module
 import org.redisson.Redisson
-import org.redisson.api.map.event.EntryExpiredListener
 import org.redisson.config.Config
 import org.redisson.config.TransportMode
 
 
 val dbModule = module {
-    single {
+    single { (isDebug: Boolean) ->
         val dbUrl = System.getenv()["DB_URL"]!!
         val dbUser = System.getenv()["DB_USER"]!!
         val dbPassword = System.getenv()["DB_PASSWORD"]!!
-        Database(dbUrl, dbUser, dbPassword)
+        Database(dbUrl, dbUser, dbPassword, isDebug)
     }
 }
 
 val httpClientModule = module {
-
     single {
         GsonSerializer {
             serializeNulls()
@@ -73,10 +70,11 @@ val httpClientModule = module {
 
     single {
         HttpClient(Apache) {
+            followRedirects = true
             engine {
-            }
-            install(ResponseObserver) {
-
+                connectTimeout = 60_000
+                socketTimeout = 60_000
+                connectionRequestTimeout = 20_000
             }
             install(io.ktor.client.features.logging.Logging) {
                 logger = object: Logger {
@@ -91,7 +89,6 @@ val httpClientModule = module {
             }
             defaultRequest {
                 headers.append(Headers.APP_CLIENT, Headers.APP_CLIENT_VALUE)
-                headers.append(HttpHeaders.Accept, Headers.TYPE_JSON)
                 url {
                     if(host == "localhost") {
                         protocol = URLProtocol.HTTPS
@@ -113,6 +110,8 @@ val slackModule = module {
             get(),
             get(),
             get(StringQualifier(Constants.EnvironmentVariables.ENV_SLACK_TOKEN)),
+            get(StringQualifier(Constants.EnvironmentVariables.ENV_SLACK_CLIENT_ID)),
+            get(StringQualifier(Constants.EnvironmentVariables.ENV_SLACK_SECRET)),
             requestExecutor,
             responseListener
         )
@@ -136,11 +135,17 @@ val redis = module {
         Redisson.create()
     }
 
-    single { (entryExpiredListener: EntryExpiredListener<String, Any>) ->
-        Redis(
+    single { (mapName: String) ->
+        StringMap(
             get(),
-            entryExpiredListener
+            mapName
         )
+    }
+}
+
+val authentication = module {
+    single { (secret: String, issuer: String, audience: String) ->
+        JWTConfig(secret, issuer, audience)
     }
 }
 
@@ -155,6 +160,14 @@ val envVariables = module {
 
     single(StringQualifier(Constants.EnvironmentVariables.ENV_GRADLE_PATH)) {
         Constants.Common.COMMAND_GRADLE
+    }
+
+    single(StringQualifier(Constants.EnvironmentVariables.ENV_SLACK_CLIENT_ID)) {
+        System.getenv()[Constants.EnvironmentVariables.ENV_SLACK_CLIENT_ID]
+    }
+
+    single(StringQualifier(Constants.EnvironmentVariables.ENV_SLACK_SECRET)) {
+        System.getenv()[Constants.EnvironmentVariables.ENV_SLACK_SECRET]
     }
 
     single(StringQualifier(Constants.EnvironmentVariables.ENV_UPLOAD_DIR_PATH)) {

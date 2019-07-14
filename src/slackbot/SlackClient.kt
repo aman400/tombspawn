@@ -2,8 +2,10 @@ package com.ramukaka.slackbot
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.ramukaka.auth.models.SlackAuthResponse
 import com.ramukaka.data.Database
 import com.ramukaka.data.Ref
+import com.ramukaka.data.DBUser
 import com.ramukaka.extensions.await
 import com.ramukaka.extensions.random
 import com.ramukaka.extensions.toMap
@@ -20,7 +22,6 @@ import io.ktor.client.call.call
 import io.ktor.client.request.forms.FormDataContent
 import io.ktor.client.request.forms.MultiPartFormDataContent
 import io.ktor.client.request.forms.formData
-import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.url
 import io.ktor.http.*
@@ -29,6 +30,7 @@ import kotlinx.coroutines.channels.SendChannel
 import models.slack.*
 import java.io.File
 import java.io.FileInputStream
+import java.net.URL
 import java.util.*
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -49,6 +51,8 @@ class SlackClient(
     private val gradlePath: String, private val uploadDirPath: String,
     private val gradleBotClient: GradleBotClient, private val database: Database,
     private val slackBotToken: String,
+    private val slackClientId: String,
+    private val slackSecret: String,
     private val requestExecutor: SendChannel<Command>,
     private val responseListeners: MutableMap<String, CompletableDeferred<CommandResponse>>
 ) {
@@ -210,9 +214,9 @@ class SlackClient(
                 is Success -> {
                     val tempDirectory = File(uploadDirPath)
                     if (tempDirectory.exists()) {
-                        val firstFile = tempDirectory.listFiles { _, name ->
-                            name.contains(APKPrefix, true)
-                        }.firstOrNull()
+                        val firstFile = tempDirectory.listFiles()?.firstOrNull { file ->
+                            file?.name?.contains(APKPrefix, true) == true
+                        }
                         firstFile?.let { file ->
                             if (file.exists()) {
                                 uploadFile(file, channelId)
@@ -324,9 +328,9 @@ class SlackClient(
 
 
     private suspend fun uploadFile(file: File, channelId: String, deleteFile: Boolean = true) {
-        val buf = ByteArray( file.length().toInt())
-        FileInputStream( file ).use {
-            it.read( buf )
+        val buf = ByteArray(file.length().toInt())
+        FileInputStream(file).use {
+            it.read(buf)
         }
         val formData = formData {
             append("token", slackBotToken)
@@ -398,6 +402,10 @@ class SlackClient(
         )
 
         fetchAndUpdateUser(userId, database)
+    }
+
+    suspend fun addUser(userId: String, name: String, email: String, database: Database) {
+        database.addUser(userId, name, email, Constants.Database.USER_TYPE_USER)
     }
 
     private suspend fun fetchAndUpdateUser(userId: String, database: Database) {
@@ -489,7 +497,7 @@ class SlackClient(
             body = FormDataContent(params)
         }
 
-        when(call.await<JsonObject>()) {
+        when (call.await<JsonObject>()) {
             is CallSuccess -> {
                 LOGGER.info("message successfully sent")
             }
@@ -816,21 +824,23 @@ class SlackClient(
     private suspend fun getUserList(token: String, cursor: String? = null, limit: Int? = null): UserResponse? {
         val call = httpClient.call {
             url {
-                encodedPath = "/api/users.list"
+                url(URL("https://slack.com/api/users.list"))
                 parameters.append(Constants.Slack.TOKEN, token)
                 cursor?.let {
                     parameters.append(Constants.Slack.CURSOR, cursor)
                 }
-                limit?.let{
+                limit?.let {
                     parameters.append(Constants.Slack.LIMIT, it.toString())
                 }
             }
+            method = HttpMethod.Get
         }
 
         return when(val response = call.await<UserResponse>()) {
             is CallSuccess -> {
                 response.data?.let {
-                    if(it.successful == true) {
+                    if (it.successful == true) {
+                        println(it.toString())
                         it
                     } else {
                         null
@@ -856,16 +866,17 @@ class SlackClient(
                 cursor?.let {
                     parameters.append(Constants.Slack.CURSOR, cursor)
                 }
-                limit?.let{
+                limit?.let {
                     parameters.append(Constants.Slack.LIMIT, it.toString())
                 }
             }
             method = HttpMethod.Get
         }
-        return when(val response = call.await<IMListData>()) {
+        return when (val response = call.await<IMListData>()) {
             is CallSuccess -> {
                 response.data?.let {
-                    if(it.ok == true) {
+                    if (it.ok == true) {
+                        println(it.toString())
                         it
                     } else {
                         null
@@ -890,7 +901,7 @@ class SlackClient(
             users.addAll(it)
         }
 
-        if(!cursor.isNullOrEmpty()) {
+        if (!cursor.isNullOrEmpty()) {
             users.addAll(getSlackUsers(token, slackClient, cursor))
         }
 
@@ -904,10 +915,44 @@ class SlackClient(
         data?.ims?.let {
             ims.addAll(it)
         }
-        if(!cursor.isNullOrEmpty()) {
+        if (!cursor.isNullOrEmpty()) {
             ims.addAll(getSlackBotImIds(token, slackClient, cursor))
         }
 
         return ims
+    }
+
+    suspend fun verifySlackAuth(code: String): DBUser? {
+        val call = httpClient.call {
+            url {
+                encodedPath = "api/oauth.access"
+                parameters.append(Constants.Slack.CODE, code)
+                parameters.append(Constants.Slack.CLIENT_ID, slackClientId)
+                parameters.append(Constants.Slack.CLIENT_SECRET, slackSecret)
+            }
+            method = HttpMethod.Get
+        }
+
+        return when (val response = call.await<SlackAuthResponse>()) {
+            is CallSuccess -> {
+                response.data?.let { data ->
+                    if (data.successful == true) {
+                        data.user?.let {
+                            database.addUser(it.id!!, it.name, it.email, Constants.Database.USER_TYPE_USER)
+                        }
+                    } else {
+                        null
+                    }
+                }
+            }
+            is CallFailure -> {
+                LOGGER.log(Level.FINE, response.errorBody, response.throwable)
+                null
+            }
+            is CallError -> {
+                LOGGER.log(Level.FINE, response.throwable?.message, response.throwable)
+                null
+            }
+        }
     }
 }

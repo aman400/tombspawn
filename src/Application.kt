@@ -1,21 +1,27 @@
 package com.ramukaka
 
-import com.google.gson.Gson
+import com.ramukaka.auth.*
+import com.ramukaka.auth.sessions.SlackSession
 import com.ramukaka.data.Database
 import com.ramukaka.data.Redis
+import com.ramukaka.data.StringMap
 import com.ramukaka.di.*
 import com.ramukaka.extensions.commandExecutor
+import com.ramukaka.extensions.isDebug
 import com.ramukaka.models.CommandResponse
-import com.ramukaka.network.*
+import com.ramukaka.network.GradleBotClient
+import com.ramukaka.network.exhaustive
+import com.ramukaka.network.githubWebhook
 import com.ramukaka.slackbot.*
 import com.ramukaka.utils.Constants
-import io.ktor.application.Application
-import io.ktor.application.ApplicationCallPipeline
-import io.ktor.application.call
-import io.ktor.application.install
+import io.ktor.application.*
+import io.ktor.auth.Authentication
+import io.ktor.auth.jwt.jwt
 import io.ktor.client.HttpClient
 import io.ktor.features.*
 import io.ktor.gson.gson
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.locations.KtorExperimentalLocationsAPI
 import io.ktor.locations.Locations
@@ -23,7 +29,9 @@ import io.ktor.request.path
 import io.ktor.response.respond
 import io.ktor.routing.routing
 import io.ktor.server.netty.EngineMain
+import io.ktor.sessions.*
 import io.ktor.util.error
+import io.ktor.util.hex
 import kotlinx.coroutines.*
 import network.fetchBotData
 import network.health
@@ -34,10 +42,9 @@ import org.koin.core.logger.MESSAGE
 import org.koin.core.parameter.parametersOf
 import org.koin.ktor.ext.Koin
 import org.koin.ktor.ext.inject
-import org.redisson.api.map.event.EntryEvent
-import org.redisson.api.map.event.EntryExpiredListener
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
+import java.time.Duration
 
 fun main(args: Array<String>): Unit = EngineMain.main(args)
 
@@ -58,8 +65,18 @@ private var FLEET_APP_ID = env["FLEET_APP_GITHUB_REPO_ID"]
 @Suppress("unused") // Referenced in application.conf
 fun Application.module() {
     val LOGGER = LoggerFactory.getLogger("com.application")
+
+    val jwtIssuer = environment.config.property("jwt.domain").getString()
+    val jwtSecret = environment.config.property("jwt.secret").getString()
+    val jwtAudience = environment.config.property("jwt.audience").getString()
+    val jwtRealm = environment.config.property("jwt.realm").getString()
+
+    val jwtConfig: JWTConfig by inject {
+        parametersOf(jwtSecret, jwtIssuer, jwtAudience)
+    }
+
     install(Koin) {
-        modules(dbModule, httpClientModule, envVariables, gradleBotClient, slackModule, redis)
+        modules(dbModule, httpClientModule, envVariables, gradleBotClient, slackModule, redis, authentication)
         logger(object : Logger() {
             override fun log(level: org.koin.core.logger.Level, msg: MESSAGE) {
                 when (level) {
@@ -76,8 +93,55 @@ fun Application.module() {
             }
         })
     }
+
+    install(CORS) {
+        method(HttpMethod.Get)
+        method(HttpMethod.Put)
+        method(HttpMethod.Post)
+        method(HttpMethod.Delete)
+        method(HttpMethod.Options)
+        header(HttpHeaders.XForwardedProto)
+        header(HttpHeaders.AccessControlAllowCredentials)
+        header(HttpHeaders.AccessControlAllowHeaders)
+        header(HttpHeaders.AccessControlAllowMethods)
+        header(HttpHeaders.AccessControlAllowOrigin)
+        anyHost()
+
+        host("192.168.0.101:3000", listOf("http", "https"))
+        host("10.1.1.179:3000", listOf("http", "https"))
+        host("localhost:3000", listOf("http", "https"))
+        host("127.0.0.1:3000", listOf("http", "https"))
+
+        allowCredentials = true
+//        allowSameOrigin = true
+        maxAge = Duration.ofDays(1)
+    }
+
+    val database: Database by inject {
+        parametersOf(isDebug)
+    }
+
+    install(Authentication) {
+        jwt(name = "slack-auth") {
+            verifier(jwtConfig.verifier)
+            realm = jwtRealm
+            validate { credential ->
+                credential.payload.getClaim("id").asString()?.let { database.findUser(it) }
+            }
+            skipWhen {
+                call ->
+                    try {
+                        jwtConfig.verifier.verify(call.sessions.get<SlackSession>()?.token) != null
+                    } catch (exception: Exception) {
+                        false
+                    }
+            }
+        }
+    }
+
     install(StatusPages) {
         exception<Throwable> { cause ->
+            println(cause.stackTrace)
             LOGGER.error(cause)
             call.respond(HttpStatusCode.InternalServerError)
         }
@@ -116,8 +180,29 @@ fun Application.module() {
         }
     }
 
-    val database: Database by inject()
+
     val client: HttpClient by inject()
+
+    val authMap: StringMap by inject {
+        parametersOf(Redis.AUTH_MAP)
+    }
+
+    val sessionMap: StringMap by inject {
+        parametersOf(Redis.SESSION_MAP)
+    }
+
+    install(Sessions) {
+        val secretHashKey = hex("6819b57a326945c1968f45236589")
+
+        cookie<SlackSession>(Constants.Slack.SESSION, RedisSessionStorage(sessionMap, "Session_", 3600)) {
+            cookie.extensions
+            cookie.path = "/"
+            if(!isDebug) {
+                cookie.secure = true
+            }
+            transform(SessionTransportTransformerMessageAuthentication(secretHashKey, "HmacSHA256"))
+        }
+    }
 
     intercept(ApplicationCallPipeline.Monitoring) {
 
@@ -144,7 +229,7 @@ fun Application.module() {
     }
 
     runBlocking {
-        fetchBotData(client, database, BOT_TOKEN, Gson())
+        fetchBotData(client, database, BOT_TOKEN)
     }
     val apps = mutableListOf(Constants.Common.APP_CONSUMER, Constants.Common.APP_FLEET)
     runBlocking { database.addApps(apps) }
@@ -153,15 +238,6 @@ fun Application.module() {
     val requestExecutor = commandExecutor(responseListener)
 
     val gradleBotClient: GradleBotClient by inject { parametersOf(responseListener, requestExecutor) }
-    val redis: Redis by inject {
-        parametersOf(object : EntryExpiredListener<String, Any> {
-            override fun onExpired(entry: EntryEvent<String, Any>?) {
-                entry?.let {
-                    println("Entry removed ${it.key} : ${it.value}")
-                }
-            }
-        })
-    }
 
     launch(Dispatchers.IO) {
         initApp(gradleBotClient, database, CONSUMER_APP_DIR, Constants.Common.APP_CONSUMER)
@@ -183,7 +259,6 @@ fun Application.module() {
     }
 
     val slackClient: SlackClient by inject { parametersOf(responseListener, requestExecutor) }
-
     launch(Dispatchers.IO) {
         val users = slackClient.getSlackUsers(BOT_TOKEN, slackClient, null)
         val ims = slackClient.getSlackBotImIds(BOT_TOKEN, slackClient, null)
@@ -195,7 +270,7 @@ fun Application.module() {
                 if (im.isUserDeleted == false && user.bot == false && user.id != Constants.Slack.DEFAULT_BOT_ID) {
                     database.addUser(
                         user.id!!,
-                        user.name,
+                        user.profile?.name,
                         user.profile?.email,
                         Constants.Database.USER_TYPE_USER,
                         im.id
@@ -218,6 +293,8 @@ fun Application.module() {
         mockApi(database)
         createApi(slackClient, database)
         standup(slackClient)
+        auth(slackClient, jwtConfig, database)
+        users(database)
     }
 }
 
