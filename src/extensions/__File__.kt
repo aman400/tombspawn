@@ -7,7 +7,7 @@ fun File.cleanup() {
         if (isFile) {
             delete()
         } else {
-            listFiles().forEach {
+            listFiles()?.forEach {
                 println(it.name)
                 it.cleanup()
             }

@@ -1,9 +1,10 @@
 package com.ramukaka.di
 
-import annotations.DoNotDeserialize
-import annotations.DoNotSerialize
 import com.google.gson.ExclusionStrategy
 import com.google.gson.FieldAttributes
+import com.google.gson.GsonBuilder
+import com.ramukaka.annotations.DoNotDeserialize
+import com.ramukaka.annotations.DoNotSerialize
 import com.ramukaka.data.Database
 import com.ramukaka.models.Command
 import com.ramukaka.models.CommandResponse
@@ -28,6 +29,8 @@ import kotlinx.coroutines.channels.SendChannel
 import org.koin.core.qualifier.StringQualifier
 import org.koin.dsl.module
 
+private const val ARG_GSON_BUILDER = "gson_builder"
+private const val ARG_JSON_SERIALIZER = "json_serializer"
 
 val dbModule = module {
     single {
@@ -35,6 +38,43 @@ val dbModule = module {
         val dbUser = System.getenv()["DB_USER"]!!
         val dbPassword = System.getenv()["DB_PASSWORD"]!!
         Database(dbUrl, dbUser, dbPassword)
+    }
+}
+
+val gson = module {
+    single(StringQualifier(ARG_GSON_BUILDER)) {
+        val gsonBuilder = GsonBuilder()
+        gsonBuilder.setPrettyPrinting()
+        gsonBuilder.enableComplexMapKeySerialization()
+        gsonBuilder.addSerializationExclusionStrategy(object : ExclusionStrategy {
+            override fun shouldSkipField(f: FieldAttributes): Boolean {
+                return f.getAnnotation(DoNotSerialize::class.java) != null
+            }
+
+            override fun shouldSkipClass(clazz: Class<*>): Boolean {
+                return clazz.getAnnotation(DoNotSerialize::class.java) != null
+            }
+        })
+        gsonBuilder.addDeserializationExclusionStrategy(object : ExclusionStrategy {
+            override fun shouldSkipField(f: FieldAttributes): Boolean {
+                return f.getAnnotation(DoNotDeserialize::class.java) != null
+            }
+
+            override fun shouldSkipClass(clazz: Class<*>): Boolean {
+                return clazz.getAnnotation(DoNotDeserialize::class.java) != null
+            }
+        })
+        gsonBuilder
+    }
+
+    single(StringQualifier(ARG_JSON_SERIALIZER)) {
+        GsonSerializer {
+            get(StringQualifier(ARG_GSON_BUILDER)) as GsonBuilder
+        }
+    }
+
+    single {
+        (get(StringQualifier(ARG_GSON_BUILDER)) as GsonBuilder).create()
     }
 }
 
@@ -46,33 +86,6 @@ val httpClientModule = module {
             append(Headers.CONTENT_TYPE, Headers.TYPE_JSON)
             append(Headers.ACCEPT, Headers.TYPE_JSON)
         }
-    }
-
-    single {
-        GsonSerializer {
-            serializeNulls()
-            disableHtmlEscaping()
-            setPrettyPrinting()
-            enableComplexMapKeySerialization()
-            addSerializationExclusionStrategy(object : ExclusionStrategy {
-                override fun shouldSkipField(f: FieldAttributes): Boolean {
-                    return f.getAnnotation(DoNotSerialize::class.java) != null
-                }
-
-                override fun shouldSkipClass(clazz: Class<*>): Boolean {
-                    return clazz.getAnnotation(DoNotSerialize::class.java) != null
-                }
-            })
-            addDeserializationExclusionStrategy(object : ExclusionStrategy {
-                override fun shouldSkipField(f: FieldAttributes): Boolean {
-                    return f.getAnnotation(DoNotDeserialize::class.java) != null
-                }
-
-                override fun shouldSkipClass(clazz: Class<*>): Boolean {
-                    return clazz.getAnnotation(DoNotDeserialize::class.java) != null
-                }
-            })
-        } as JsonSerializer
     }
 
     single {
@@ -93,7 +106,8 @@ val httpClientModule = module {
                 level = LogLevel.ALL
             }
             install(JsonFeature) {
-                serializer = get()
+                val gsonSerializer: GsonSerializer = get(StringQualifier(ARG_JSON_SERIALIZER))
+                serializer = gsonSerializer
             }
         }.config {
             defaultRequest {

@@ -55,7 +55,7 @@ private var FLEET_APP_ID = env["FLEET_APP_GITHUB_REPO_ID"]
 fun Application.module() {
     val LOGGER = LoggerFactory.getLogger("com.application")
     install(Koin) {
-        modules(dbModule, httpClientModule, envVariables, gradleBotClient, slackModule)
+        modules(dbModule, httpClientModule, envVariables, gradleBotClient, slackModule, gson)
         logger(object : Logger() {
             override fun log(level: org.koin.core.logger.Level, msg: MESSAGE) {
                 when (level) {
