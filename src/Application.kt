@@ -76,7 +76,7 @@ fun Application.module() {
     }
 
     install(Koin) {
-        modules(dbModule, httpClientModule, envVariables, gradleBotClient, slackModule, redis, authentication)
+        modules(listOf(dbModule, httpClientModule, envVariables, gradleBotClient, slackModule, gson, redis, authentication))
         logger(object : Logger() {
             override fun log(level: org.koin.core.logger.Level, msg: MESSAGE) {
                 when (level) {
