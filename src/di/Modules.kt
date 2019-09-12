@@ -84,18 +84,7 @@ val gson = module {
 }
 
 val httpClientModule = module {
-
     single {
-        HeadersBuilder().apply {
-            append(Headers.APP_CLIENT, Headers.APP_CLIENT_VALUE)
-            append(Headers.CONTENT_TYPE, Headers.TYPE_JSON)
-            append(Headers.ACCEPT, Headers.TYPE_JSON)
-        }
-    }
-
-    single {
-        val headersBuilder: HeadersBuilder = get()
-
         HttpClient(Apache) {
             engine {
             }
