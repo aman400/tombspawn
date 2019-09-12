@@ -6,10 +6,11 @@ import com.google.gson.GsonBuilder
 import com.ramukaka.annotations.DoNotDeserialize
 import com.ramukaka.annotations.DoNotSerialize
 import com.ramukaka.data.Database
+import com.ramukaka.data.Redis
 import com.ramukaka.models.Command
 import com.ramukaka.models.CommandResponse
 import com.ramukaka.network.GradleBotClient
-import com.ramukaka.network.SlackClient
+import com.ramukaka.slackbot.SlackClient
 import com.ramukaka.network.utils.Headers
 import com.ramukaka.utils.Constants
 import io.ktor.client.HttpClient
@@ -21,13 +22,17 @@ import io.ktor.client.features.json.JsonSerializer
 import io.ktor.client.features.logging.LogLevel
 import io.ktor.client.features.logging.Logger
 import io.ktor.client.features.observer.ResponseObserver
-import io.ktor.client.request.headers
 import io.ktor.http.HeadersBuilder
+import io.ktor.http.HttpHeaders
 import io.ktor.http.URLProtocol
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.SendChannel
 import org.koin.core.qualifier.StringQualifier
 import org.koin.dsl.module
+import org.redisson.Redisson
+import org.redisson.api.map.event.EntryExpiredListener
+import org.redisson.config.Config
+import org.redisson.config.TransportMode
 
 private const val ARG_GSON_BUILDER = "gson_builder"
 private const val ARG_JSON_SERIALIZER = "json_serializer"
@@ -109,12 +114,14 @@ val httpClientModule = module {
                 val gsonSerializer: GsonSerializer = get(StringQualifier(ARG_JSON_SERIALIZER))
                 serializer = gsonSerializer
             }
-        }.config {
             defaultRequest {
-                headers { headersBuilder.build() }
+                headers.append(Headers.APP_CLIENT, Headers.APP_CLIENT_VALUE)
+                headers.append(HttpHeaders.Accept, Headers.TYPE_JSON)
                 url {
-                    protocol = URLProtocol.HTTPS
-                    host = "slack.com"
+                    if(host == "localhost") {
+                        protocol = URLProtocol.HTTPS
+                        host = "slack.com"
+                    }
                 }
             }
         }
@@ -124,6 +131,7 @@ val httpClientModule = module {
 val slackModule = module {
     single { (responseListener: MutableMap<String, CompletableDeferred<CommandResponse>>, requestExecutor: SendChannel<Command>) ->
         SlackClient(
+            get(),
             get(StringQualifier(Constants.EnvironmentVariables.ENV_O_AUTH_TOKEN)),
             get(StringQualifier(Constants.EnvironmentVariables.ENV_GRADLE_PATH)),
             get(StringQualifier(Constants.EnvironmentVariables.ENV_UPLOAD_DIR_PATH)),
@@ -142,6 +150,21 @@ val gradleBotClient = module {
             get(StringQualifier(Constants.EnvironmentVariables.ENV_GRADLE_PATH)),
             responseListener,
             requestExecutor
+        )
+    }
+}
+
+val redis = module {
+    single {
+        val config = Config()
+        config.transportMode = TransportMode.NIO
+        Redisson.create()
+    }
+
+    single { (entryExpiredListener: EntryExpiredListener<String, Any>) ->
+        Redis(
+            get(),
+            entryExpiredListener
         )
     }
 }

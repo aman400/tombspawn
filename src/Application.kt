@@ -2,10 +2,12 @@ package com.ramukaka
 
 import com.google.gson.Gson
 import com.ramukaka.data.Database
+import com.ramukaka.data.Redis
 import com.ramukaka.di.*
 import com.ramukaka.extensions.commandExecutor
 import com.ramukaka.models.CommandResponse
 import com.ramukaka.network.*
+import com.ramukaka.slackbot.*
 import com.ramukaka.utils.Constants
 import io.ktor.application.Application
 import io.ktor.application.ApplicationCallPipeline
@@ -32,6 +34,8 @@ import org.koin.core.logger.MESSAGE
 import org.koin.core.parameter.parametersOf
 import org.koin.ktor.ext.Koin
 import org.koin.ktor.ext.inject
+import org.redisson.api.map.event.EntryEvent
+import org.redisson.api.map.event.EntryExpiredListener
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 
@@ -55,7 +59,7 @@ private var FLEET_APP_ID = env["FLEET_APP_GITHUB_REPO_ID"]
 fun Application.module() {
     val LOGGER = LoggerFactory.getLogger("com.application")
     install(Koin) {
-        modules(listOf(dbModule, httpClientModule, envVariables, gradleBotClient, slackModule, gson))
+        modules(listOf(dbModule, httpClientModule, envVariables, gradleBotClient, slackModule, gson, redis))
         logger(object : Logger() {
             override fun log(level: org.koin.core.logger.Level, msg: MESSAGE) {
                 when (level) {
@@ -149,6 +153,15 @@ fun Application.module() {
     val requestExecutor = commandExecutor(responseListener)
 
     val gradleBotClient: GradleBotClient by inject { parametersOf(responseListener, requestExecutor) }
+    val redis: Redis by inject {
+        parametersOf(object : EntryExpiredListener<String, Any> {
+            override fun onExpired(entry: EntryEvent<String, Any>?) {
+                entry?.let {
+                    println("Entry removed ${it.key} : ${it.value}")
+                }
+            }
+        })
+    }
 
     launch(Dispatchers.IO) {
         initApp(gradleBotClient, database, CONSUMER_APP_DIR, Constants.Common.APP_CONSUMER)
@@ -171,6 +184,27 @@ fun Application.module() {
 
     val slackClient: SlackClient by inject { parametersOf(responseListener, requestExecutor) }
 
+    launch(Dispatchers.IO) {
+        val users = slackClient.getSlackUsers(BOT_TOKEN, slackClient, null)
+        val ims = slackClient.getSlackBotImIds(BOT_TOKEN, slackClient, null)
+        users.forEach { user ->
+            val im = ims.firstOrNull { im ->
+                im.user == user.id
+            }
+            im?.let {
+                if (im.isUserDeleted == false && user.bot == false && user.id != Constants.Slack.DEFAULT_BOT_ID) {
+                    database.addUser(
+                        user.id!!,
+                        user.name,
+                        user.profile?.email,
+                        Constants.Database.USER_TYPE_USER,
+                        im.id
+                    )
+                }
+            }
+        }
+    }
+
     routing {
         status()
         health()
@@ -183,16 +217,16 @@ fun Application.module() {
         githubWebhook(database, slackClient, CONSUMER_APP_ID!!, FLEET_APP_ID!!)
         mockApi(database)
         createApi(slackClient, database)
+        standup(slackClient)
     }
 }
-
 
 suspend fun initApp(gradleBotClient: GradleBotClient, database: Database, appDir: String, appName: String) =
     coroutineScope {
         val branchJob = async {
             val branches = gradleBotClient.fetchAllBranches(appDir)
             branches?.let {
-                database.addBranches(it, appName)
+                database.addRefs(it, appName)
             }
         }
 

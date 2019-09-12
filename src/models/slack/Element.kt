@@ -3,21 +3,39 @@ package com.ramukaka.models.slack
 import com.google.gson.annotations.SerializedName
 
 class Element(
-    @SerializedName("type") val type: ElementType,
-    @SerializedName("label") val label: String,
-    @SerializedName("name") val name: String,
-    @SerializedName("placeholder") val placeholder: String? = null,
-    @SerializedName("max_length") val maxLength: Int? = null,
-    @SerializedName("min_length") val minLength: Int? = null,
-    @SerializedName("optional") val optional: Boolean = false,
-    @SerializedName("hint") val hint: String? = null,
-    @SerializedName("value") val defaultValue: String? = null,
-    @SerializedName("subtype") val inputType: InputType? = null,
+    @SerializedName("type") var type: ElementType = ElementType.TEXT,
+    @SerializedName("label") var label: String = "",
+    @SerializedName("name") var name: String = "",
+    @SerializedName("placeholder") var placeholder: String? = null,
+    @SerializedName("max_length") var maxLength: Int? = null,
+    @SerializedName("min_length") var minLength: Int? = null,
+    @SerializedName("optional") var optional: Boolean = false,
+    @SerializedName("hint") var hint: String? = null,
+    @SerializedName("value") var defaultValue: String? = null,
+    @SerializedName("subtype") var inputType: InputType? = null,
     // Select options
-    @SerializedName("options") val options: List<Option>? = null,
+    @SerializedName("options") var options: MutableList<Option>? = null,
     // Predefined data from slack for selection
-    @SerializedName("data_source") val dataSource: DataSource? = null
+    @SerializedName("data_source") var dataSource: DataSource? = null
 ) {
+    operator fun Option.unaryPlus() {
+        if(options == null) {
+            options = mutableListOf()
+        }
+        options?.add(this)
+    }
+
+    operator fun MutableList<Option>.unaryPlus() {
+        if(options == null) {
+            options = mutableListOf()
+        }
+        options?.addAll(this)
+    }
+
+    operator fun MutableList<Option>?.invoke(function: MutableList<Option>?.() -> Unit) {
+        function()
+    }
+
     enum class InputType(val value: String) {
         @SerializedName("email")
         EMAIL("email"),
@@ -41,7 +59,11 @@ class Element(
     }
 
     class Option(
-        @SerializedName("label") val label: String,
-        @SerializedName("value") val value: String
+        @SerializedName("label") var label: String = "",
+        @SerializedName("value") var value: String = ""
     )
 }
+
+fun elementOption(block: Element.Option.() -> Unit) = Element.Option().apply(block)
+
+fun element(block: Element.() -> Unit) = Element().apply(block)

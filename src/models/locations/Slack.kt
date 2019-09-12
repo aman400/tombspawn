@@ -10,6 +10,9 @@ class Slack {
     @Location("/command/fleet")
     class Fleet
 
+    @Location("/command/standup")
+    class Standup
+
     @Location("/command/api/mock")
     class MockApi
 

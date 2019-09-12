@@ -5,29 +5,49 @@ import com.google.gson.annotations.SerializedName
 data class Action(
 
 	@SerializedName("confirm")
-	val confirm: Confirm? = null,
+	var confirm: Confirm? = null,
 
 	@SerializedName("name")
-	val name: String? = null,
+	var name: String? = null,
 
 	@SerializedName("text")
-	val text: String? = null,
+	var text: String? = null,
 
 	@SerializedName("type")
-	val type: ActionType? = ActionType.DEFAULT,
+	var type: ActionType? = ActionType.DEFAULT,
 
 	@SerializedName("value")
-	val value: String? = null,
+	var value: String? = null,
 
 	@SerializedName("options")
-	val options: List<Option>? = null,
+	var actionOptions: MutableList<Option>? = null,
 
 	@SerializedName("url")
-	val url: String? = null,
+	var url: String? = null,
 
 	@SerializedName("style")
-	val style: ActionStyle = ActionStyle.DEFAULT
+	var style: ActionStyle = ActionStyle.DEFAULT
 ) {
+
+	operator fun Option.unaryPlus() {
+		if (actionOptions == null) {
+			actionOptions = mutableListOf(this)
+		} else {
+			actionOptions?.add(this)
+		}
+	}
+
+	operator fun MutableList<Option>.unaryPlus() {
+		if (actionOptions == null) {
+			actionOptions = mutableListOf()
+		}
+		actionOptions?.addAll(this)
+	}
+
+	operator fun MutableList<Option>?.invoke(function: MutableList<Option>?.() -> Unit) {
+		function()
+	}
+
 	enum class ActionType(val value: String) {
 		@SerializedName("default")
 		DEFAULT("default"),
@@ -45,4 +65,17 @@ data class Action(
 		@SerializedName("primary")
 		PRIMARY("primary")
 	}
+
+	data class Option(
+
+		@SerializedName("text")
+		val text: String? = null,
+
+		@SerializedName("value")
+		val value: String? = null
+	)
 }
+
+fun actionOption(block: Action.Option.() -> Unit) = Action.Option().apply(block)
+
+fun action(block: Action.() -> Unit) = Action().apply(block)

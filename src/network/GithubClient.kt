@@ -1,9 +1,11 @@
 package com.ramukaka.network
 
-import com.ramukaka.data.Branches
 import com.ramukaka.data.Database
+import com.ramukaka.data.Refs
 import com.ramukaka.data.Subscriptions
+import com.ramukaka.models.Reference
 import com.ramukaka.models.github.RefType
+import com.ramukaka.slackbot.SlackClient
 import com.ramukaka.utils.Constants
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
@@ -15,6 +17,7 @@ import io.ktor.routing.Routing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import models.github.Payload
+import java.util.logging.Logger
 
 @Location("/github")
 class GithubApi {
@@ -22,6 +25,8 @@ class GithubApi {
     @Location("/payload")
     class Webhook
 }
+
+val LOGGER = Logger.getLogger("com.ramukaka.network.GithubClient")
 
 fun Routing.githubWebhook(database: Database, slackClient: SlackClient, consumerAppID: String, fleetAppId: String) {
     post<GithubApi.Webhook> {
@@ -36,7 +41,7 @@ fun Routing.githubWebhook(database: Database, slackClient: SlackClient, consumer
                     launch(Dispatchers.IO) {
                         slackClient.sendShowConfirmGenerateApk(
                             resultRow[Subscriptions.channel],
-                            resultRow[Branches.name]
+                            resultRow[Refs.name]
                         )
                     }
                 }
@@ -47,10 +52,19 @@ fun Routing.githubWebhook(database: Database, slackClient: SlackClient, consumer
                     if (payload.refType!! == RefType.BRANCH) {
                         when (payload.repository!!.id!!) {
                             consumerAppID -> {
-                                database.addBranch(payload.ref!!, Constants.Common.APP_CONSUMER)
+                                database.addRef(Constants.Common.APP_CONSUMER, Reference(payload.ref!!, RefType.BRANCH))
                             }
                             fleetAppId -> {
-                                database.addBranch(payload.ref!!, Constants.Common.APP_FLEET)
+                                database.addRef(Constants.Common.APP_FLEET, Reference(payload.ref!!, RefType.BRANCH))
+                            }
+                        }
+                    } else if(payload.refType == RefType.TAG) {
+                        when(payload.repository?.id) {
+                            consumerAppID -> {
+                                database.addRef(Constants.Common.APP_CONSUMER, Reference(payload.ref!!, RefType.TAG))
+                            }
+                            fleetAppId -> {
+                                database.addRef(Constants.Common.APP_FLEET, Reference(payload.ref!!, RefType.TAG))
                             }
                         }
                     }
@@ -62,10 +76,20 @@ fun Routing.githubWebhook(database: Database, slackClient: SlackClient, consumer
                     if (payload.refType!! == RefType.BRANCH) {
                         when (payload.repository!!.id!!) {
                             consumerAppID -> {
-                                database.deleteBranch(payload.ref!!, Constants.Common.APP_CONSUMER)
+                                database.deleteRef(Constants.Common.APP_CONSUMER, Reference(payload.ref!!, RefType.BRANCH))
                             }
                             fleetAppId -> {
-                                database.deleteBranch(payload.ref!!, Constants.Common.APP_FLEET)
+                                database.deleteRef(Constants.Common.APP_FLEET, Reference(payload.ref!!, RefType.BRANCH))
+                            }
+                        }
+                    }
+                    else if(payload.refType == RefType.TAG) {
+                        when(payload.repository?.id) {
+                            consumerAppID -> {
+                                database.deleteRef(Constants.Common.APP_CONSUMER, Reference(payload.ref!!, RefType.TAG))
+                            }
+                            fleetAppId -> {
+                                database.deleteRef(Constants.Common.APP_FLEET, Reference(payload.ref!!, RefType.TAG))
                             }
                         }
                     }
