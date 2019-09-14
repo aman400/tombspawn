@@ -192,18 +192,15 @@ class SlackClient(
                 }
             }
 
-            runBlocking {
-                val buildVariants = gradleBotClient.fetchBuildVariants(appDir)
-                buildVariants?.let {
-                    database.addBuildVariants(it, appName)
-                }
-
-                val productFlavours = gradleBotClient.fetchProductFlavours(appDir)
-                productFlavours?.let {
-                    database.addFlavours(it, appName)
-                }
+            val buildVariants = gradleBotClient.fetchBuildVariants(appDir)
+            buildVariants?.let {
+                database.addBuildVariants(it, appName)
             }
 
+            val productFlavours = gradleBotClient.fetchProductFlavours(appDir)
+            productFlavours?.let {
+                database.addFlavours(it, appName)
+            }
 
             val buildId = UUID.randomUUID().toString()
             requestExecutor.send(Request(executableCommand, executionDirectory, id = buildId))

@@ -11,7 +11,7 @@ buildscript {
 
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath "com.github.jengelman.gradle.plugins:shadow:5.0.0"
+        classpath "com.github.jengelman.gradle.plugins:shadow:5.1.0"
     }
 }
 
@@ -51,7 +51,7 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     implementation "ch.qos.logback:logback-classic:$logback_version"
     implementation 'com.google.code.gson:gson:2.8.5'
-    implementation 'org.jetbrains.exposed:exposed:0.13.7'
+    implementation 'org.jetbrains.exposed:exposed:0.14.1'
     implementation 'mysql:mysql-connector-java:8.0.12'
     implementation 'org.koin:koin-ktor:2.0.1'
     implementation "io.ktor:ktor-client-json:$ktor_version"
@@ -63,6 +63,7 @@ dependencies {
     implementation "io.ktor:ktor-server-netty:$ktor_version"
     implementation group: 'com.zaxxer', name: 'HikariCP', version: '3.3.1'
     implementation 'org.redisson:redisson:3.10.7'
+    implementation 'redis.clients:jedis:3.1.0'
     implementation "org.jetbrains.kotlinx:kotlinx-html-jvm:0.6.12"
     implementation "io.ktor:ktor-server-sessions:$ktor_version"
     implementation "io.ktor:ktor-auth-jwt:$ktor_version"
