@@ -13,6 +13,7 @@ import com.ramukaka.models.*
 import com.ramukaka.models.Command
 import com.ramukaka.models.Failure
 import com.ramukaka.models.Success
+import com.ramukaka.models.config.Slack
 import com.ramukaka.models.github.RefType
 import com.ramukaka.models.slack.*
 import com.ramukaka.network.*
@@ -47,12 +48,9 @@ import kotlin.collections.set
 
 class SlackClient(
     private val httpClient: HttpClient,
-    private val slackAuthToken: String,
     private val gradlePath: String, private val uploadDirPath: String,
     private val gradleBotClient: GradleBotClient, private val database: Database,
-    private val slackBotToken: String,
-    private val slackClientId: String,
-    private val slackSecret: String,
+    private val slack: Slack,
     private val requestExecutor: SendChannel<Command>,
     private val responseListeners: MutableMap<String, CompletableDeferred<CommandResponse>>
 ) {
@@ -84,7 +82,7 @@ class SlackClient(
     suspend fun updateMessage(updatedMessage: SlackMessage, channel: String) {
         withContext(Dispatchers.IO) {
             val params = ParametersBuilder().apply {
-                append(Constants.Slack.TOKEN, slackBotToken)
+                append(Constants.Slack.TOKEN, slack.botToken)
                 append(Constants.Slack.CHANNEL, channel)
                 append(Constants.Slack.TEXT, updatedMessage.message ?: "")
                 append(Constants.Slack.TS, updatedMessage.timestamp!!)
@@ -330,7 +328,7 @@ class SlackClient(
             it.read(buf)
         }
         val formData = formData {
-            append("token", slackBotToken)
+            append("token", slack.botToken)
             append("title", file.nameWithoutExtension)
             append("filename", file.name)
             append("filetype", "auto")
@@ -411,7 +409,7 @@ class SlackClient(
                 method = HttpMethod.Get
                 url {
                     encodedPath = "/api/users.profile.get"
-                    parameter("token", slackAuthToken)
+                    parameter("token", slack.authToken)
                     parameter("user", userId)
                 }
             }
@@ -480,7 +478,7 @@ class SlackClient(
         val params = ParametersBuilder().apply {
             append(Constants.Slack.TEXT, message)
             append(Constants.Slack.CHANNEL, channelId)
-            append(Constants.Slack.TOKEN, slackBotToken)
+            append(Constants.Slack.TOKEN, slack.botToken)
             attachments?.let {
                 append(Constants.Slack.ATTACHMENTS, gson.toJson(attachments))
             }
@@ -516,7 +514,7 @@ class SlackClient(
             append(Constants.Slack.TEXT, message)
             append(Constants.Slack.USER, userId)
             append(Constants.Slack.CHANNEL, channelId)
-            append(Constants.Slack.TOKEN, slackBotToken)
+            append(Constants.Slack.TOKEN, slack.botToken)
         }.build()
         val call = httpClient.call {
             method = HttpMethod.Post
@@ -570,7 +568,7 @@ class SlackClient(
     suspend fun sendShowDialog(dialog: Dialog, triggerId: String) = withContext(Dispatchers.IO) {
         val params = Parameters.build {
             append(Constants.Slack.DIALOG, gson.toJson(dialog))
-            append(Constants.Slack.TOKEN, slackBotToken)
+            append(Constants.Slack.TOKEN, slack.botToken)
             append(Constants.Slack.TRIGGER_ID, triggerId)
         }
         val call = httpClient.call {
@@ -675,7 +673,7 @@ class SlackClient(
         }
 
         withContext(Dispatchers.IO) {
-            openActionDialog(dialog, slackBotToken, triggerId)
+            openActionDialog(dialog, slack.botToken, triggerId)
         }
 
     }
@@ -783,7 +781,7 @@ class SlackClient(
         }
 
         withContext(Dispatchers.IO) {
-            openActionDialog(dialog, slackBotToken, triggerId)
+            openActionDialog(dialog, slack.botToken, triggerId)
         }
     }
 
@@ -924,8 +922,8 @@ class SlackClient(
             url {
                 encodedPath = "api/oauth.access"
                 parameters.append(Constants.Slack.CODE, code)
-                parameters.append(Constants.Slack.CLIENT_ID, slackClientId)
-                parameters.append(Constants.Slack.CLIENT_SECRET, slackSecret)
+                parameters.append(Constants.Slack.CLIENT_ID, slack.clientId)
+                parameters.append(Constants.Slack.CLIENT_SECRET, slack.secret)
             }
             method = HttpMethod.Get
         }

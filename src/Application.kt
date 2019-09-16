@@ -9,6 +9,8 @@ import com.ramukaka.di.*
 import com.ramukaka.extensions.commandExecutor
 import com.ramukaka.extensions.isDebug
 import com.ramukaka.models.CommandResponse
+import com.ramukaka.models.config.JWT
+import com.ramukaka.models.config.Slack
 import com.ramukaka.network.GradleBotClient
 import com.ramukaka.network.exhaustive
 import com.ramukaka.network.githubWebhook
@@ -53,7 +55,6 @@ private val env = System.getenv()
 private var UPLOAD_DIR_PATH = "${System.getProperty("user.dir")}/temp"
 private var CONSUMER_APP_DIR = env["CONSUMER_APP_DIR"]!!
 private var FLEET_APP_DIR = env["FLEET_APP_DIR"]!!
-private var BOT_TOKEN = env["SLACK_TOKEN"]!!
 private var CONSUMER_APP_URL = env["CONSUMER_APP_URL"]!!
 private var FLEET_APP_URL = env["FLEET_APP_URL"]!!
 
@@ -66,28 +67,32 @@ private var FLEET_APP_ID = env["FLEET_APP_GITHUB_REPO_ID"]
 fun Application.module() {
     val LOGGER = LoggerFactory.getLogger("com.application")
 
-    val jwtIssuer = environment.config.property("jwt.domain").getString()
-    val jwtSecret = environment.config.property("jwt.secret").getString()
-    val jwtAudience = environment.config.property("jwt.audience").getString()
-    val jwtRealm = environment.config.property("jwt.realm").getString()
+    val jwt: JWT by inject() {
+        parametersOf(this)
+    }
+
+    val slack: Slack by inject {
+        parametersOf(this)
+    }
 
     val jwtConfig: JWTConfig by inject {
-        parametersOf(jwtSecret, jwtIssuer, jwtAudience)
+        parametersOf(jwt.secret, jwt.domain, jwt.audience)
     }
 
     install(Koin) {
-        modules(listOf(dbModule, httpClientModule, envVariables, gradleBotClient, slackModule, gson, redis, authentication))
+        modules(listOf(dbModule, httpClientModule, gradleBotClient,
+            slackModule, gson, redis, authentication, config))
         logger(object : Logger() {
             override fun log(level: org.koin.core.logger.Level, msg: MESSAGE) {
                 when (level) {
                     org.koin.core.logger.Level.DEBUG -> {
-                        println(msg)
+                        LOGGER.debug(msg)
                     }
                     org.koin.core.logger.Level.INFO -> {
-                        println(msg)
+                        LOGGER.info(msg)
                     }
                     org.koin.core.logger.Level.ERROR -> {
-                        println(msg)
+                        LOGGER.error(msg)
                     }
                 }.exhaustive
             }
@@ -105,15 +110,15 @@ fun Application.module() {
         header(HttpHeaders.AccessControlAllowHeaders)
         header(HttpHeaders.AccessControlAllowMethods)
         header(HttpHeaders.AccessControlAllowOrigin)
-        anyHost()
+//        anyHost()
 
-        host("192.168.0.101:3000", listOf("http", "https"))
-        host("10.1.1.179:3000", listOf("http", "https"))
-        host("localhost:3000", listOf("http", "https"))
-        host("127.0.0.1:3000", listOf("http", "https"))
+//        host("192.168.0.101:3000", listOf("http", "https"))
+//        host("10.1.1.179:3000", listOf("http", "https"))
+//        host("localhost:3000", listOf("http", "https"))
+//        host("127.0.0.1:3000", listOf("http", "https"))
 
         allowCredentials = true
-//        allowSameOrigin = true
+        allowSameOrigin = true
         maxAge = Duration.ofDays(1)
     }
 
@@ -124,7 +129,7 @@ fun Application.module() {
     install(Authentication) {
         jwt(name = "slack-auth") {
             verifier(jwtConfig.verifier)
-            realm = jwtRealm
+            realm = jwt.realm
             validate { credential ->
                 credential.payload.getClaim("id").asString()?.let { database.findUser(it) }
             }
@@ -229,7 +234,7 @@ fun Application.module() {
     }
 
     runBlocking {
-        fetchBotData(client, database, BOT_TOKEN)
+        fetchBotData(client, database, slack.botToken)
     }
     val apps = mutableListOf(Constants.Common.APP_CONSUMER, Constants.Common.APP_FLEET)
     runBlocking { database.addApps(apps) }
@@ -237,7 +242,7 @@ fun Application.module() {
     val responseListener = mutableMapOf<String, CompletableDeferred<CommandResponse>>()
     val requestExecutor = commandExecutor(responseListener)
 
-    val gradleBotClient: GradleBotClient by inject { parametersOf(responseListener, requestExecutor) }
+    val gradleBotClient: GradleBotClient by inject { parametersOf(this, responseListener, requestExecutor) }
 
     launch(Dispatchers.IO) {
         initApp(gradleBotClient, database, CONSUMER_APP_DIR, Constants.Common.APP_CONSUMER)
@@ -258,10 +263,10 @@ fun Application.module() {
         )
     }
 
-    val slackClient: SlackClient by inject { parametersOf(responseListener, requestExecutor) }
+    val slackClient: SlackClient by inject { parametersOf(this, responseListener, requestExecutor) }
     launch(Dispatchers.IO) {
-        val users = slackClient.getSlackUsers(BOT_TOKEN, slackClient, null)
-        val ims = slackClient.getSlackBotImIds(BOT_TOKEN, slackClient, null)
+        val users = slackClient.getSlackUsers(slack.botToken, slackClient, null)
+        val ims = slackClient.getSlackBotImIds(slack.botToken, slackClient, null)
         users.forEach { user ->
             val im = ims.firstOrNull { im ->
                 im.user == user.id

@@ -10,6 +10,12 @@ class Slack {
     @Location("/command/fleet")
     class Fleet
 
+    @Location("/command/{appID}")
+    class Command(val appID: String) {
+        @Location("/mock")
+        class MockApi
+    }
+
     @Location("/command/standup")
     class Standup
 

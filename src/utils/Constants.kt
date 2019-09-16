@@ -23,11 +23,6 @@ class Constants {
 
     class EnvironmentVariables {
         companion object {
-            const val ENV_O_AUTH_TOKEN = "O_AUTH_TOKEN"
-            const val ENV_SLACK_TOKEN = "SLACK_TOKEN"
-            const val ENV_GRADLE_PATH = "GRADLE_PATH"
-            const val ENV_SLACK_CLIENT_ID = "CLIENT_ID"
-            const val ENV_SLACK_SECRET = "SLACK_SECRET"
             const val ENV_UPLOAD_DIR_PATH = "UPLOAD_DIR_PATH"
         }
     }

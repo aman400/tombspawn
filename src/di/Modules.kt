@@ -10,10 +10,12 @@ import com.ramukaka.data.Database
 import com.ramukaka.data.StringMap
 import com.ramukaka.models.Command
 import com.ramukaka.models.CommandResponse
+import com.ramukaka.models.config.*
 import com.ramukaka.network.GradleBotClient
 import com.ramukaka.network.utils.Headers
 import com.ramukaka.slackbot.SlackClient
 import com.ramukaka.utils.Constants
+import io.ktor.application.Application
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.apache.Apache
 import io.ktor.client.features.defaultRequest
@@ -22,8 +24,10 @@ import io.ktor.client.features.json.JsonFeature
 import io.ktor.client.features.logging.LogLevel
 import io.ktor.client.features.logging.Logger
 import io.ktor.http.URLProtocol
+import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.SendChannel
+import org.koin.core.parameter.parametersOf
 import org.koin.core.qualifier.StringQualifier
 import org.koin.dsl.module
 import org.redisson.Redisson
@@ -116,17 +120,18 @@ val httpClientModule = module {
 }
 
 val slackModule = module {
-    single { (responseListener: MutableMap<String, CompletableDeferred<CommandResponse>>, requestExecutor: SendChannel<Command>) ->
+    single { (application: Application, responseListener: MutableMap<String, CompletableDeferred<CommandResponse>>, requestExecutor: SendChannel<Command>) ->
         SlackClient(
             get(),
-            get(StringQualifier(Constants.EnvironmentVariables.ENV_O_AUTH_TOKEN)),
-            get(StringQualifier(Constants.EnvironmentVariables.ENV_GRADLE_PATH)),
+            get<Common> {
+                parametersOf(application)
+            }.gradlePath,
             get(StringQualifier(Constants.EnvironmentVariables.ENV_UPLOAD_DIR_PATH)),
             get(),
             get(),
-            get(StringQualifier(Constants.EnvironmentVariables.ENV_SLACK_TOKEN)),
-            get(StringQualifier(Constants.EnvironmentVariables.ENV_SLACK_CLIENT_ID)),
-            get(StringQualifier(Constants.EnvironmentVariables.ENV_SLACK_SECRET)),
+            get {
+                parametersOf(application)
+            },
             requestExecutor,
             responseListener
         )
@@ -134,9 +139,11 @@ val slackModule = module {
 }
 
 val gradleBotClient = module {
-    single { (responseListener: MutableMap<String, CompletableDeferred<CommandResponse>>, requestExecutor: SendChannel<Command>) ->
+    single { (application: Application, responseListener: MutableMap<String, CompletableDeferred<CommandResponse>>, requestExecutor: SendChannel<Command>) ->
         GradleBotClient(
-            get(StringQualifier(Constants.EnvironmentVariables.ENV_GRADLE_PATH)),
+            get<Common> {
+                parametersOf(application)
+            }.gradlePath,
             responseListener,
             requestExecutor
         )
@@ -164,25 +171,54 @@ val authentication = module {
     }
 }
 
-val envVariables = module {
-    single(StringQualifier(Constants.EnvironmentVariables.ENV_O_AUTH_TOKEN)) {
-        System.getenv()[Constants.EnvironmentVariables.ENV_O_AUTH_TOKEN]!!
+@UseExperimental(KtorExperimentalAPI::class)
+val config = module {
+    single { (application: Application) ->
+        application.environment.config.configList("conf.apps").map {
+            App(
+                it.property("id").getString(),
+                it.property("app_url").getString(),
+                it.property("repo_id").getString(),
+                it.property("dir").getString()
+            )
+        }
     }
 
-    single(StringQualifier(Constants.EnvironmentVariables.ENV_SLACK_TOKEN)) {
-        System.getenv()[Constants.EnvironmentVariables.ENV_SLACK_TOKEN]!!
+    single { (application: Application) ->
+        application.environment.config.config("conf.slack").let {
+            Slack(
+                it.property("token").getString(), it.property("auth_token").getString(),
+                it.property("client_id").getString(), it.property("secret").getString()
+            )
+        }
     }
 
-    single(StringQualifier(Constants.EnvironmentVariables.ENV_GRADLE_PATH)) {
-        Constants.Common.COMMAND_GRADLE
+    single { (application: Application) ->
+        application.environment.config.config("conf.db").let {
+            Db(
+                it.property("url").getString(),
+                it.property("username").getString(),
+                it.property("password").getString()
+            )
+        }
     }
 
-    single(StringQualifier(Constants.EnvironmentVariables.ENV_SLACK_CLIENT_ID)) {
-        System.getenv()[Constants.EnvironmentVariables.ENV_SLACK_CLIENT_ID]
+    single { (application: Application) ->
+        application.environment.config.config("conf.jwt").let {
+            JWT(
+                it.property("domain").getString(),
+                it.property("audience").getString(),
+                it.property("realm").getString(),
+                it.property("secret").getString()
+            )
+        }
     }
 
-    single(StringQualifier(Constants.EnvironmentVariables.ENV_SLACK_SECRET)) {
-        System.getenv()[Constants.EnvironmentVariables.ENV_SLACK_SECRET]
+    single { (application: Application) ->
+        application.environment.config.config("conf.common").let {
+            Common(it.property("base_url").getString(),
+                it.property("gradle_path").getString())
+        }
     }
 
     single(StringQualifier(Constants.EnvironmentVariables.ENV_UPLOAD_DIR_PATH)) {
