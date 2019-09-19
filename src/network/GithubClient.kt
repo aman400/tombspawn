@@ -4,8 +4,10 @@ import com.ramukaka.data.Database
 import com.ramukaka.data.Refs
 import com.ramukaka.data.Subscriptions
 import com.ramukaka.models.Reference
+import com.ramukaka.models.config.App
 import com.ramukaka.models.github.RefType
 import com.ramukaka.slackbot.SlackClient
+import com.ramukaka.slackbot.sendShowConfirmGenerateApk
 import com.ramukaka.utils.Constants
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
@@ -17,7 +19,7 @@ import io.ktor.routing.Routing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import models.github.Payload
-import java.util.logging.Logger
+import org.slf4j.LoggerFactory
 
 @Location("/github")
 class GithubApi {
@@ -26,45 +28,48 @@ class GithubApi {
     class Webhook
 }
 
-val LOGGER = Logger.getLogger("com.ramukaka.network.GithubClient")
+val LOGGER = LoggerFactory.getLogger("com.ramukaka.network.GithubClient")
 
-fun Routing.githubWebhook(database: Database, slackClient: SlackClient, consumerAppID: String, fleetAppId: String) {
+fun Routing.githubWebhook(apps: List<App>, database: Database, slackClient: SlackClient) {
     post<GithubApi.Webhook> {
         val payload = call.receive<Payload>()
         val headers = call.request.headers
         when {
             headers[Constants.Github.HEADER_KEY_EVENT] == Constants.Github.HEADER_VALUE_EVENT_PUSH -> payload.ref?.let { ref ->
-                call.respond(HttpStatusCode.OK)
-                val branch = ref.substringAfter("refs/heads/")
-                val subscriptions = database.findSubscriptions(branch)
-                subscriptions.orEmpty().forEach { resultRow ->
-                    launch(Dispatchers.IO) {
-                        slackClient.sendShowConfirmGenerateApk(
-                            resultRow[Subscriptions.channel],
-                            resultRow[Refs.name]
-                        )
+                apps.firstOrNull {
+                    it.repoId == payload.repository?.id
+                }?.let { app ->
+                    call.respond(HttpStatusCode.OK)
+                    val branch = ref.substringAfter("refs/heads/")
+                    val subscriptions = database.findSubscriptions(branch, app.id)
+                    subscriptions.orEmpty().forEach { resultRow ->
+                        launch(Dispatchers.IO) {
+                            slackClient.sendShowConfirmGenerateApk(
+                                resultRow[Subscriptions.channel],
+                                resultRow[Refs.name],
+                                Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK + app.id
+                            )
+                        }
                     }
                 }
             }
             headers[Constants.Github.HEADER_KEY_EVENT] == Constants.Github.HEADER_VALUE_EVENT_CREATE -> {
                 call.respond(HttpStatusCode.OK)
                 launch {
-                    if (payload.refType!! == RefType.BRANCH) {
-                        when (payload.repository!!.id!!) {
-                            consumerAppID -> {
-                                database.addRef(Constants.Common.APP_CONSUMER, Reference(payload.ref!!, RefType.BRANCH))
-                            }
-                            fleetAppId -> {
-                                database.addRef(Constants.Common.APP_FLEET, Reference(payload.ref!!, RefType.BRANCH))
+                    if (payload.refType == RefType.BRANCH) {
+                        apps.firstOrNull {
+                            it.repoId == payload.repository?.id
+                        }?.let { app ->
+                            payload.ref?.let { ref ->
+                                database.addRef(app.id, Reference(ref, RefType.BRANCH))
                             }
                         }
-                    } else if(payload.refType == RefType.TAG) {
-                        when(payload.repository?.id) {
-                            consumerAppID -> {
-                                database.addRef(Constants.Common.APP_CONSUMER, Reference(payload.ref!!, RefType.TAG))
-                            }
-                            fleetAppId -> {
-                                database.addRef(Constants.Common.APP_FLEET, Reference(payload.ref!!, RefType.TAG))
+                    } else if (payload.refType == RefType.TAG) {
+                        apps.firstOrNull {
+                            it.repoId == payload.repository?.id
+                        }?.let { app ->
+                            payload.ref?.let { ref ->
+                                database.addRef(app.id, Reference(ref, RefType.TAG))
                             }
                         }
                     }
@@ -73,23 +78,20 @@ fun Routing.githubWebhook(database: Database, slackClient: SlackClient, consumer
             headers[Constants.Github.HEADER_KEY_EVENT] == Constants.Github.HEADER_VALUE_EVENT_DELETE -> {
                 call.respond(HttpStatusCode.OK)
                 launch {
-                    if (payload.refType!! == RefType.BRANCH) {
-                        when (payload.repository!!.id!!) {
-                            consumerAppID -> {
-                                database.deleteRef(Constants.Common.APP_CONSUMER, Reference(payload.ref!!, RefType.BRANCH))
-                            }
-                            fleetAppId -> {
-                                database.deleteRef(Constants.Common.APP_FLEET, Reference(payload.ref!!, RefType.BRANCH))
+                    if (payload.refType == RefType.BRANCH) {
+                        apps.firstOrNull {
+                            it.repoId == payload.repository?.id
+                        }?.let { app ->
+                            payload.ref?.let { ref ->
+                                database.deleteRef(app.id, Reference(ref, RefType.BRANCH))
                             }
                         }
-                    }
-                    else if(payload.refType == RefType.TAG) {
-                        when(payload.repository?.id) {
-                            consumerAppID -> {
-                                database.deleteRef(Constants.Common.APP_CONSUMER, Reference(payload.ref!!, RefType.TAG))
-                            }
-                            fleetAppId -> {
-                                database.deleteRef(Constants.Common.APP_FLEET, Reference(payload.ref!!, RefType.TAG))
+                    } else if (payload.refType == RefType.TAG) {
+                        apps.firstOrNull {
+                            it.repoId == payload.repository?.id
+                        }?.let { app ->
+                            payload.ref?.let { ref ->
+                                database.deleteRef(app.id, Reference(ref, RefType.TAG))
                             }
                         }
                     }

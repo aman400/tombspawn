@@ -38,15 +38,15 @@ private const val ARG_GSON_BUILDER = "gson_builder"
 private const val ARG_JSON_SERIALIZER = "json_serializer"
 
 val dbModule = module {
-    single { (isDebug: Boolean) ->
-        val dbUrl = System.getenv()["DB_URL"]!!
-        val dbUser = System.getenv()["DB_USER"]!!
-        val dbPassword = System.getenv()["DB_PASSWORD"]!!
-        Database(dbUrl, dbUser, dbPassword, isDebug)
+    single { (application: Application, isDebug: Boolean) ->
+        val db = get<Db> {
+            parametersOf(application)
+        }
+        Database(db.url, db.username, db.password, isDebug)
     }
 }
 
-val gson = module {
+val gsonModule = module {
     single(StringQualifier(ARG_GSON_BUILDER)) {
         val gsonBuilder = GsonBuilder()
         gsonBuilder.setPrettyPrinting()
@@ -133,7 +133,8 @@ val slackModule = module {
                 parametersOf(application)
             },
             requestExecutor,
-            responseListener
+            responseListener,
+            get()
         )
     }
 }
@@ -177,6 +178,7 @@ val config = module {
         application.environment.config.configList("conf.apps").map {
             App(
                 it.property("id").getString(),
+                it.property("name").getString(),
                 it.property("app_url").getString(),
                 it.property("repo_id").getString(),
                 it.property("dir").getString()

@@ -3,16 +3,12 @@ package com.ramukaka.slackbot
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.ramukaka.auth.models.SlackAuthResponse
-import com.ramukaka.data.Database
-import com.ramukaka.data.Ref
 import com.ramukaka.data.DBUser
+import com.ramukaka.data.Database
 import com.ramukaka.extensions.await
 import com.ramukaka.extensions.random
 import com.ramukaka.extensions.toMap
 import com.ramukaka.models.*
-import com.ramukaka.models.Command
-import com.ramukaka.models.Failure
-import com.ramukaka.models.Success
 import com.ramukaka.models.config.Slack
 import com.ramukaka.models.github.RefType
 import com.ramukaka.models.slack.*
@@ -26,24 +22,18 @@ import io.ktor.client.request.forms.formData
 import io.ktor.client.request.parameter
 import io.ktor.client.request.url
 import io.ktor.http.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.SendChannel
-import models.slack.*
+import kotlinx.coroutines.withContext
+import models.slack.Event
+import models.slack.IMListData
+import models.slack.SlackUser
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.FileInputStream
 import java.net.URL
 import java.util.*
-import java.util.logging.Level
-import java.util.logging.Logger
-import kotlin.collections.List
-import kotlin.collections.MutableMap
-import kotlin.collections.filter
-import kotlin.collections.firstOrNull
-import kotlin.collections.forEach
-import kotlin.collections.listOf
-import kotlin.collections.map
-import kotlin.collections.mutableListOf
-import kotlin.collections.mutableMapOf
 import kotlin.collections.set
 
 class SlackClient(
@@ -52,7 +42,8 @@ class SlackClient(
     private val gradleBotClient: GradleBotClient, private val database: Database,
     private val slack: Slack,
     private val requestExecutor: SendChannel<Command>,
-    private val responseListeners: MutableMap<String, CompletableDeferred<CommandResponse>>
+    private val responseListeners: MutableMap<String, CompletableDeferred<CommandResponse>>,
+    val gson: Gson
 ) {
     private val randomWaitingMessages = listOf(
         "Utha le re Baghwan..",
@@ -72,12 +63,7 @@ class SlackClient(
         "Preparing to Spin You Around Rapidly"
     )
 
-    private val gson = Gson()
-    private val LOGGER = Logger.getLogger("com.application.slack.client")
-
-    init {
-        LOGGER.level = Level.ALL
-    }
+    private val LOGGER = LoggerFactory.getLogger("com.application.slack.client")
 
     suspend fun updateMessage(updatedMessage: SlackMessage, channel: String) {
         withContext(Dispatchers.IO) {
@@ -102,11 +88,11 @@ class SlackClient(
                 }
                 is CallFailure -> {
                     LOGGER.info("Dialog posting failed")
-                    LOGGER.fine(response.errorBody)
+                    LOGGER.error(response.errorBody)
                 }
                 is CallError -> {
                     LOGGER.info("Dialog posting failed")
-                    LOGGER.log(Level.SEVERE, "Unable to post dialog", response.throwable)
+                    LOGGER.error("Unable to post dialog", response.throwable)
                 }
             }.exhaustive
         }
@@ -167,8 +153,7 @@ class SlackClient(
 
             when (val pullCodeResponse = pullCodeResponseListener.await()) {
                 is Failure -> {
-                    LOGGER.log(
-                        Level.SEVERE,
+                    LOGGER.error(
                         if (pullCodeResponse.error.isNullOrEmpty()) "Unable to pull code from branch: $selectedBranch" else pullCodeResponse.error,
                         pullCodeResponse.throwable
                     )
@@ -216,8 +201,8 @@ class SlackClient(
                             if (file.exists()) {
                                 uploadFile(file, channelId)
                             } else {
-                                LOGGER.log(Level.SEVERE, "APK Generated but file not found in the folder")
-                                LOGGER.log(Level.SEVERE, commandResponse.data)
+                                LOGGER.error("APK Generated but file not found in the folder")
+                                LOGGER.error(commandResponse.data)
                                 if (responseUrl != null) {
                                     sendMessage(
                                         responseUrl,
@@ -235,8 +220,8 @@ class SlackClient(
                                 }
                             }
                         } ?: run {
-                            LOGGER.log(Level.SEVERE, "APK Generated but not found in the folder")
-                            LOGGER.log(Level.SEVERE, commandResponse.data)
+                            LOGGER.error("APK Generated but not found in the folder")
+                            LOGGER.error(commandResponse.data)
 
                             if (responseUrl != null) {
                                 sendMessage(
@@ -255,8 +240,8 @@ class SlackClient(
                             }
                         }
                     } else {
-                        LOGGER.log(Level.SEVERE, "APK Generated but not found in the folder")
-                        LOGGER.log(Level.SEVERE, commandResponse.data)
+                        LOGGER.error("APK Generated but not found in the folder")
+                        LOGGER.error(commandResponse.data)
                         if (responseUrl != null) {
                             sendMessage(
                                 responseUrl,
@@ -276,7 +261,7 @@ class SlackClient(
                 }
 
                 is Failure -> {
-                    LOGGER.log(Level.SEVERE, commandResponse.error, commandResponse.throwable)
+                    LOGGER.error(commandResponse.error, commandResponse.throwable)
                     if (responseUrl != null) {
                         sendMessage(
                             responseUrl,
@@ -313,10 +298,10 @@ class SlackClient(
                 LOGGER.info(response.data.toString())
             }
             is CallFailure -> {
-                LOGGER.fine(response.errorBody)
+                LOGGER.error(response.errorBody)
             }
             is CallError -> {
-                LOGGER.log(Level.SEVERE, "Unable to send message", response.throwable)
+                LOGGER.error("Unable to send message", response.throwable)
             }
         }
     }
@@ -363,23 +348,23 @@ class SlackClient(
                                 channelId,
                                 null
                             )
-                            LOGGER.severe("Not delivered")
+                            LOGGER.error("Not delivered")
                         }
                     }
                     is CallFailure -> {
-                        LOGGER.severe("Not delivered")
-                        LOGGER.log(Level.SEVERE, response.errorBody, response.throwable)
+                        LOGGER.error("Not delivered")
+                        LOGGER.error(response.errorBody, response.throwable)
                     }
                     is CallError -> {
-                        LOGGER.severe("Call failed unable to deliver APK")
-                        LOGGER.log(Level.SEVERE, response.throwable?.message, response.throwable)
+                        LOGGER.error("Call failed unable to deliver APK")
+                        LOGGER.error(response.throwable?.message, response.throwable)
                     }
                 }.exhaustive
 
                 if (deleteFile)
                     file.delete()
             } catch (exception: Exception) {
-                LOGGER.log(Level.SEVERE, "Unable to push apk to Slack.", exception)
+                LOGGER.error("Unable to push apk to Slack.", exception)
                 if (deleteFile) {
                     file.delete()
                 }
@@ -426,11 +411,11 @@ class SlackClient(
                 }
 
                 is CallFailure -> {
-                    LOGGER.log(Level.SEVERE, response.errorBody, response.throwable)
+                    LOGGER.error(response.errorBody, response.throwable)
                 }
 
                 is CallError -> {
-                    LOGGER.log(Level.SEVERE, response.throwable, null)
+                    LOGGER.error(response.throwable?.message, response.throwable)
                 }
             }
         }
@@ -529,40 +514,13 @@ class SlackClient(
                     LOGGER.info(response.data.toString())
                 }
                 is CallFailure -> {
-                    LOGGER.fine(response.errorBody)
+                    LOGGER.error(response.errorBody)
                 }
                 is CallError -> {
                     LOGGER.info(response.throwable?.message)
                 }
             }.exhaustive
         }
-    }
-
-    suspend fun sendShowSubscriptionDialog(
-        branches: List<Ref>?,
-        triggerId: String
-    ) {
-        val branchList = mutableListOf<Element.Option>()
-        branches?.forEach { branch ->
-            branchList.add(Element.Option("${branch.name}(${branch.type.type})", branch.name))
-        }
-        val dialog = dialog {
-            callbackId = Constants.Slack.CALLBACK_SUBSCRIBE_CONSUMER
-            title = "Subscription Details"
-            submitLabel = "Submit"
-            notifyOnCancel = false
-            elements {
-                element {
-                    type = ElementType.SELECT
-                    label = "Select Branch"
-                    name = Constants.Slack.TYPE_SELECT_BRANCH
-                    options {
-                        +branchList
-                    }
-                }
-            }
-        }
-        sendShowDialog(dialog, triggerId)
     }
 
     suspend fun sendShowDialog(dialog: Dialog, triggerId: String) = withContext(Dispatchers.IO) {
@@ -590,55 +548,6 @@ class SlackClient(
                 LOGGER.info(response.throwable?.message)
             }
         }
-    }
-
-    suspend fun sendShowConfirmGenerateApk(channelId: String, branch: String) {
-        val attachments = mutableListOf(
-            attachment {
-                callbackId = Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK
-                fallback = "Unable to generate the APK"
-                text = "Do you want to generate the APK?"
-                id = 1
-                color = "#00FF00"
-                actions {
-                    +action {
-                        confirm = confirm {
-                            text = "This will take up server resources. Generate APK only if you really want it."
-                            okText = "Yes"
-                            dismissText = "No"
-                            title = "Are you sure?"
-                        }
-                        name = Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK
-                        text = "Yes"
-                        type = Action.ActionType.BUTTON
-                        style = Action.ActionStyle.PRIMARY
-                        value = gson.toJson(
-                            generateCallback {
-                                generate = true
-                                data {
-                                    +Pair(Constants.Slack.TYPE_SELECT_BRANCH, branch)
-                                }
-                            }
-                        )
-                    }
-                    +action {
-                        confirm = null
-                        name = Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK
-                        text = "No"
-                        type = Action.ActionType.BUTTON
-                        style = Action.ActionStyle.DEFAULT
-                        value = gson.toJson(
-                            GenerateCallback(
-                                false,
-                                mutableMapOf(Constants.Slack.TYPE_SELECT_BRANCH to branch)
-                            )
-                        )
-                    }
-                }
-            }
-        )
-
-        sendMessage("New changes are available in `$branch` branch.", channelId, attachments)
     }
 
     suspend fun sendShowCreateApiDialog(verbs: List<String>?, triggerId: String) {
@@ -693,6 +602,7 @@ class SlackClient(
             branchList.add(Element.Option("${branch.name}(${branch.type.type})", branch.name))
         }
         val defaultValue: String? = if (branches?.size == 1) branchList[0].label else null
+
         if (branchList.size > 0) {
             dialogElementList.add(
                 Element(
@@ -739,6 +649,7 @@ class SlackClient(
                 Constants.Slack.TYPE_SELECT_URL,
                 defaultAppUrl,
                 hint = defaultAppUrl,
+                maxLength = 150,
                 optional = true,
                 defaultValue = defaultAppUrl,
                 inputType = Element.InputType.URL
@@ -806,11 +717,11 @@ class SlackClient(
                 }
                 is CallFailure -> {
                     LOGGER.info("Dialog posting failed")
-                    LOGGER.fine(response.errorBody)
+                    LOGGER.error(response.errorBody)
                 }
                 is CallError -> {
                     LOGGER.info("Dialog posting failed")
-                    LOGGER.log(Level.SEVERE, "Unable to post dialog", response.throwable)
+                    LOGGER.error("Unable to post dialog", response.throwable)
                 }
             }.exhaustive
         }
@@ -831,7 +742,7 @@ class SlackClient(
             method = HttpMethod.Get
         }
 
-        return when(val response = call.await<UserResponse>()) {
+        return when (val response = call.await<UserResponse>()) {
             is CallSuccess -> {
                 response.data?.let {
                     if (it.successful == true) {
@@ -843,11 +754,11 @@ class SlackClient(
                 }
             }
             is CallFailure -> {
-                LOGGER.log(Level.FINE, response.throwable, null)
+                LOGGER.error(response.throwable?.message, response.throwable)
                 null
             }
             is CallError -> {
-                LOGGER.log(Level.FINE, response.throwable, null)
+                LOGGER.error(response.throwable?.message, response.throwable)
                 null
             }
         }
@@ -941,11 +852,11 @@ class SlackClient(
                 }
             }
             is CallFailure -> {
-                LOGGER.log(Level.FINE, response.errorBody, response.throwable)
+                LOGGER.error(response.errorBody, response.throwable)
                 null
             }
             is CallError -> {
-                LOGGER.log(Level.FINE, response.throwable?.message, response.throwable)
+                LOGGER.error(response.throwable?.message, response.throwable)
                 null
             }
         }

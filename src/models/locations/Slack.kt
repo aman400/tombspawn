@@ -22,8 +22,8 @@ class Slack {
     @Location("/command/api/mock")
     class MockApi
 
-    @Location("/subscribe")
-    class Subscribe
+    @Location("/subscribe/{appID}")
+    class Subscribe(val appID: String)
 
     @Location("/event")
     class Event

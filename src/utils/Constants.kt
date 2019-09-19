@@ -34,9 +34,8 @@ class Constants {
             const val CALLBACK_STANDUP_DIALOG: String = "callback_standup_dialog"
             const val DEFAULT_BOT_ID: String = "USLACKBOT"
 
-            const val CALLBACK_CONFIRM_GENERATE_APK = "confirm_generate_apk"
-            const val CALLBACK_GENERATE_CONSUMER_APK = "generate_consumer_apk"
-            const val CALLBACK_GENERATE_FLEET_APK = "generate_fleet_apk"
+            const val CALLBACK_GENERATE_APK = "generate_apk_"
+            const val CALLBACK_CONFIRM_GENERATE_APK = "confirm_generate_apk_"
             const val CALLBACK_CREATE_API = "create_api"
 
             const val TOKEN = "token"
@@ -52,11 +51,9 @@ class Constants {
             const val CLIENT_SECRET = "client_secret"
             const val CODE = "code"
 
-            const val CALLBACK_SUBSCRIBE_CONSUMER = "subscribe_consumer_details"
+            const val CALLBACK_SUBSCRIBE_CONSUMER = "subscribe_consumer_"
 
             const val TYPE_SUBSCRIBE_CONSUMER = "subscribe-consumer"
-            const val TYPE_GENERATE_CONSUMER = "generate-consumer"
-            const val TYPE_GENERATE_FLEET = "generate-fleet"
             const val TYPE_SUBSCRIBE_FLEET = "subscribe-fleet"
             const val TRIGGER_ID: String = "trigger_id"
             const val CHANNEL_ID: String = "channel_id"

@@ -1,5 +1,6 @@
 package com.ramukaka
 
+import com.google.gson.Gson
 import com.ramukaka.auth.*
 import com.ramukaka.auth.sessions.SlackSession
 import com.ramukaka.data.Database
@@ -9,6 +10,8 @@ import com.ramukaka.di.*
 import com.ramukaka.extensions.commandExecutor
 import com.ramukaka.extensions.isDebug
 import com.ramukaka.models.CommandResponse
+import com.ramukaka.models.config.App
+import com.ramukaka.models.config.Common
 import com.ramukaka.models.config.JWT
 import com.ramukaka.models.config.Slack
 import com.ramukaka.network.GradleBotClient
@@ -42,6 +45,7 @@ import network.status
 import org.koin.core.logger.Logger
 import org.koin.core.logger.MESSAGE
 import org.koin.core.parameter.parametersOf
+import org.koin.core.qualifier.StringQualifier
 import org.koin.ktor.ext.Koin
 import org.koin.ktor.ext.inject
 import org.slf4j.LoggerFactory
@@ -52,13 +56,11 @@ fun main(args: Array<String>): Unit = EngineMain.main(args)
 
 private val env = System.getenv()
 
-private var UPLOAD_DIR_PATH = "${System.getProperty("user.dir")}/temp"
 private var CONSUMER_APP_DIR = env["CONSUMER_APP_DIR"]!!
 private var FLEET_APP_DIR = env["FLEET_APP_DIR"]!!
 private var CONSUMER_APP_URL = env["CONSUMER_APP_URL"]!!
 private var FLEET_APP_URL = env["FLEET_APP_URL"]!!
 
-private var BASE_URL = env["BASE_URL"]!!
 private var CONSUMER_APP_ID = env["CONSUMER_APP_GITHUB_REPO_ID"]
 private var FLEET_APP_ID = env["FLEET_APP_GITHUB_REPO_ID"]
 
@@ -67,7 +69,11 @@ private var FLEET_APP_ID = env["FLEET_APP_GITHUB_REPO_ID"]
 fun Application.module() {
     val LOGGER = LoggerFactory.getLogger("com.application")
 
-    val jwt: JWT by inject() {
+    val jwt: JWT by inject {
+        parametersOf(this)
+    }
+
+    val apps: List<App> by inject {
         parametersOf(this)
     }
 
@@ -75,13 +81,20 @@ fun Application.module() {
         parametersOf(this)
     }
 
+    val common: Common by inject {
+        parametersOf(this)
+    }
+
     val jwtConfig: JWTConfig by inject {
         parametersOf(jwt.secret, jwt.domain, jwt.audience)
     }
 
+    val uploadDirPath: String by inject(StringQualifier(Constants.EnvironmentVariables.ENV_UPLOAD_DIR_PATH))
+    val gson: Gson by inject()
+
     install(Koin) {
         modules(listOf(dbModule, httpClientModule, gradleBotClient,
-            slackModule, gson, redis, authentication, config))
+            slackModule, gsonModule, redis, authentication, config))
         logger(object : Logger() {
             override fun log(level: org.koin.core.logger.Level, msg: MESSAGE) {
                 when (level) {
@@ -123,7 +136,7 @@ fun Application.module() {
     }
 
     val database: Database by inject {
-        parametersOf(isDebug)
+        parametersOf(this, isDebug)
     }
 
     install(Authentication) {
@@ -236,7 +249,6 @@ fun Application.module() {
     runBlocking {
         fetchBotData(client, database, slack.botToken)
     }
-    val apps = mutableListOf(Constants.Common.APP_CONSUMER, Constants.Common.APP_FLEET)
     runBlocking { database.addApps(apps) }
 
     val responseListener = mutableMapOf<String, CompletableDeferred<CommandResponse>>()
@@ -245,8 +257,9 @@ fun Application.module() {
     val gradleBotClient: GradleBotClient by inject { parametersOf(this, responseListener, requestExecutor) }
 
     launch(Dispatchers.IO) {
-        initApp(gradleBotClient, database, CONSUMER_APP_DIR, Constants.Common.APP_CONSUMER)
-        initApp(gradleBotClient, database, FLEET_APP_DIR, Constants.Common.APP_FLEET)
+        apps.forEach {
+            initApp(gradleBotClient, database, it.dir, it.id)
+        }
     }
 
     launch {
@@ -288,13 +301,11 @@ fun Application.module() {
     routing {
         status()
         health()
-        buildConsumer(CONSUMER_APP_DIR, slackClient, database, CONSUMER_APP_URL)
-        buildFleet(FLEET_APP_DIR, slackClient, database, FLEET_APP_URL)
-        receiveApk(UPLOAD_DIR_PATH)
+        buildApp(apps, slackClient, database)
         slackEvent(database, slackClient)
-        subscribe()
-        slackAction(database, slackClient, CONSUMER_APP_DIR, BASE_URL, FLEET_APP_DIR, CONSUMER_APP_URL, FLEET_APP_URL)
-        githubWebhook(database, slackClient, CONSUMER_APP_ID!!, FLEET_APP_ID!!)
+        subscribe(slackClient, database, apps)
+        slackAction(database, slackClient, common.baseUrl, apps, gson)
+        githubWebhook(apps, database, slackClient)
         mockApi(database)
         createApi(slackClient, database)
 //        standup(slackClient)

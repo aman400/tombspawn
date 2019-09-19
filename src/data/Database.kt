@@ -46,7 +46,7 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String, private val is
         }
     }
 
-    suspend fun findSubscriptions(refName: String): List<ResultRow>? = withContext(dispatcher) {
+    suspend fun findSubscriptions(refName: String, appId: String): List<ResultRow>? = withContext(dispatcher) {
         try {
             return@withContext transaction(connection) {
                 if(isDebug) {
@@ -61,6 +61,10 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String, private val is
                     Subscriptions.userId
                 }, {
                     id
+                }).innerJoin(Apps, {
+                    Subscriptions.appId
+                }, {
+                    this.id
                 }).slice(Users.slackId, Subscriptions.channel, Refs.name).select {
                     Refs.name eq refName
                 }.withDistinct(true)
@@ -141,15 +145,15 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String, private val is
 
     }
 
-    suspend fun addApps(appNames: List<String>) = withContext(dispatcher) {
+    suspend fun addApps(appNames: List<com.ramukaka.models.config.App>) = withContext(dispatcher) {
         transaction(connection) {
             if(isDebug) {
                 addLogger(StdOutSqlLogger)
             }
             appNames.forEach {
-                if (App.find { Apps.name eq it }.limit(1).firstOrNull() == null) {
+                if (App.find { Apps.name eq it.id }.limit(1).firstOrNull() == null) {
                     App.new {
-                        this.name = it
+                        this.name = it.id
                     }
                 }
             }
