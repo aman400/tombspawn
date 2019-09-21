@@ -1,6 +1,6 @@
 package com.ramukaka.slackbot
 
-import com.ramukaka.models.locations.Slack
+import com.ramukaka.models.locations.Slackimport com.ramukaka.models.slack.SlackEvent
 import com.ramukaka.models.slack.attachment
 import com.ramukaka.utils.Constants
 import io.ktor.application.call
@@ -9,6 +9,7 @@ import io.ktor.locations.post
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.Routing
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import models.slack.Action
@@ -43,5 +44,37 @@ fun Routing.standup(slackClient: SlackClient) {
             slackClient.sendMessage("Please update your standup notes", channel!!, listOf(attachment))
         }
         call.respond(HttpStatusCode.OK)
+    }
+}
+
+fun CoroutineScope.showStandupPopup(slackClient: SlackClient, slackEvent: SlackEvent) {
+    // Handle only single action
+    val dialog = com.ramukaka.models.slack.dialog {
+        callbackId = com.ramukaka.utils.Constants.Slack.CALLBACK_STANDUP_DIALOG
+        title = "Standup notes"
+        submitLabel = "Submit"
+        notifyOnCancel = false
+        elements {
+            // Add text are for what person did on last working day
+            +com.ramukaka.models.slack.element {
+                type = com.ramukaka.models.slack.ElementType.TEXT_AREA
+                label = "What did you do on your last working day?"
+                hint = "For eg: I did nothing yesterday, I regret it today."
+                name = "yesterday"
+                maxLength = 3000
+            }
+            // Add text are for what person is going to do today
+            +com.ramukaka.models.slack.element {
+                type = com.ramukaka.models.slack.ElementType.TEXT_AREA
+                label = "What will you do today?"
+                hint =
+                    "For eg: Today I will be wasting most of my time by laughing and gossiping around."
+                name = "today"
+                maxLength = 3000
+            }
+        }
+    }
+    launch(Dispatchers.IO) {
+        slackClient.sendShowDialog(dialog, slackEvent.triggerId!!)
     }
 }

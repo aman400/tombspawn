@@ -54,16 +54,6 @@ import java.time.Duration
 
 fun main(args: Array<String>): Unit = EngineMain.main(args)
 
-private val env = System.getenv()
-
-private var CONSUMER_APP_DIR = env["CONSUMER_APP_DIR"]!!
-private var FLEET_APP_DIR = env["FLEET_APP_DIR"]!!
-private var CONSUMER_APP_URL = env["CONSUMER_APP_URL"]!!
-private var FLEET_APP_URL = env["FLEET_APP_URL"]!!
-
-private var CONSUMER_APP_ID = env["CONSUMER_APP_GITHUB_REPO_ID"]
-private var FLEET_APP_ID = env["FLEET_APP_GITHUB_REPO_ID"]
-
 @KtorExperimentalLocationsAPI
 @Suppress("unused") // Referenced in application.conf
 fun Application.module() {

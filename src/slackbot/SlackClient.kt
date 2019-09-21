@@ -36,10 +36,12 @@ import java.net.URL
 import java.util.*
 import kotlin.collections.set
 
-class SlackClient(
+class SlackClient constructor(
     private val httpClient: HttpClient,
-    private val gradlePath: String, private val uploadDirPath: String,
-    private val gradleBotClient: GradleBotClient, private val database: Database,
+    private val gradlePath: String,
+    private val uploadDirPath: String,
+    private val gradleBotClient: GradleBotClient,
+    private val database: Database,
     private val slack: Slack,
     private val requestExecutor: SendChannel<Command>,
     private val responseListeners: MutableMap<String, CompletableDeferred<CommandResponse>>,
