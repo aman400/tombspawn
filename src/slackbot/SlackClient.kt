@@ -308,27 +308,26 @@ class SlackClient(
 
 
     private suspend fun uploadFile(file: File, channelId: String, deleteFile: Boolean = true) {
-        val buf = ByteArray(file.length().toInt())
-        FileInputStream(file).use {
-            it.read(buf)
-        }
-        val formData = formData {
-            append("token", slack.botToken)
-            append("title", file.nameWithoutExtension)
-            append("filename", file.name)
-            append("filetype", "auto")
-            append("channels", channelId)
-            append(
-                "file",
-                buf,
-                Headers.build {
-                    append(HttpHeaders.ContentType, ContentType.Application.OctetStream)
-                    append(HttpHeaders.ContentDisposition, " filename=${file.name}")
-                }
-            )
-        }
-
         withContext(Dispatchers.IO) {
+            val buf = ByteArray(file.length().toInt())
+            FileInputStream(file).use {
+                it.read(buf)
+            }
+            val formData = formData {
+                append("token", slack.botToken)
+                append("title", file.nameWithoutExtension)
+                append("filename", file.name)
+                append("filetype", "auto")
+                append("channels", channelId)
+                append(
+                    "file",
+                    buf,
+                    Headers.build {
+                        append(HttpHeaders.ContentType, ContentType.Application.OctetStream)
+                        append(HttpHeaders.ContentDisposition, " filename=${file.name}")
+                    }
+                )
+            }
             val call = httpClient.call {
                 url {
                     encodedPath = "/api/files.upload"

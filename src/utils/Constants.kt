@@ -4,12 +4,9 @@ class Constants {
     class Common {
         companion object {
             const val APP_CONSUMER = "consumer"
-            const val APP_FLEET = "fleet"
 
             const val OUTPUT_SEPARATOR = "##***##"
             const val ARG_OUTPUT_SEPARATOR = "OUTPUT_SEPARATOR"
-
-            const val COMMAND_GRADLE = "./gradlew"
 
             const val GET = "GET"
             const val PUT = "PUT"
