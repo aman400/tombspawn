@@ -1,6 +1,7 @@
 package com.ramukaka.slackbot
 
-import com.ramukaka.models.locations.Slackimport com.ramukaka.models.slack.SlackEvent
+import com.ramukaka.models.locations.Slack
+import com.ramukaka.models.slack.SlackEvent
 import com.ramukaka.models.slack.attachment
 import com.ramukaka.utils.Constants
 import io.ktor.application.call
