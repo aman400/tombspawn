@@ -4,15 +4,15 @@ import com.google.gson.annotations.SerializedName
 
 data class UserProfile(
 
-	@field:SerializedName("image_24")
+	@SerializedName("image_512")
 	val imageUrl: String? = null,
 
-	@field:SerializedName("real_name_normalized")
+	@SerializedName("real_name_normalized")
 	val name: String? = null,
 
-	@field:SerializedName("avatar_hash")
+	@SerializedName("avatar_hash")
 	val avatarHash: String? = null,
 
-	@field:SerializedName("email")
+	@SerializedName("email")
 	val email: String? = null
 )

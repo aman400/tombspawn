@@ -4,12 +4,12 @@ import com.google.gson.annotations.SerializedName
 
 data class Author(
 
-	@field:SerializedName("name")
+	@SerializedName("name")
 	val name: String? = null,
 
-	@field:SerializedName("email")
+	@SerializedName("email")
 	val email: String? = null,
 
-	@field:SerializedName("username")
+	@SerializedName("username")
 	val username: String? = null
 )

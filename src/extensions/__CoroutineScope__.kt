@@ -1,7 +1,7 @@
 package com.ramukaka.extensions
 
 import com.ramukaka.models.*
-import com.ramukaka.network.RetrofitResponse
+import com.ramukaka.network.Response
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -55,13 +55,14 @@ suspend fun <T> retryCall(
     initialDelay: Long = 100, // 0.1 second
     maxDelay: Long = 1000,    // 1 second
     factor: Double = 2.0,
-    block: suspend () -> RetrofitResponse<T>
-): RetrofitResponse<T> {
+    block: suspend () -> Response<T>
+): Response<T> {
     var currentDelay = initialDelay
     repeat(times) {
-        when (block()) {
-            is com.ramukaka.network.Success -> {
-                return block()
+        val data = block()
+        when (data) {
+            is com.ramukaka.network.CallSuccess -> {
+                return data
             }
         }
         delay(currentDelay)

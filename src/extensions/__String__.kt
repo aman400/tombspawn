@@ -1,8 +1,8 @@
 package com.ramukaka.extensions
 
-import java.util.logging.Logger
+import org.slf4j.LoggerFactory
 
-private val LOGGER = Logger.getLogger("com.application.StringUtils")
+private val LOGGER = LoggerFactory.getLogger("com.application.StringUtils")
 
 fun String.toMap(): MutableMap<String, String>? {
     val returnValue = mutableMapOf<String, String>()
@@ -13,7 +13,7 @@ fun String.toMap(): MutableMap<String, String>? {
             if (pair.size == 2) {
                 returnValue[pair[0]] = pair[1]
             } else {
-                LOGGER.severe("Invalid parameters. $this")
+                LOGGER.error("Invalid parameters. $this")
                 return null
             }
         }

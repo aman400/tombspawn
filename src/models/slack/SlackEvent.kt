@@ -8,7 +8,7 @@ import models.slack.SlackUser
 data class SlackEvent(
     @SerializedName("token") val token: String?,
     @SerializedName("challenge") val challenge: String?,
-    @SerializedName("type") val type: String?,
+    @SerializedName("type") val type: Event.EventType?,
     @SerializedName("user") val user: SlackUser?,
     @SerializedName("channel") val channel: Channel?,
     @SerializedName("event_ts") val timestamp: Long?,

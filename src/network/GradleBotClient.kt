@@ -3,6 +3,7 @@ package com.ramukaka.network
 import com.ramukaka.models.*
 import com.ramukaka.models.Failure
 import com.ramukaka.models.Success
+import com.ramukaka.models.github.RefType
 import com.ramukaka.utils.Constants
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.SendChannel
@@ -14,7 +15,7 @@ class GradleBotClient(
     private val responseListeners: MutableMap<String, CompletableDeferred<CommandResponse>>,
     private val requestExecutor: SendChannel<Command>
 ) {
-    suspend fun fetchAllBranches(appDir: String): List<String>? {
+    suspend fun fetchAllBranches(appDir: String): List<Reference>? {
         val executableCommand =
             "$gradlePath fetchRemoteBranches -P${Constants.Common.ARG_OUTPUT_SEPARATOR}=${Constants.Common.OUTPUT_SEPARATOR}"
         val id = UUID.randomUUID().toString()
@@ -29,11 +30,13 @@ class GradleBotClient(
                         return parsedResponse[1]
                             .split("\n")
                             .filter { item -> item.isNotEmpty() }
+                            .map { Reference(it.substringAfter("#tag-", it),
+                                if(it.startsWith("#tag-")) RefType.TAG else RefType.BRANCH) }
                     }
                 }
             }
             is Failure -> {
-
+                response.throwable?.printStackTrace()
             }
         }
         return null

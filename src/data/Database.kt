@@ -1,9 +1,11 @@
 package com.ramukaka.data
 
+import com.ramukaka.models.Reference
+import com.ramukaka.models.github.RefType
 import com.ramukaka.utils.Constants
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import io.ktor.application.Application
+import io.ktor.auth.Principal
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -19,7 +21,7 @@ import java.util.concurrent.Executors
 import kotlin.coroutines.CoroutineContext
 
 
-class Database(application: Application, dbUrl: String, dbUsername: String, dbPass: String) {
+class Database(dbUrl: String, dbUsername: String, dbPass: String, private val isDebug: Boolean) {
     private val dispatcher: CoroutineContext
     private val connectionPool: HikariDataSource
     private val connection: Database
@@ -40,25 +42,31 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
         connectionPool = HikariDataSource(config)
         connection = Database.connect(connectionPool)
         transaction(connection) {
-            SchemaUtils.create(Users, UserTypes, Apps, Branches, BuildTypes, Flavours, Subscriptions, Verbs, Apis)
+            SchemaUtils.createMissingTablesAndColumns(Users, UserTypes, Apps, BuildTypes, Flavours, Subscriptions, Verbs, Apis, Refs)
         }
     }
 
-    suspend fun findSubscriptions(branchName: String): List<ResultRow>? = withContext(dispatcher) {
+    suspend fun findSubscriptions(refName: String, appId: String): List<ResultRow>? = withContext(dispatcher) {
         try {
             return@withContext transaction(connection) {
-                addLogger(StdOutSqlLogger)
+                if(isDebug) {
+                    addLogger(StdOutSqlLogger)
+                }
 
-                val query = Subscriptions.leftJoin(Branches, {
-                    this.branchId
+                val query = Subscriptions.leftJoin(Refs, {
+                    this.refId
                 }, {
                     this.id
                 }).innerJoin(Users, {
                     Subscriptions.userId
                 }, {
-                    Users.id
-                }).slice(Users.slackId, Subscriptions.channel, Branches.name).select {
-                    Branches.name eq branchName
+                    id
+                }).innerJoin(Apps, {
+                    Subscriptions.appId
+                }, {
+                    this.id
+                }).slice(Users.slackId, Subscriptions.channel, Refs.name).select {
+                    Refs.name eq refName
                 }.withDistinct(true)
 
                 return@transaction query.toList()
@@ -72,17 +80,19 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
     /**
      * Subscribe user to a branch
      */
-    suspend fun subscribeUser(userId: String, appName: String, branchName: String, channel: String): Boolean =
+    suspend fun subscribeUser(userId: String, appName: String, refName: String, channel: String): Boolean =
         withContext(dispatcher) {
             return@withContext transaction(connection) {
-                addLogger(StdOutSqlLogger)
-                val user = User.find { Users.slackId eq userId }.first()
+                if(isDebug) {
+                    addLogger(StdOutSqlLogger)
+                }
+                val user = DBUser.find { Users.slackId eq userId }.first()
                 val app = App.find { Apps.name eq appName }.first()
-                val branch = Branch.find { Branches.name eq branchName }.first()
-                if (runBlocking(coroutineContext) { !isUserSubscribed(user, app, branch, channel) }) {
+                val ref = Ref.find { Refs.name eq refName }.first()
+                if (runBlocking(coroutineContext) { !isUserSubscribed(user, app, ref, channel) }) {
                     Subscription.new {
                         this.appId = app
-                        this.branchId = branch
+                        this.refId = ref
                         this.channel = channel
                         this.userId = user
                     }
@@ -96,12 +106,14 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
     /**
      * Checks if user is already subscribed to a branch or not.
      */
-    suspend fun isUserSubscribed(user: User, app: App, branch: Branch, channel: String): Boolean =
+    suspend fun isUserSubscribed(user: DBUser, app: App, ref: Ref, channel: String): Boolean =
         withContext(dispatcher) {
             return@withContext transaction(connection) {
-                addLogger(StdOutSqlLogger)
+                if(isDebug) {
+                    addLogger(StdOutSqlLogger)
+                }
                 return@transaction !Subscription.find {
-                    (Subscriptions.userId eq user.id) and (Subscriptions.appId eq app.id) and (Subscriptions.branchId eq branch.id) and (Subscriptions.channel eq channel)
+                    (Subscriptions.userId eq user.id) and (Subscriptions.appId eq app.id) and (Subscriptions.refId eq ref.id) and (Subscriptions.channel eq channel)
                 }.empty()
             }
         }
@@ -111,15 +123,19 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
             return@withContext false
         }
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
-            val user = User.find { Users.slackId eq userId }
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
+            val user = DBUser.find { Users.slackId eq userId }
             return@transaction !user.empty()
         }
     }
 
     suspend fun addApp(appName: String) = withContext(dispatcher) {
         transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             if (App.find { Apps.name eq appName }.limit(1).firstOrNull() == null) {
                 App.new {
                     name = appName
@@ -129,13 +145,15 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
 
     }
 
-    suspend fun addApps(appNames: List<String>) = withContext(dispatcher) {
+    suspend fun addApps(appNames: List<com.ramukaka.models.config.App>) = withContext(dispatcher) {
         transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             appNames.forEach {
-                if (App.find { Apps.name eq it }.limit(1).firstOrNull() == null) {
+                if (App.find { Apps.name eq it.id }.limit(1).firstOrNull() == null) {
                     App.new {
-                        this.name = it
+                        this.name = it.id
                     }
                 }
             }
@@ -146,25 +164,28 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
         userId: String,
         name: String? = null,
         email: String? = null,
-        typeString: String = Constants.Database.USER_TYPE_USER
-    ) = withContext(dispatcher) {
-        transaction(connection) {
-            addLogger(StdOutSqlLogger)
+        typeString: String = Constants.Database.USER_TYPE_USER,
+        imId: String? = null
+    ): DBUser? = withContext(dispatcher) {
+        return@withContext transaction(connection) {
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             val types = UserType.find { UserTypes.type eq typeString }.limit(1)
             val type = types.firstOrNull() ?: UserType.new {
                 this.type = typeString
             }
             try {
-                if (User.find { Users.slackId eq userId }.firstOrNull() == null) {
-                    User.new {
-                        this.name = name
-                        this.email = email
-                        this.slackId = userId
-                        this.userType = type
-                    }
+                DBUser.find { Users.slackId eq userId }.firstOrNull() ?: return@transaction DBUser.new {
+                    this.name = name
+                    this.email = email
+                    this.slackId = userId
+                    this.imId = imId
+                    this.userType = type
                 }
             } catch (exception: ExposedSQLException) {
                 exception.printStackTrace()
+                null
             }
         }
     }
@@ -175,8 +196,10 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
         email: String? = null
     ) = withContext(dispatcher) {
         transaction(connection) {
-            addLogger(StdOutSqlLogger)
-            User.find {
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
+            DBUser.find {
                 Users.slackId eq userId
             }.forEach {
                 it.name = name
@@ -186,18 +209,24 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
         }
     }
 
-    suspend fun getUser(userType: String): User? = withContext(dispatcher) {
+    suspend fun getUser(userType: String): DBUser? = withContext(dispatcher) {
         try {
             return@withContext transaction(connection) {
-                addLogger(StdOutSqlLogger)
+                if(isDebug) {
+                    addLogger(StdOutSqlLogger)
+                }
                 val query = Users.innerJoin(UserTypes, {
                     Users.userType
                 }, {
-                    UserTypes.id
+                    id
                 }).slice(Users.columns).select {
                     UserTypes.type eq userType
-                }.withDistinct().first()
-                return@transaction User.wrapRow(query)
+                }.withDistinct().firstOrNull()
+                query?.let {
+                    return@transaction DBUser.wrapRow(it)
+                }
+
+                return@transaction null
             }
         } catch (exception: Exception) {
             exception.printStackTrace()
@@ -205,51 +234,97 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
         }
     }
 
-    suspend fun getBranches(app: String): List<Branch>? = withContext(dispatcher) {
-        return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
-            Branch.wrapRows(Branches.leftJoin(Apps, { Branches.appId }, { Apps.id }).select { Apps.name eq app })
-                .toList()
+    suspend fun findUser(slackId: String): DBUser? = withContext(dispatcher) {
+        try {
+            return@withContext transaction(connection) {
+                if(isDebug) {
+                    addLogger(StdOutSqlLogger)
+                }
+                val query = Users.select {
+                    Users.slackId eq slackId
+                }.withDistinct().first()
+                return@transaction DBUser.wrapRow(query)
+            }
+        } catch (exception: Exception) {
+            exception.printStackTrace()
+            return@withContext null
         }
     }
 
-    suspend fun addBranch(branch: String, app: String) = withContext(dispatcher) {
+    suspend fun getUsers(type: String): List<DBUser> = withContext(dispatcher) {
+        try {
+            return@withContext  transaction(connection) {
+                if(isDebug) {
+                    addLogger(StdOutSqlLogger)
+                }
+                return@transaction DBUser.wrapRows(Users.leftJoin(UserTypes, { this.userType }, { this.type })
+                    .select { UserTypes.type eq type }).toList()
+            }
+        } catch (exception: Exception) {
+            exception.printStackTrace()
+            return@withContext mutableListOf<DBUser>()
+        }
+    }
+
+    suspend fun getRefs(app: String): List<Ref>? = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
+            Ref.wrapRows(Refs.leftJoin(Apps, { appId }, { id }).select { Apps.name eq app }).toList()
+        }
+    }
+
+    suspend fun addRef(app: String, ref: Reference) = withContext(dispatcher) {
+        return@withContext transaction(connection) {
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             val application = App.find { Apps.name eq app }.first()
-            if (Branch.find { (Branches.name eq branch) and (Branches.appId eq application.id) }.empty()) {
-                Branch.new {
-                    this.branchName = branch
+            if (Ref.find { (Refs.name eq ref.name) and (Refs.appId eq application.id) and (Refs.type eq ref.type) }.empty()) {
+                Ref.new {
+                    this.name = ref.name
                     this.deleted = false
                     this.appId = application
+                    this.type = ref.type
                 }
             }
         }
     }
 
-    suspend fun deleteBranch(branch: String) = withContext(dispatcher) {
+    suspend fun deleteRef(appName: String, reference: Reference)= withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
-            Branches.deleteWhere { Branches.name eq branch }
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
+            App.find { Apps.name eq appName }.firstOrNull()?.let { application ->
+                Refs.deleteWhere { (Refs.name eq reference.name) and (Refs.appId eq application.id) and (Refs.type eq reference.type) }
+            }
         }
     }
 
-    suspend fun addBranches(branches: List<String>, app: String) = withContext(dispatcher) {
+    suspend fun addRefs(refs: List<Reference>, appName: String) = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
-
-            App.find { Apps.name eq app }.firstOrNull()?.let { application ->
-                Branch.wrapRows(Branches.select { Branches.appId eq application.id }).forEach {
-                    if (it.branchName !in branches) {
-                        it.delete()
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
+            App.find { Apps.name eq appName }.firstOrNull()?.let { application ->
+                Ref.wrapRows(Refs.select {Refs.appId eq application.id}).forEach { ref ->
+                    if(refs.firstOrNull {
+                        ref.name == it.name && ref.type == it.type
+                    } == null) {
+                        ref.delete()
                     }
                 }
 
-                branches.forEach {
-                    if (Branch.find { (Branches.name eq it) and (Branches.appId eq application.id) }.firstOrNull() == null) {
-                        Branch.new {
-                            this.branchName = it
+                refs.forEach {
+                    if(Ref.find { (Refs.name eq it.name) and
+                                (Refs.appId eq application.id) and
+                                (Refs.type eq it.type)}.firstOrNull() == null) {
+                        Ref.new {
+                            this.name = it.name
                             this.deleted = false
+                            this.type = it.type
                             this.appId = application
                         }
                     }
@@ -260,26 +335,32 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
 
     suspend fun getFlavours(app: String): List<Flavour>? = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
-            Flavour.wrapRows(Flavours.leftJoin(Apps, { Flavours.appId }, { Apps.id }).select { Apps.name eq app })
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
+            Flavour.wrapRows(Flavours.leftJoin(Apps, { Flavours.appId }, { id }).select { Apps.name eq app })
                 .toList()
         }
     }
 
     suspend fun getBuildTypes(app: String): List<BuildType>? = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             BuildType.wrapRows(BuildTypes.leftJoin(
                 Apps,
-                { BuildTypes.appId },
-                { Apps.id }).select { Apps.name eq app })
+                { appId },
+                { id }).select { Apps.name eq app })
                 .toList()
         }
     }
 
     suspend fun addFlavours(flavours: List<String>, appName: String) = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             App.find { Apps.name eq appName }.firstOrNull()?.let { application ->
 
                 Flavour.wrapRows(Flavours.select { Flavours.appId eq application.id }).forEach {
@@ -302,7 +383,9 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
 
     suspend fun addBuildVariants(buildTypes: List<String>, appName: String) = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             App.find { Apps.name eq appName }.firstOrNull()?.let { application ->
 
                 BuildType.wrapRows(BuildTypes.select { BuildTypes.appId eq application.id }).forEach {
@@ -327,7 +410,9 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
 
     suspend fun getVerbs() = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             Verb.all().map {
                 it.name
             }
@@ -336,7 +421,9 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
 
     suspend fun addVerbs(verbs: List<String>) = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             Verb.all().filterNot {
                 verbs.contains(it.name)
             }.forEach {
@@ -355,14 +442,18 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
 
     suspend fun getVerb(verb: String) = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             Verb.wrapRow(Verbs.select { Verbs.name eq verb }.first())
         }
     }
 
     suspend fun getApi(apiId: String, verbName: String) = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             val verb = runBlocking {
                 getVerb(verbName)
             }
@@ -374,7 +465,9 @@ class Database(application: Application, dbUrl: String, dbUsername: String, dbPa
 
     suspend fun addApi(apiId: String, verb: String, response: String) = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            addLogger(StdOutSqlLogger)
+            if(isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
             Verb.find { Verbs.name eq verb }.firstOrNull()?.let { verb ->
                 Api.new {
                     this.response = response
@@ -390,16 +483,18 @@ object Users : IntIdTable() {
     val name = varchar("name", 100).nullable()
     val email = varchar("email", 50).nullable()
     val slackId = varchar("slack_id", 50).index(isUnique = true)
+    val imId = varchar("im_id", 100).nullable()
     val userType =
         reference("user_type", UserTypes, onDelete = ReferenceOption.CASCADE, onUpdate = ReferenceOption.RESTRICT)
 }
 
-class User(id: EntityID<Int>) : IntEntity(id) {
-    companion object : IntEntityClass<User>(Users)
+class DBUser(id: EntityID<Int>) : IntEntity(id), Principal {
+    companion object : IntEntityClass<DBUser>(Users)
 
     var name by Users.name
     var email by Users.email
     var slackId by Users.slackId
+    var imId by Users.imId
     var userType by UserType referencedOn Users.userType
 }
 
@@ -423,19 +518,20 @@ class App(id: EntityID<Int>) : IntEntity(id) {
     var name by Apps.name
 }
 
-object Branches : IntIdTable() {
-    val name = varchar("branch_name", 100).primaryKey()
+object Refs: IntIdTable() {
+    val name = varchar("name", 100).primaryKey()
     val deleted = bool("deleted").default(false)
+    val type = enumeration("type", RefType::class).default(RefType.BRANCH)
     val appId = reference("app_id", Apps, ReferenceOption.CASCADE, ReferenceOption.RESTRICT).primaryKey()
 }
 
+class Ref(id: EntityID<Int>) : IntEntity(id) {
+    companion object: IntEntityClass<Ref>(Refs)
 
-class Branch(id: EntityID<Int>) : IntEntity(id) {
-    companion object : IntEntityClass<Branch>(Branches)
-
-    var branchName by Branches.name
-    var appId by App referencedOn Branches.appId
-    var deleted by Branches.deleted
+    var name by Refs.name
+    var deleted by Refs.deleted
+    var appId by App referencedOn Refs.appId
+    var type by Refs.type
 }
 
 object BuildTypes : IntIdTable() {
@@ -493,9 +589,9 @@ object Subscriptions : IntIdTable() {
         onDelete = ReferenceOption.CASCADE,
         onUpdate = ReferenceOption.RESTRICT
     ).primaryKey()
-    val branchId = reference(
-        "branch_id",
-        Branches,
+    val refId = reference(
+        "ref_id",
+        Refs,
         onDelete = ReferenceOption.CASCADE,
         onUpdate = ReferenceOption.CASCADE
     ).primaryKey()
@@ -509,15 +605,15 @@ object Subscriptions : IntIdTable() {
     val channel = varchar("channel_id", 100).primaryKey()
 
     init {
-        index(true, userId, branchId, appId, channel)
+        index(true, userId, refId, appId, channel)
     }
 }
 
 class Subscription(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<Subscription>(Subscriptions)
 
-    var userId by User referencedOn Subscriptions.userId
-    var branchId by Branch referencedOn Subscriptions.branchId
+    var userId by DBUser referencedOn Subscriptions.userId
+    var refId by Ref referencedOn Subscriptions.refId
     var appId by App referencedOn Subscriptions.appId
     var channel by Subscriptions.channel
 }

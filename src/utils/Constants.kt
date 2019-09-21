@@ -3,11 +3,7 @@ package com.ramukaka.utils
 class Constants {
     class Common {
         companion object {
-            const val HEADER_CONTENT_TYPE = "Content-type"
-            const val VALUE_FORM_ENCODE = "application/x-www-form-urlencoded"
-
             const val APP_CONSUMER = "consumer"
-            const val APP_FLEET = "fleet"
 
             const val OUTPUT_SEPARATOR = "##***##"
             const val ARG_OUTPUT_SEPARATOR = "OUTPUT_SEPARATOR"
@@ -22,42 +18,43 @@ class Constants {
         }
     }
 
+    class EnvironmentVariables {
+        companion object {
+            const val ENV_UPLOAD_DIR_PATH = "UPLOAD_DIR_PATH"
+        }
+    }
+
     class Slack {
         companion object {
+            const val SESSION = "slack_session"
+            const val CALLBACK_STANDUP_MESSAGE: String = "callback_standup_message"
+            const val CALLBACK_STANDUP_DIALOG: String = "callback_standup_dialog"
+            const val DEFAULT_BOT_ID: String = "USLACKBOT"
 
-            const val TYPE = "type"
-
-            const val SUBSCRIBE_GENERATE_APK = "subscribe_generate_apk"
-            const val CALLBACK_CONFIRM_GENERATE_APK = "confirm_generate_apk"
-            const val CALLBACK_GENERATE_CONSUMER_APK = "generate_consumer_apk"
-            const val CALLBACK_GENERATE_FLEET_APK = "generate_fleet_apk"
+            const val CALLBACK_GENERATE_APK = "generate_apk_"
+            const val CALLBACK_CONFIRM_GENERATE_APK = "confirm_generate_apk_"
             const val CALLBACK_CREATE_API = "create_api"
-            const val EVENT_TYPE_MESSAGE = "message"
-            const val EVENT_TYPE_APP_MENTION = "app_mention"
-            const val EVENT_TYPE_VERIFICATION = "url_verification"
-            const val EVENT_TYPE_CALLBACK = "event_callback"
-            const val EVENT_TYPE_RATE_LIMIT = "app_rate_limited"
 
             const val TOKEN = "token"
             const val CHANNEL = "channel"
             const val TEXT = "text"
             const val TS = "ts"
-            const val AS_USER = "as_user"
             const val ATTACHMENTS = "attachments"
             const val DIALOG = "dialog"
             const val USER = "user"
+            const val CURSOR = "cursor"
+            const val LIMIT = "limit"
+            const val CLIENT_ID = "client_id"
+            const val CLIENT_SECRET = "client_secret"
+            const val CODE = "code"
 
-            const val CALLBACK_SUBSCRIBE_CONSUMER = "subscribe_consumer_details"
+            const val CALLBACK_SUBSCRIBE_CONSUMER = "subscribe_consumer_"
 
             const val TYPE_SUBSCRIBE_CONSUMER = "subscribe-consumer"
-            const val TYPE_GENERATE_CONSUMER = "generate-consumer"
-            const val TYPE_GENERATE_FLEET = "generate-fleet"
             const val TYPE_SUBSCRIBE_FLEET = "subscribe-fleet"
-            const val ACTION_CHOOSE_BRANCH: String = "choose_branch"
             const val TRIGGER_ID: String = "trigger_id"
-            const val EVENT_TYPE_MESSAGE_ACTION: String = "message_action"
-            const val EVENT_TYPE_INTERACTIVE_MESSAGE: String = "interactive_message"
-            const val EVENT_TYPE_DIALOG: String = "dialog_submission"
+            const val CHANNEL_ID: String = "channel_id"
+            const val USER_ID: String = "user_id"
 
             const val TYPE_SELECT_VERB = "VERB"
             const val TYPE_SELECT_RESPONSE = "RESPONSE"
@@ -86,8 +83,11 @@ class Constants {
         companion object {
             const val USER_TYPE_USER = "user"
             const val USER_TYPE_BOT = "bot"
-            const val USER_TYPE_CHANNEL = "channel"
-            const val USER_TYPE_GROUP = "group"
         }
+    }
+
+    object RequestErr {
+        const val ERR_CLIENT_ID = "ERR_MISSING_CLIENT_ID"
+        const val ERR_NO_SESSION = "ERR_NO_SESSION_FOUND"
     }
 }

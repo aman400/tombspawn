@@ -3,16 +3,38 @@ package com.ramukaka.models.slack
 import com.google.gson.annotations.SerializedName
 
 class Dialog(
+    // Callback
     @SerializedName("callback_id")
-    val callbackId: String,
+    var callbackId: String = "",
     @SerializedName("title")
-    val title: String,
+    var title: String = "",
     @SerializedName("submit_label")
-    val submitLabel: String,
+    var submitLabel: String = "",
     @SerializedName("notify_on_cancel")
-    val notifyOnCancel: Boolean = false,
+    var notifyOnCancel: Boolean = false,
+    // Send this data back
     @SerializedName("state")
-    val state: String? = null,
+    var state: String? = null,
     @SerializedName("elements")
-    val elements: List<Element>? = null
-)
+    var elements: MutableList<Element>? = mutableListOf()
+) {
+    operator fun Element.unaryPlus() {
+        if(elements == null) {
+            elements = mutableListOf()
+        }
+        elements?.add(this)
+    }
+
+    operator fun MutableList<Element>.unaryPlus() {
+        if(elements == null) {
+            elements = mutableListOf()
+        }
+        elements?.addAll(this)
+    }
+
+    operator fun MutableList<Element>?.invoke(function: MutableList<Element>?.() -> Unit) {
+        function()
+    }
+}
+
+fun dialog(block: Dialog.() -> Unit) = Dialog().apply(block)

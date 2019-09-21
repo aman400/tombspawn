@@ -1,27 +1,37 @@
 package network
 
-import com.ramukaka.Apk
 import com.ramukaka.data.Database
+import com.ramukaka.extensions.await
 import com.ramukaka.extensions.copyToSuspend
-import com.ramukaka.network.ServiceGenerator
-import com.ramukaka.network.SlackClient
+import com.ramukaka.network.CallError
+import com.ramukaka.network.CallFailure
+import com.ramukaka.network.CallSuccess
+import com.ramukaka.network.exhaustive
 import com.ramukaka.utils.Constants
 import io.ktor.application.call
+import io.ktor.client.HttpClient
+import io.ktor.client.call.call
+import io.ktor.client.request.parameter
+import io.ktor.http.HttpMethod
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
 import io.ktor.http.content.streamProvider
+import io.ktor.locations.Location
 import io.ktor.locations.post
 import io.ktor.request.receiveMultipart
 import io.ktor.response.respond
 import io.ktor.routing.Routing
 import io.ktor.routing.get
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import io.ktor.sessions.sessions
+import kotlinx.coroutines.coroutineScope
+import models.slack.BotInfo
 import java.io.File
 
 
 fun Routing.status() {
     get("/") {
+        println(call.sessions.get(Constants.Slack.SESSION))
+
         call.respond(mapOf("status" to "OK"))
     }
 }
@@ -31,6 +41,9 @@ fun Routing.health() {
         call.respond(mapOf("status" to "OK"))
     }
 }
+
+@Location("/app")
+data class Apk(val file: File)
 
 
 fun Routing.receiveApk(uploadDirPath: String) {
@@ -64,30 +77,30 @@ fun Routing.receiveApk(uploadDirPath: String) {
 }
 
 @Throws(Exception::class)
-suspend fun fetchBotData(database: Database, botToken: String) = runBlocking {
-    val api = ServiceGenerator.createService(
-        SlackClient.SlackApi::class.java,
-        SlackClient.SlackApi.BASE_URL,
-        true
-    )
-    val headers = mutableMapOf("Content-type" to "application/x-www-form-urlencoded")
-    launch(coroutineContext) {
-        val response = api.fetchBotInfo(headers, botToken).execute()
-        if(response.isSuccessful) {
-            val botInfo = response.body()
-            botInfo?.let {
+suspend fun fetchBotData(client: HttpClient, database: Database, botToken: String) = coroutineScope {
+    val call = client.call {
+        method = HttpMethod.Get
+        url {
+            encodedPath = "/api/rtm.connect"
+            parameter("token", botToken)
+        }
+    }
+
+    when(val response = call.await<BotInfo>()) {
+        is CallSuccess -> {
+            response.data?.let { botInfo ->
                 if (botInfo.ok) {
-                    runBlocking {
-                        it.self?.let { about ->
-                            database.addUser(about.id!!, about.name, typeString = Constants.Database.USER_TYPE_BOT)
-                        }
+                    botInfo.self?.let { about ->
+                        database.addUser(about.id!!, about.name, typeString = Constants.Database.USER_TYPE_BOT)
                     }
                 }
             }
-        } else {
-            response.errorBody()?.charStream()?.use {
-                println(it.readText())
-            }
         }
-    }
+        is CallFailure -> {
+            println(response.errorBody)
+        }
+        is CallError -> {
+            response.throwable?.printStackTrace()
+        }
+    }.exhaustive
 }

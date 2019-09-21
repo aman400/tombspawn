@@ -5,45 +5,45 @@ import com.ramukaka.models.github.RefType
 
 data class Payload(
 
-	@field:SerializedName("compare")
+	@SerializedName("compare")
 	val compare: String? = null,
 
-	@field:SerializedName("head_commit")
+	@SerializedName("head_commit")
 	val headCommit: HeadCommit? = null,
 
-	@field:SerializedName("pusher")
+	@SerializedName("pusher")
 	val pusher: Pusher? = null,
 
-	@field:SerializedName("before")
+	@SerializedName("before")
 	val before: String? = null,
 
-	@field:SerializedName("created")
+	@SerializedName("created")
 	val created: Boolean? = null,
 
-	@field:SerializedName("forced")
+	@SerializedName("forced")
 	val forced: Boolean? = null,
 
-	@field:SerializedName("base_ref")
+	@SerializedName("base_ref")
 	val baseRef: String? = null,
 
-	@field:SerializedName("repository")
+	@SerializedName("repository")
 	val repository: Repository? = null,
 
-	@field:SerializedName("ref")
+	@SerializedName("ref")
 	val ref: String? = null,
 
-	@field:SerializedName("ref_type")
+	@SerializedName("ref_type")
 	val refType: RefType? = null,
 
-	@field:SerializedName("deleted")
+	@SerializedName("deleted")
 	val deleted: Boolean? = null,
 
-	@field:SerializedName("sender")
+	@SerializedName("sender")
 	val sender: Sender? = null,
 
-	@field:SerializedName("commits")
+	@SerializedName("commits")
 	val commits: List<Any?>? = null,
 
-	@field:SerializedName("after")
+	@SerializedName("after")
 	val after: String? = null
 )
