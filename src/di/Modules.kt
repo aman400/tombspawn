@@ -152,15 +152,23 @@ val gradleBotClient = module {
 }
 
 val redis = module {
-    single {
+    single { (application: Application) ->
+        val redis = get<Redis> {
+            parametersOf(application)
+        }
         val config = Config()
         config.transportMode = TransportMode.NIO
-        Redisson.create()
+        config.useSingleServer()
+        .setTimeout(1000000)
+        .setAddress("${redis.host}:${redis.port}")
+        Redisson.create(config)
     }
 
-    single { (mapName: String) ->
+    single { (application: Application, mapName: String) ->
         StringMap(
-            get(),
+            get {
+                parametersOf(application)
+            },
             mapName
         )
     }
@@ -221,6 +229,14 @@ val config = module {
             Common(it.property("base_url").getString(),
                 it.property("gradle_path").getString())
         }
+    }
+
+    single { (application: Application) ->
+        application.environment.config.config("conf.redis").let {
+            Redis(it.propertyOrNull("host")?.getString() ?: Constants.Common.LOCALHOST,
+                    it.propertyOrNull("port")?.getString()?.toInt() ?: Constants.Common.DEFAULT_REDIT_PORT)
+        }
+
     }
 
     single(StringQualifier(Constants.EnvironmentVariables.ENV_UPLOAD_DIR_PATH)) {

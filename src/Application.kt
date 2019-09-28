@@ -40,7 +40,6 @@ import io.ktor.util.hex
 import kotlinx.coroutines.*
 import network.fetchBotData
 import network.health
-import network.receiveApk
 import network.status
 import org.koin.core.logger.Logger
 import org.koin.core.logger.MESSAGE
@@ -192,11 +191,11 @@ fun Application.module() {
     val client: HttpClient by inject()
 
     val authMap: StringMap by inject {
-        parametersOf(Redis.AUTH_MAP)
+        parametersOf(this, Redis.AUTH_MAP)
     }
 
     val sessionMap: StringMap by inject {
-        parametersOf(Redis.SESSION_MAP)
+        parametersOf(this, Redis.SESSION_MAP)
     }
 
     install(Sessions) {
