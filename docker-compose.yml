@@ -1,0 +1,51 @@
+version: '3.7'
+
+networks:
+  tombspawn:
+    name: tombspawn
+
+volumes:
+  mysqldb:
+    name: mysqldb
+  redisdb:
+    name: redisdb
+
+services:
+  db:
+    container_name: mysqldb
+    build: docker/mysql/.
+    image: mysqldb
+    volumes:
+      - mysqldb:/var/lib/mysql
+    restart: always
+    env_file:
+      - scripts/mysql.env
+    networks:
+      - tombspawn
+    ports:
+      - "3306:3306"
+  redis:
+    container_name: redisdb
+    build: docker/redis/.
+    image: redisdb
+    volumes:
+      - redisdb:/data
+    restart: always
+    networks:
+      - tombspawn
+    ports:
+      - "6379:6379"
+  application:
+    container_name: application
+    depends_on:
+      - db
+      - redis
+    build: .
+    image: application
+    restart: always
+    volumes:
+      - ${CONF_PATH}:/app/application.conf
+    networks:
+      - tombspawn
+    ports:
+      - "80:8080"
