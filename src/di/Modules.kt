@@ -137,7 +137,7 @@ val slackModule = module {
 }
 
 val gradleBotClient = module {
-    single { (application: Application, appDir: String, responseListener: MutableMap<String, CompletableDeferred<CommandResponse>>,
+    factory { (application: Application, appDir: String, responseListener: MutableMap<String, CompletableDeferred<CommandResponse>>,
                  requestExecutor: SendChannel<Command>) ->
         GradleExecutor(
             appDir,
@@ -145,7 +145,10 @@ val gradleBotClient = module {
                 parametersOf(application)
             }.gradlePath,
             responseListener,
-            requestExecutor
+            requestExecutor,
+            get {
+                parametersOf(application)
+            }
         )
     }
 }
@@ -181,7 +184,7 @@ val authentication = module {
 
 @UseExperimental(KtorExperimentalAPI::class)
 val config = module {
-    single { (application: Application, coroutineScope: CoroutineScope) ->
+    factory { (application: Application, coroutineScope: CoroutineScope) ->
         application.environment.config.configList("conf.apps").map {
             val responseListener = mutableMapOf<String, CompletableDeferred<CommandResponse>>()
             val requestExecutor = coroutineScope.commandExecutor(responseListener)
@@ -190,7 +193,7 @@ val config = module {
                 it.property("id").getString(),
                 it.propertyOrNull("name")?.getString(),
                 it.propertyOrNull("app_url")?.getString(),
-                it.property("repo_id").getString(),
+                it.propertyOrNull("repo_id")?.getString(),
                 directory,
                 it.property("remote_uri").getString(),
                 get {
@@ -240,7 +243,7 @@ val config = module {
     single { (application: Application) ->
         application.environment.config.config("conf.redis").let {
             Redis(it.propertyOrNull("host")?.getString() ?: Constants.Common.LOCALHOST,
-                    it.propertyOrNull("port")?.getString()?.toInt() ?: Constants.Common.DEFAULT_REDIT_PORT)
+                    it.propertyOrNull("port")?.getString()?.toInt() ?: Constants.Common.DEFAULT_REDIS_PORT)
         }
 
     }

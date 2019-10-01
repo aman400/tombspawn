@@ -4,12 +4,6 @@ import io.ktor.locations.Location
 
 @Location("/slack/app")
 class Slack {
-    @Location("/command/consumer")
-    class Consumer
-
-    @Location("/command/fleet")
-    class Fleet
-
     @Location("/command/{appID}")
     class Command(val appID: String) {
         @Location("/mock")

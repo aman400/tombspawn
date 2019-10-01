@@ -1,5 +1,6 @@
 package com.ramukaka.network
 
+import com.ramukaka.git.CredentialProvider
 import com.ramukaka.models.*
 import com.ramukaka.models.Failure
 import com.ramukaka.models.Success
@@ -14,7 +15,8 @@ class GradleExecutor constructor(
     private val appDir: String,
     private val gradlePath: String,
     private val responseListeners: MutableMap<String, CompletableDeferred<CommandResponse>>,
-    private val requestExecutor: SendChannel<Command>
+    private val requestExecutor: SendChannel<Command>,
+    private val credentialProvider: CredentialProvider
 ): CommandExecutor {
     override suspend fun fetchAllBranches(): List<Reference>? {
         val executableCommand =
@@ -111,6 +113,8 @@ class GradleExecutor constructor(
         parameters?.forEach { key, value ->
             executableCommand += " -P$key=$value"
         }
+
+        executableCommand += " -Pgradlebot.git.username=${credentialProvider.username}"
 
         val buildId = UUID.randomUUID().toString()
         requestExecutor.send(Request(executableCommand, executionDirectory, id = buildId))

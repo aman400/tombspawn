@@ -4,7 +4,7 @@ class Constants {
     class Common {
         companion object {
             const val LOCALHOST: String = "127.0.0.1"
-            const val DEFAULT_REDIT_PORT = 6739
+            const val DEFAULT_REDIS_PORT = 6739
 
             const val APP_CONSUMER = "consumer"
 

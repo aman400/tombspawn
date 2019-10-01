@@ -2,16 +2,16 @@ package com.ramukaka.git
 
 import com.ramukaka.extensions.authenticate
 import com.ramukaka.models.config.App
-import com.ramukaka.network.GradleExecutor
 import org.eclipse.jgit.api.Git
-import org.eclipse.jgit.errors.RepositoryNotFoundException
-import org.eclipse.jgit.lib.ProgressMonitor
 import org.eclipse.jgit.lib.Repository
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.IOException
 
+/**
+ * Client to execute git commands in local
+ */
 class GitClient {
     companion object {
         private val logger = LoggerFactory.getLogger("com.ramukaka.git.GitClient")

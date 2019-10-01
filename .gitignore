@@ -30,3 +30,4 @@
 scripts/
 .gradle
 build/
+.env
