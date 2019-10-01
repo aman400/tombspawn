@@ -8,10 +8,12 @@ import com.ramukaka.annotations.DoNotSerialize
 import com.ramukaka.auth.JWTConfig
 import com.ramukaka.data.Database
 import com.ramukaka.data.StringMap
+import com.ramukaka.extensions.commandExecutor
+import com.ramukaka.git.CredentialProvider
 import com.ramukaka.models.Command
 import com.ramukaka.models.CommandResponse
 import com.ramukaka.models.config.*
-import com.ramukaka.network.GradleBotClient
+import com.ramukaka.network.GradleExecutor
 import com.ramukaka.network.utils.Headers
 import com.ramukaka.slackbot.SlackClient
 import com.ramukaka.utils.Constants
@@ -26,6 +28,7 @@ import io.ktor.client.features.logging.Logger
 import io.ktor.http.URLProtocol
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.SendChannel
 import org.koin.core.parameter.parametersOf
 import org.koin.core.qualifier.StringQualifier
@@ -120,28 +123,24 @@ val httpClientModule = module {
 }
 
 val slackModule = module {
-    single { (application: Application, responseListener: MutableMap<String, CompletableDeferred<CommandResponse>>, requestExecutor: SendChannel<Command>) ->
+    single { (application: Application) ->
         SlackClient(
             get(),
-            get<Common> {
-                parametersOf(application)
-            }.gradlePath,
             get(StringQualifier(Constants.EnvironmentVariables.ENV_UPLOAD_DIR_PATH)),
-            get(),
             get(),
             get {
                 parametersOf(application)
             },
-            requestExecutor,
-            responseListener,
             get()
         )
     }
 }
 
 val gradleBotClient = module {
-    single { (application: Application, responseListener: MutableMap<String, CompletableDeferred<CommandResponse>>, requestExecutor: SendChannel<Command>) ->
-        GradleBotClient(
+    single { (application: Application, appDir: String, responseListener: MutableMap<String, CompletableDeferred<CommandResponse>>,
+                 requestExecutor: SendChannel<Command>) ->
+        GradleExecutor(
+            appDir,
             get<Common> {
                 parametersOf(application)
             }.gradlePath,
@@ -182,14 +181,21 @@ val authentication = module {
 
 @UseExperimental(KtorExperimentalAPI::class)
 val config = module {
-    single { (application: Application) ->
+    single { (application: Application, coroutineScope: CoroutineScope) ->
         application.environment.config.configList("conf.apps").map {
+            val responseListener = mutableMapOf<String, CompletableDeferred<CommandResponse>>()
+            val requestExecutor = coroutineScope.commandExecutor(responseListener)
+            val directory = it.propertyOrNull("dir")?.getString()
             App(
                 it.property("id").getString(),
-                it.property("name").getString(),
-                it.property("app_url").getString(),
+                it.propertyOrNull("name")?.getString(),
+                it.propertyOrNull("app_url")?.getString(),
                 it.property("repo_id").getString(),
-                it.property("dir").getString()
+                directory,
+                it.property("remote_uri").getString(),
+                get {
+                    parametersOf(application, directory, responseListener, requestExecutor)
+                } as GradleExecutor
             )
         }
     }
@@ -237,6 +243,13 @@ val config = module {
                     it.propertyOrNull("port")?.getString()?.toInt() ?: Constants.Common.DEFAULT_REDIT_PORT)
         }
 
+    }
+
+    single { (application: Application) ->
+        application.environment.config.config("conf.git").let {
+            CredentialProvider(it.propertyOrNull("ssh_file")?.getString(), it.propertyOrNull("passphrase")?.getString(),
+                it.propertyOrNull("username")?.getString(), it.propertyOrNull("password")?.getString())
+        }
     }
 
     single(StringQualifier(Constants.EnvironmentVariables.ENV_UPLOAD_DIR_PATH)) {

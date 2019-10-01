@@ -81,7 +81,7 @@ fun CoroutineScope.subscriptionResponse(action: Action, slackClient: SlackClient
                     branchList, buildTypes, flavours, gson.toJson(updatedMessage),
                     slackEvent.triggerId!!,
                     Constants.Slack.CALLBACK_GENERATE_APK + app.id,
-                    app.appUrl
+                    app.appUrl ?: ""
                 )
             }
         } else {

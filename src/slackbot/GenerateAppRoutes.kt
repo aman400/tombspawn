@@ -36,7 +36,7 @@ fun Routing.buildApp(apps: List<App>, slackClient: SlackClient, database: Databa
             }
 
             text?.trim()?.toMap()?.let { buildData ->
-                slackClient.generateAndUploadApk(buildData, channelId!!, app.dir, responseUrl, app.id)
+                slackClient.generateAndUploadApk(buildData, channelId!!, app, responseUrl)
                 call.respond(HttpStatusCode.OK)
             } ?: run {
                 LOGGER.warn("Command options not set. These options can be set using '/build-fleet BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'")
@@ -53,7 +53,7 @@ fun Routing.buildApp(apps: List<App>, slackClient: SlackClient, database: Databa
                     null,
                     triggerId!!,
                     Constants.Slack.CALLBACK_GENERATE_APK + app.id,
-                    app.appUrl
+                    app.appUrl ?: ""
                 )
                 call.respond(HttpStatusCode.OK)
             }
@@ -61,7 +61,12 @@ fun Routing.buildApp(apps: List<App>, slackClient: SlackClient, database: Databa
     }
 }
 
-fun CoroutineScope.generateAppDialogResponse(slackClient: SlackClient, slackEvent: SlackEvent, apps: List<App>, gson: Gson) {
+fun CoroutineScope.generateAppDialogResponse(
+    slackClient: SlackClient,
+    slackEvent: SlackEvent,
+    apps: List<App>,
+    gson: Gson
+) {
     slackEvent.callbackId?.substringAfter(Constants.Slack.CALLBACK_GENERATE_APK, "")?.let { appId ->
         apps.firstOrNull {
             it.id == appId
@@ -82,9 +87,8 @@ fun CoroutineScope.generateAppDialogResponse(slackClient: SlackClient, slackEven
                 slackClient.generateAndUploadApk(
                     buildData,
                     slackEvent.channel?.id ?: "general",
-                    app.dir,
-                    slackEvent.responseUrl,
-                    app.id
+                    app,
+                    slackEvent.responseUrl
                 )
             }
         }

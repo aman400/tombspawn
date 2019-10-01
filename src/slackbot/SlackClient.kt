@@ -9,6 +9,7 @@ import com.ramukaka.extensions.await
 import com.ramukaka.extensions.random
 import com.ramukaka.extensions.toMap
 import com.ramukaka.models.*
+import com.ramukaka.models.config.App
 import com.ramukaka.models.config.Slack
 import com.ramukaka.models.github.RefType
 import com.ramukaka.models.slack.*
@@ -22,9 +23,7 @@ import io.ktor.client.request.forms.formData
 import io.ktor.client.request.parameter
 import io.ktor.client.request.url
 import io.ktor.http.*
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.withContext
 import models.slack.Event
 import models.slack.IMListData
@@ -33,18 +32,13 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.FileInputStream
 import java.net.URL
-import java.util.*
 import kotlin.collections.set
 
 class SlackClient constructor(
     private val httpClient: HttpClient,
-    private val gradlePath: String,
     private val uploadDirPath: String,
-    private val gradleBotClient: GradleBotClient,
     private val database: Database,
     private val slack: Slack,
-    private val requestExecutor: SendChannel<Command>,
-    private val responseListeners: MutableMap<String, CompletableDeferred<CommandResponse>>,
     val gson: Gson
 ) {
     private val randomWaitingMessages = listOf(
@@ -103,9 +97,8 @@ class SlackClient constructor(
     suspend fun generateAndUploadApk(
         buildData: MutableMap<String, String>?,
         channelId: String,
-        appDir: String,
-        responseUrl: String? = null,
-        appName: String
+        app: App,
+        responseUrl: String? = null
     ) {
         val additionalParams = buildData?.get(Constants.Slack.TYPE_ADDITIONAL_PARAMS)?.trim()
 
@@ -117,27 +110,6 @@ class SlackClient constructor(
             }
         }
 
-        buildData?.remove(Constants.Slack.TYPE_ADDITIONAL_PARAMS)
-
-        val userAppPrefix = buildData?.get(Constants.Slack.TYPE_SELECT_APP_PREFIX)?.trim()
-
-        val APKPrefix = "${userAppPrefix?.let {
-            "$it-"
-        } ?: ""}${System.currentTimeMillis()}"
-
-        buildData?.remove(Constants.Slack.TYPE_SELECT_APP_PREFIX)
-
-        val selectedBranch = buildData?.get(Constants.Slack.TYPE_SELECT_BRANCH)?.trim()
-        val pullCodeCommand =
-            "$gradlePath pullCode ${selectedBranch?.let { "-P${Constants.Slack.TYPE_SELECT_BRANCH}=$it" } ?: ""}"
-
-        var executableCommand =
-            "$gradlePath assembleWithArgs -PFILE_PATH=$uploadDirPath -P${Constants.Slack.TYPE_SELECT_APP_PREFIX}=$APKPrefix"
-
-        buildData?.forEach { key, value ->
-            executableCommand += " -P$key=$value"
-        }
-
         withContext(Dispatchers.IO) {
             if (responseUrl != null) {
                 sendMessage(responseUrl, RequestData(response = randomWaitingMessages.random()!!))
@@ -145,15 +117,16 @@ class SlackClient constructor(
                 sendMessage(randomWaitingMessages.random()!!, channelId, null)
             }
         }
+        val selectedBranch = buildData?.get(Constants.Slack.TYPE_SELECT_BRANCH)?.trim()
+
+        val userAppPrefix = buildData?.get(Constants.Slack.TYPE_SELECT_APP_PREFIX)?.trim()
+
+        val APKPrefix = "${userAppPrefix?.let {
+            "$it-"
+        } ?: ""}${System.currentTimeMillis()}"
 
         withContext(Dispatchers.IO) {
-            val executionDirectory = File(appDir)
-            val id = UUID.randomUUID().toString()
-            requestExecutor.send(Request(pullCodeCommand, executionDirectory, id = id))
-            val pullCodeResponseListener = CompletableDeferred<CommandResponse>()
-            responseListeners[id] = pullCodeResponseListener
-
-            when (val pullCodeResponse = pullCodeResponseListener.await()) {
+            when (val pullCodeResponse = app.gradleExecutor?.pullCode(selectedBranch ?: "master")) {
                 is Failure -> {
                     LOGGER.error(
                         if (pullCodeResponse.error.isNullOrEmpty()) "Unable to pull code from branch: $selectedBranch" else pullCodeResponse.error,
@@ -177,22 +150,17 @@ class SlackClient constructor(
                 }
             }
 
-            val buildVariants = gradleBotClient.fetchBuildVariants(appDir)
+            val buildVariants = app.gradleExecutor?.fetchBuildVariants()
             buildVariants?.let {
-                database.addBuildVariants(it, appName)
+                database.addBuildVariants(it, app.id)
             }
 
-            val productFlavours = gradleBotClient.fetchProductFlavours(appDir)
+            val productFlavours = app.gradleExecutor?.fetchProductFlavours()
             productFlavours?.let {
-                database.addFlavours(it, appName)
+                database.addFlavours(it, app.id)
             }
 
-            val buildId = UUID.randomUUID().toString()
-            requestExecutor.send(Request(executableCommand, executionDirectory, id = buildId))
-            val buildApkResponseListener = CompletableDeferred<CommandResponse>()
-            responseListeners[buildId] = buildApkResponseListener
-
-            when (val commandResponse = buildApkResponseListener.await()) {
+            when (val commandResponse = app.gradleExecutor?.generateApp(buildData, uploadDirPath, APKPrefix)) {
                 is Success -> {
                     val tempDirectory = File(uploadDirPath)
                     if (tempDirectory.exists()) {

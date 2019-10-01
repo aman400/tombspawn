@@ -10,12 +10,13 @@ import kotlinx.coroutines.channels.SendChannel
 import java.io.File
 import java.util.*
 
-class GradleBotClient(
+class GradleExecutor constructor(
+    private val appDir: String,
     private val gradlePath: String,
     private val responseListeners: MutableMap<String, CompletableDeferred<CommandResponse>>,
     private val requestExecutor: SendChannel<Command>
-) {
-    suspend fun fetchAllBranches(appDir: String): List<Reference>? {
+): CommandExecutor {
+    override suspend fun fetchAllBranches(): List<Reference>? {
         val executableCommand =
             "$gradlePath fetchRemoteBranches -P${Constants.Common.ARG_OUTPUT_SEPARATOR}=${Constants.Common.OUTPUT_SEPARATOR}"
         val id = UUID.randomUUID().toString()
@@ -42,7 +43,7 @@ class GradleBotClient(
         return null
     }
 
-    suspend fun fetchProductFlavours(appDir: String): List<String>? {
+    override suspend fun fetchProductFlavours(): List<String>? {
         val executableCommand =
             "$gradlePath getProductFlavours -P${Constants.Common.ARG_OUTPUT_SEPARATOR}=${Constants.Common.OUTPUT_SEPARATOR}"
         val id = UUID.randomUUID().toString()
@@ -64,7 +65,7 @@ class GradleBotClient(
         return null
     }
 
-    suspend fun fetchBuildVariants(appDir: String): List<String>? {
+    override suspend fun fetchBuildVariants(): List<String>? {
         val executableCommand =
             "$gradlePath getBuildVariants -P${Constants.Common.ARG_OUTPUT_SEPARATOR}=${Constants.Common.OUTPUT_SEPARATOR}"
         val id = UUID.randomUUID().toString()
@@ -84,5 +85,37 @@ class GradleBotClient(
             }
         }
         return null
+    }
+
+    override suspend fun pullCode(selectedBranch: String): CommandResponse {
+        val pullCodeCommand = "$gradlePath pullCode ${selectedBranch.let { "-P${Constants.Slack.TYPE_SELECT_BRANCH}=$it" } ?: ""}"
+
+        val executionDirectory = File(appDir)
+        val id = UUID.randomUUID().toString()
+        requestExecutor.send(Request(pullCodeCommand, executionDirectory, id = id))
+        val responseListener = CompletableDeferred<CommandResponse>()
+        responseListeners[id] = responseListener
+        return responseListener.await()
+    }
+
+    override suspend fun generateApp(parameters: MutableMap<String, String>?,
+                                     uploadDirPath: String, APKPrefix: String): CommandResponse {
+        parameters?.remove(Constants.Slack.TYPE_ADDITIONAL_PARAMS)
+        val executionDirectory = File(appDir)
+
+        parameters?.remove(Constants.Slack.TYPE_SELECT_APP_PREFIX)
+
+        var executableCommand =
+            "$gradlePath assembleWithArgs -PFILE_PATH=$uploadDirPath -P${Constants.Slack.TYPE_SELECT_APP_PREFIX}=$APKPrefix"
+
+        parameters?.forEach { key, value ->
+            executableCommand += " -P$key=$value"
+        }
+
+        val buildId = UUID.randomUUID().toString()
+        requestExecutor.send(Request(executableCommand, executionDirectory, id = buildId))
+        val buildApkResponseListener = CompletableDeferred<CommandResponse>()
+        responseListeners[buildId] = buildApkResponseListener
+        return buildApkResponseListener.await()
     }
 }

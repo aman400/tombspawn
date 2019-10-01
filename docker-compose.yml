@@ -9,6 +9,8 @@ volumes:
     name: mysqldb
   redisdb:
     name: redisdb
+  app:
+    name: app
 
 services:
   db:
@@ -37,6 +39,7 @@ services:
       - "6379:6379"
   application:
     container_name: application
+    user: "tombspawn"
     depends_on:
       - db
       - redis
@@ -45,7 +48,8 @@ services:
     restart: always
     volumes:
       - ${CONF_PATH}:/app/application.conf
+      - app:/app/
     networks:
       - tombspawn
     ports:
-      - "80:8080"
+      - "8080:8080"

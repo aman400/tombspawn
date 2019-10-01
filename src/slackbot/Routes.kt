@@ -9,6 +9,7 @@ import com.ramukaka.models.slack.ElementType
 import com.ramukaka.models.slack.SlackEvent
 import com.ramukaka.models.slack.dialog
 import com.ramukaka.models.slack.element
+import com.ramukaka.network.GradleExecutor
 import com.ramukaka.utils.Constants
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode

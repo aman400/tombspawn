@@ -28,3 +28,5 @@
 *.tar.gz
 *.rar
 scripts/
+.gradle
+build/

@@ -9,12 +9,13 @@ import com.ramukaka.data.StringMap
 import com.ramukaka.di.*
 import com.ramukaka.extensions.commandExecutor
 import com.ramukaka.extensions.isDebug
+import com.ramukaka.git.CredentialProvider
+import com.ramukaka.git.GitClient
 import com.ramukaka.models.CommandResponse
 import com.ramukaka.models.config.App
 import com.ramukaka.models.config.Common
 import com.ramukaka.models.config.JWT
 import com.ramukaka.models.config.Slack
-import com.ramukaka.network.GradleBotClient
 import com.ramukaka.network.exhaustive
 import com.ramukaka.network.githubWebhook
 import com.ramukaka.slackbot.*
@@ -63,7 +64,7 @@ fun Application.module() {
     }
 
     val apps: List<App> by inject {
-        parametersOf(this)
+        parametersOf(this, this as CoroutineScope)
     }
 
     val slack: Slack by inject {
@@ -78,12 +79,20 @@ fun Application.module() {
         parametersOf(jwt.secret, jwt.domain, jwt.audience)
     }
 
+    val credentialProvider: CredentialProvider by inject {
+        parametersOf(this)
+    }
+
     val uploadDirPath: String by inject(StringQualifier(Constants.EnvironmentVariables.ENV_UPLOAD_DIR_PATH))
     val gson: Gson by inject()
 
     install(Koin) {
-        modules(listOf(dbModule, httpClientModule, gradleBotClient,
-            slackModule, gsonModule, redis, authentication, config))
+        modules(
+            listOf(
+                dbModule, httpClientModule, gradleBotClient,
+                slackModule, gsonModule, redis, authentication, config
+            )
+        )
         logger(object : Logger() {
             override fun log(level: org.koin.core.logger.Level, msg: MESSAGE) {
                 when (level) {
@@ -135,13 +144,12 @@ fun Application.module() {
             validate { credential ->
                 credential.payload.getClaim("id").asString()?.let { database.findUser(it) }
             }
-            skipWhen {
-                call ->
-                    try {
-                        jwtConfig.verifier.verify(call.sessions.get<SlackSession>()?.token) != null
-                    } catch (exception: Exception) {
-                        false
-                    }
+            skipWhen { call ->
+                try {
+                    jwtConfig.verifier.verify(call.sessions.get<SlackSession>()?.token) != null
+                } catch (exception: Exception) {
+                    false
+                }
             }
         }
     }
@@ -204,7 +212,7 @@ fun Application.module() {
         cookie<SlackSession>(Constants.Slack.SESSION, RedisSessionStorage(sessionMap, "Session_", 3600)) {
             cookie.extensions
             cookie.path = "/"
-            if(!isDebug) {
+            if (!isDebug) {
                 cookie.secure = true
             }
             transform(SessionTransportTransformerMessageAuthentication(secretHashKey, "HmacSHA256"))
@@ -240,14 +248,16 @@ fun Application.module() {
     }
     runBlocking { database.addApps(apps) }
 
+    runBlocking {
+        cloneApps(apps, credentialProvider)
+    }
+
     val responseListener = mutableMapOf<String, CompletableDeferred<CommandResponse>>()
     val requestExecutor = commandExecutor(responseListener)
 
-    val gradleBotClient: GradleBotClient by inject { parametersOf(this, responseListener, requestExecutor) }
-
     launch(Dispatchers.IO) {
         apps.forEach {
-            initApp(gradleBotClient, database, it.dir, it.id)
+            initApp(it, database, it.dir ?: "/", it.id)
         }
     }
 
@@ -265,7 +275,7 @@ fun Application.module() {
         )
     }
 
-    val slackClient: SlackClient by inject { parametersOf(this, responseListener, requestExecutor) }
+    val slackClient: SlackClient by inject { parametersOf(this) }
     launch(Dispatchers.IO) {
         val users = slackClient.getSlackUsers(slack.botToken, slackClient, null)
         val ims = slackClient.getSlackBotImIds(slack.botToken, slackClient, null)
@@ -303,24 +313,30 @@ fun Application.module() {
     }
 }
 
-suspend fun initApp(gradleBotClient: GradleBotClient, database: Database, appDir: String, appName: String) =
+suspend fun cloneApps(apps: List<App>, credentialProvider: CredentialProvider) = coroutineScope {
+    apps.forEach {
+        GitClient.clone(it, credentialProvider)
+    }
+}
+
+suspend fun initApp(app: App, database: Database, appDir: String, appName: String) =
     coroutineScope {
         val branchJob = async {
-            val branches = gradleBotClient.fetchAllBranches(appDir)
+            val branches = app.gradleExecutor?.fetchAllBranches()
             branches?.let {
                 database.addRefs(it, appName)
             }
         }
 
         val flavourJob = async {
-            val productFlavours = gradleBotClient.fetchProductFlavours(appDir)
+            val productFlavours = app.gradleExecutor?.fetchProductFlavours()
             productFlavours?.let {
                 database.addFlavours(it, appName)
             }
         }
 
         val variantJob = async {
-            val buildVariants = gradleBotClient.fetchBuildVariants(appDir)
+            val buildVariants = app.gradleExecutor?.fetchBuildVariants()
             buildVariants?.let {
                 database.addBuildVariants(it, appName)
             }

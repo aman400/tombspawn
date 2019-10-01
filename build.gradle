@@ -10,8 +10,8 @@ buildscript {
     }
 
     dependencies {
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath "com.github.jengelman.gradle.plugins:shadow:5.1.0"
+        classpath Classpaths.kotlin
+        classpath Classpaths.shadowJar
     }
 }
 
@@ -49,27 +49,28 @@ repositories {
 }
 
 dependencies {
-    testImplementation "io.ktor:ktor-server-tests:$ktor_version"
+    testImplementation Ktor.test
     
-    implementation group: 'io.ktor', name: 'ktor-client-logging-jvm', version: "$ktor_version"
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+    implementation Kotlin.stdlib
     implementation "ch.qos.logback:logback-classic:$logback_version"
     implementation 'com.google.code.gson:gson:2.8.5'
     implementation 'org.jetbrains.exposed:exposed:0.14.1'
     implementation 'mysql:mysql-connector-java:8.0.12'
     implementation 'org.koin:koin-ktor:2.0.1'
-    implementation "io.ktor:ktor-client-json:$ktor_version"
-    implementation "io.ktor:ktor-client-gson:$ktor_version"
-    implementation "io.ktor:ktor-client-apache:$ktor_version"
-    implementation "io.ktor:ktor-server-core:$ktor_version"
-    implementation "io.ktor:ktor-locations:$ktor_version"
-    implementation "io.ktor:ktor-gson:$ktor_version"
-    implementation "io.ktor:ktor-server-netty:$ktor_version"
+    implementation Ktor.jvmLogging
+    implementation Ktor.netty
+    implementation Ktor.json
+    implementation Ktor.gson
+    implementation Ktor.apache
+    implementation Ktor.core
+    implementation Ktor.locations
+    implementation Ktor.ktorGson
+    implementation Ktor.sessions
+    implementation Ktor.jwt
     implementation group: 'com.zaxxer', name: 'HikariCP', version: '3.3.1'
     implementation 'org.redisson:redisson:3.10.7'
     implementation 'redis.clients:jedis:3.1.0'
     implementation "org.jetbrains.kotlinx:kotlinx-html-jvm:0.6.12"
-    implementation "io.ktor:ktor-server-sessions:$ktor_version"
-    implementation "io.ktor:ktor-auth-jwt:$ktor_version"
+    implementation Jgit.lib
     implementation 'com.auth0:java-jwt:3.8.1'
 }

@@ -2,6 +2,7 @@ package com.ramukaka.data
 
 import com.ramukaka.models.Reference
 import com.ramukaka.models.github.RefType
+import com.ramukaka.network.GradleExecutor
 import com.ramukaka.utils.Constants
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
