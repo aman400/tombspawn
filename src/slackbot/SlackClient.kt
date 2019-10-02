@@ -126,7 +126,7 @@ class SlackClient constructor(
         } ?: ""}${System.currentTimeMillis()}"
 
         withContext(Dispatchers.IO) {
-            when (val pullCodeResponse = app.gradleExecutor?.pullCode(selectedBranch ?: "master")) {
+            /*when (val pullCodeResponse = app.gradleExecutor?.pullCode(selectedBranch ?: "master")) {
                 is Failure -> {
                     LOGGER.error(
                         if (pullCodeResponse.error.isNullOrEmpty()) "Unable to pull code from branch: $selectedBranch" else pullCodeResponse.error,
@@ -148,7 +148,7 @@ class SlackClient constructor(
                         )
                     }
                 }
-            }
+            }*/
 
             val buildVariants = app.gradleExecutor?.fetchBuildVariants()
             buildVariants?.let {

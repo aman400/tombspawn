@@ -11,6 +11,10 @@ volumes:
     name: redisdb
   app:
     name: app
+  sdk:
+    name: sdk
+  gradle:
+    name: gradle
 
 services:
   db:
@@ -49,7 +53,22 @@ services:
     volumes:
       - ${CONF_PATH}:/app/application.conf
       - app:/app/
+      - sdk:/opt/android/sdk/
+      - gradle:/home/tombspawn/.gradle/
     networks:
       - tombspawn
     ports:
       - "8080:8080"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.80'
+          memory: 6G
+        reservations:
+          cpus: '0.50'
+          memory: 4G
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
