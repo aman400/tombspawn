@@ -32,3 +32,4 @@ scripts/
 build/
 .env
 .DS_Store
+out/
