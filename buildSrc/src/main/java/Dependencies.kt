@@ -23,6 +23,18 @@ object Kotlin {
     const val stdlib = "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${Versions.kotlin}"
 }
 
+object Gson {
+    const val lib = "com.google.code.gson:gson:2.8.5"
+}
+
+object Log {
+    const val logback = "ch.qos.logback:logback-classic:1.2.3"
+}
+
+object Koin {
+    const val lib = "org.koin:koin-ktor:2.0.1"
+}
+
 object Ktor {
     const val netty = "io.ktor:ktor-server-netty:${Versions.ktorVersion}"
     const val json = "io.ktor:ktor-client-json:${Versions.ktorVersion}"

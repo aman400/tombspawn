@@ -1,0 +1,50 @@
+apply plugin: 'com.github.johnrengelman.shadow'
+apply plugin: 'kotlin'
+apply plugin: 'application'
+
+group 'grave'
+version '0.6'
+mainClassName = "com.tombspawn.ApplicationKt"
+
+sourceSets {
+    main.kotlin.srcDirs = main.java.srcDirs = ['src/main/kotlin']
+    test.kotlin.srcDirs = test.java.srcDirs = ['test/main/kotlin']
+    main.resources.srcDirs = ['src/main/resources']
+    test.resources.srcDirs = ['src/test/resources']
+}
+
+
+sourceCompatibility = 1.8
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+
+shadowJar {
+    archiveName = "application.jar"
+}
+
+dependencies {
+    testImplementation Ktor.test
+
+    implementation Kotlin.stdlib
+    implementation Log.logback
+    implementation Gson.lib
+    implementation 'org.jetbrains.exposed:exposed:0.14.1'
+    implementation 'mysql:mysql-connector-java:8.0.12'
+    implementation Koin.lib
+    implementation Ktor.jvmLogging
+    implementation Ktor.netty
+    implementation Ktor.json
+    implementation Ktor.gson
+    implementation Ktor.apache
+    implementation Ktor.core
+    implementation Ktor.locations
+    implementation Ktor.ktorGson
+    implementation Ktor.sessions
+    implementation Ktor.jwt
+    implementation group: 'com.zaxxer', name: 'HikariCP', version: '3.3.1'
+    implementation 'redis.clients:jedis:3.1.0'
+    implementation "org.jetbrains.kotlinx:kotlinx-html-jvm:0.6.12"
+    implementation Jgit.lib
+    implementation 'com.auth0:java-jwt:3.8.1'
+}
