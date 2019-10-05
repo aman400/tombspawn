@@ -4,19 +4,21 @@ import com.google.gson.Gson
 import com.tombspawn.auth.JWTConfig
 import com.tombspawn.auth.RedisSessionStorage
 import com.tombspawn.auth.sessions.SlackSession
+import com.tombspawn.base.di.gsonModule
+import com.tombspawn.base.di.httpClientModule
 import com.tombspawn.data.Database
 import com.tombspawn.data.StringMap
 import com.tombspawn.di.*
 import com.tombspawn.extensions.commandExecutor
-import com.tombspawn.extensions.isDebug
+import com.tombspawn.base.extensions.isDebug
 import com.tombspawn.git.CredentialProvider
 import com.tombspawn.git.GitClient
-import com.tombspawn.models.CommandResponse
+import com.tombspawn.base.common.CommandResponse
 import com.tombspawn.models.config.App
 import com.tombspawn.models.config.Common
 import com.tombspawn.models.config.JWT
 import com.tombspawn.models.config.Slack
-import com.tombspawn.network.exhaustive
+import com.tombspawn.base.common.exhaustive
 import com.tombspawn.network.githubWebhook
 import com.tombspawn.slackbot.*
 import com.tombspawn.utils.Constants
@@ -159,7 +161,6 @@ fun Application.module() {
 
     install(StatusPages) {
         exception<Throwable> { cause ->
-            println(cause.stackTrace)
             LOGGER.error(cause)
             call.respond(HttpStatusCode.InternalServerError)
         }

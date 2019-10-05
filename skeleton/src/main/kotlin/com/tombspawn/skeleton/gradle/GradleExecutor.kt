@@ -1,10 +1,9 @@
-package com.tombspawn.network
+package com.tombspawn.skeleton.gradle
 
 import com.tombspawn.base.common.*
-import com.tombspawn.git.CredentialProvider
-import com.tombspawn.models.*
-import com.tombspawn.models.github.RefType
-import com.tombspawn.utils.Constants
+import com.tombspawn.skeleton.git.CredentialProvider
+import com.tombspawn.skeleton.models.*
+import com.tombspawn.skeleton.utils.Constants
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.SendChannel
 import java.io.File
@@ -89,7 +88,7 @@ class GradleExecutor constructor(
     }
 
     override suspend fun pullCode(selectedBranch: String): CommandResponse {
-        val pullCodeCommand = "$gradlePath pullCode ${selectedBranch.let { "-P${Constants.Slack.TYPE_SELECT_BRANCH}=$it" } ?: ""}"
+        val pullCodeCommand = "$gradlePath pullCode ${selectedBranch.let { "-P${Constants.Apis.TYPE_SELECT_BRANCH}=$it" } ?: ""}"
 
         val executionDirectory = File(appDir)
         val id = UUID.randomUUID().toString()
@@ -101,13 +100,13 @@ class GradleExecutor constructor(
 
     override suspend fun generateApp(parameters: MutableMap<String, String>?,
                                      uploadDirPath: String, APKPrefix: String): CommandResponse {
-        parameters?.remove(Constants.Slack.TYPE_ADDITIONAL_PARAMS)
+        parameters?.remove(Constants.Apis.TYPE_ADDITIONAL_PARAMS)
         val executionDirectory = File(appDir)
 
-        parameters?.remove(Constants.Slack.TYPE_SELECT_APP_PREFIX)
+        parameters?.remove(Constants.Apis.TYPE_SELECT_APP_PREFIX)
 
         var executableCommand =
-            "$gradlePath assembleWithArgs -PFILE_PATH=$uploadDirPath -P${Constants.Slack.TYPE_SELECT_APP_PREFIX}=$APKPrefix"
+            "$gradlePath assembleWithArgs -PFILE_PATH=$uploadDirPath -P${Constants.Apis.TYPE_SELECT_APP_PREFIX}=$APKPrefix"
 
         parameters?.forEach { key, value ->
             executableCommand += " -P$key=$value"

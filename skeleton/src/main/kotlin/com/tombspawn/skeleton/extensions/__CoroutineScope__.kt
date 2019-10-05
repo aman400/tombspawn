@@ -1,4 +1,4 @@
-package com.tombspawn.extensions
+package com.tombspawn.skeleton.extensions
 
 import com.tombspawn.base.common.*
 import com.tombspawn.base.common.Response

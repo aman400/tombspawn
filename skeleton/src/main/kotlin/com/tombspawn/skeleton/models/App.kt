@@ -1,7 +1,7 @@
-package com.tombspawn.models.config
+package com.tombspawn.skeleton.models
 
 import com.google.gson.annotations.SerializedName
-import com.tombspawn.network.GradleExecutor
+import com.tombspawn.skeleton.gradle.GradleExecutor
 
 data class App constructor(@SerializedName("id") var id: String,
                @SerializedName("name") var name: String?,

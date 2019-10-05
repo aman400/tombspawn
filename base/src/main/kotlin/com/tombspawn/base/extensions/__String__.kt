@@ -1,4 +1,4 @@
-package com.tombspawn.extensions
+package com.tombspawn.base.extensions
 
 import org.slf4j.LoggerFactory
 

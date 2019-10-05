@@ -3,7 +3,7 @@ package com.tombspawn.slackbot
 import com.google.gson.Gson
 import com.tombspawn.data.Database
 import com.tombspawn.data.Ref
-import com.tombspawn.extensions.toMap
+import com.tombspawn.base.extensions.toMap
 import com.tombspawn.models.Reference
 import com.tombspawn.models.config.App
 import com.tombspawn.models.locations.Slack

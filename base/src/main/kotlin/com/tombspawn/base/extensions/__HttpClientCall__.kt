@@ -1,10 +1,10 @@
-package com.tombspawn.extensions
+package com.tombspawn.base.extensions
 
 import com.google.gson.Gson
-import com.tombspawn.network.CallError
-import com.tombspawn.network.CallFailure
-import com.tombspawn.network.CallSuccess
-import com.tombspawn.network.Response
+import com.tombspawn.base.common.CallError
+import com.tombspawn.base.common.CallFailure
+import com.tombspawn.base.common.CallSuccess
+import com.tombspawn.base.common.Response
 import io.ktor.client.call.HttpClientCall
 import io.ktor.client.response.readText
 import io.ktor.http.isSuccess

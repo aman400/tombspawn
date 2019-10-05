@@ -1,4 +1,4 @@
-package com.tombspawn.models
+package com.tombspawn.base.common
 
 import java.io.File
 import java.util.*

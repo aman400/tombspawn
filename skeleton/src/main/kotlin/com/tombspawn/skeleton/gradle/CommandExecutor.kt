@@ -1,7 +1,7 @@
-package com.tombspawn.network
+package com.tombspawn.skeleton.gradle
 
 import com.tombspawn.base.common.CommandResponse
-import com.tombspawn.models.Reference
+import com.tombspawn.skeleton.models.Reference
 
 interface CommandExecutor {
 

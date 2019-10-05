@@ -1,4 +1,4 @@
-package com.tombspawn.network
+package com.tombspawn.base.common
 
 sealed class Response <out T>
 

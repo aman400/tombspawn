@@ -1,8 +1,11 @@
 package com.tombspawn.network
 
+import com.tombspawn.base.common.CallError
+import com.tombspawn.base.common.CallFailure
+import com.tombspawn.base.common.CallSuccess
 import com.tombspawn.data.Database
-import com.tombspawn.extensions.await
-import com.tombspawn.extensions.copyToSuspend
+import com.tombspawn.base.extensions.await
+import com.tombspawn.base.extensions.copyToSuspend
 import com.tombspawn.utils.Constants
 import io.ktor.application.call
 import io.ktor.client.HttpClient

@@ -63,6 +63,7 @@ dependencies {
     implementation Ktor.locations
     implementation Ktor.ktorGson
     implementation Jgit.lib
+    implementation project(":base")
 
     testImplementation Ktor.test
 }
