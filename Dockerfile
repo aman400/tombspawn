@@ -1,7 +1,5 @@
 FROM openjdk:8-jdk-slim
 
-RUN echo $JAVA_HOME
-
 ENV APPLICATION_USER tombspawn
 RUN useradd -ms /bin/bash $APPLICATION_USER
 
@@ -34,8 +32,14 @@ RUN apt-get update && apt-get install -y git \
 RUN mkdir /app
 RUN chown -R $APPLICATION_USER /app
 
+RUN mkdir /skeleton
+RUN chown -R $APPLICATION_USER /skeleton
+COPY /skeleton/build/libs/application.jar /skeleton/application.jar
+COPY /skeleton/Dockerfile /app/Dockerfile
+
+
 RUN mkdir $GRADLE_HOME
-COPY /scripts/gradle.properties ${GRADLE_HOME}/gradle.properties
+COPY /scripts/local/gradle.properties ${GRADLE_HOME}/gradle.properties
 RUN chown -R $APPLICATION_USER $GRADLE_HOME
 
 USER $APPLICATION_USER

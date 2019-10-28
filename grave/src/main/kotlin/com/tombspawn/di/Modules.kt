@@ -1,17 +1,23 @@
 package com.tombspawn.di
 
-import com.tombspawn.auth.JWTConfig
+import com.github.dockerjava.core.DefaultDockerClientConfig
+import com.github.dockerjava.core.DockerClientBuilder
+import com.github.dockerjava.netty.NettyDockerCmdExecFactory
 import com.tombspawn.data.Database
 import com.tombspawn.data.StringMap
 import com.tombspawn.extensions.commandExecutor
 import com.tombspawn.git.CredentialProvider
 import com.tombspawn.base.common.Command
 import com.tombspawn.base.common.CommandResponse
+import com.tombspawn.base.config.JsonApplicationConfig
 import com.tombspawn.models.config.*
 import com.tombspawn.network.GradleExecutor
+import com.tombspawn.network.docker.DockerApiClient
 import com.tombspawn.slackbot.SlackClient
 import com.tombspawn.utils.Constants
 import io.ktor.application.Application
+import io.ktor.client.HttpClient
+import io.ktor.http.URLProtocol
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -19,6 +25,7 @@ import kotlinx.coroutines.channels.SendChannel
 import org.koin.core.parameter.parametersOf
 import org.koin.core.qualifier.StringQualifier
 import org.koin.dsl.module
+import redis.clients.jedis.Protocol
 
 val dbModule = module {
     single { (application: Application, isDebug: Boolean) ->
@@ -32,7 +39,9 @@ val dbModule = module {
 val slackModule = module {
     single { (application: Application) ->
         SlackClient(
-            get(),
+            get {
+                parametersOf("slack.com", URLProtocol.HTTPS, null)
+            },
             get(StringQualifier(Constants.EnvironmentVariables.ENV_UPLOAD_DIR_PATH)),
             get(),
             get {
@@ -65,7 +74,9 @@ val redisClient = module {
         val redisConfig = get<Redis> {
             parametersOf(application)
         }
-        redis.clients.jedis.Jedis(redisConfig.host, redisConfig.port, 100000)
+        redis.clients.jedis.Jedis(
+            redisConfig.host ?: Protocol.DEFAULT_HOST,
+            redisConfig.port ?: Protocol.DEFAULT_PORT, 100000)
     }
 
     single { (application: Application) ->
@@ -77,89 +88,66 @@ val redisClient = module {
     }
 }
 
-val authentication = module {
-    single { (secret: String, issuer: String, audience: String) ->
-        JWTConfig(secret, issuer, audience)
+val docker = module {
+    single {
+        val config = DefaultDockerClientConfig.createDefaultConfigBuilder()
+            .build()
+
+        DockerApiClient(
+            DockerClientBuilder.getInstance(config).withDockerCmdExecFactory(
+                NettyDockerCmdExecFactory()
+                    .withConnectTimeout(60000)
+                    .withReadTimeout(60000)
+            ).build()
+        )
     }
 }
 
 @UseExperimental(KtorExperimentalAPI::class)
 val config = module {
     factory { (application: Application, coroutineScope: CoroutineScope) ->
-        application.environment.config.configList("conf.apps").map {
+        (application.environment.config as JsonApplicationConfig).configList("apps").map {
             val responseListener = mutableMapOf<String, CompletableDeferred<CommandResponse>>()
             val requestExecutor = coroutineScope.commandExecutor(responseListener)
-            val directory = it.propertyOrNull("dir")?.getString()
-            App(
-                it.property("id").getString(),
-                it.propertyOrNull("name")?.getString(),
-                it.propertyOrNull("app_url")?.getString(),
-                it.propertyOrNull("repo_id")?.getString(),
-                directory,
-                it.property("remote_uri").getString(),
-                get {
-                    parametersOf(application, directory, responseListener, requestExecutor)
+            it.getAs(App::class.java).apply {
+                gradleExecutor = get {
+                    parametersOf(application, this.dir, responseListener, requestExecutor)
                 } as GradleExecutor
-            )
+                networkClient = get<HttpClient> {
+                    parametersOf(this.appUrl, URLProtocol.HTTP, null)
+                }
+            }
         }
     }
 
     single { (application: Application) ->
-        application.environment.config.config("conf.slack").let {
-            Slack(
-                it.property("token").getString(), it.property("auth_token").getString(),
-                it.property("client_id").getString(), it.property("secret").getString()
-            )
-        }
+        (application.environment.config as JsonApplicationConfig)
+            .propertyOrNull("slack")
+            ?.getAs(Slack::class.java)
     }
 
     single { (application: Application) ->
-        application.environment.config.config("conf.db").let {
-            Db(
-                it.property("url").getString(),
-                it.property("username").getString(),
-                it.property("password").getString()
-            )
-        }
+        (application.environment.config as JsonApplicationConfig)
+            .propertyOrNull("db")
+            ?.getAs(Db::class.java)
     }
 
     single { (application: Application) ->
-        application.environment.config.config("conf.jwt").let {
-            JWT(
-                it.property("domain").getString(),
-                it.property("audience").getString(),
-                it.property("realm").getString(),
-                it.property("secret").getString()
-            )
-        }
+        (application.environment.config as JsonApplicationConfig)
+            .propertyOrNull("common")
+            ?.getAs(Common::class.java)
     }
 
     single { (application: Application) ->
-        application.environment.config.config("conf.common").let {
-            Common(
-                it.property("base_url").getString(),
-                it.property("gradle_path").getString()
-            )
-        }
+        (application.environment.config as JsonApplicationConfig)
+            .propertyOrNull("redis")
+            ?.getAs(Redis::class.java)
     }
 
     single { (application: Application) ->
-        application.environment.config.config("conf.redis").let {
-            Redis(
-                it.propertyOrNull("host")?.getString() ?: Constants.Common.LOCALHOST,
-                it.propertyOrNull("port")?.getString()?.toInt() ?: Constants.Common.DEFAULT_REDIS_PORT
-            )
-        }
-
-    }
-
-    single { (application: Application) ->
-        application.environment.config.config("conf.git").let {
-            CredentialProvider(
-                it.propertyOrNull("ssh_file")?.getString(), it.propertyOrNull("passphrase")?.getString(),
-                it.propertyOrNull("username")?.getString(), it.propertyOrNull("password")?.getString()
-            )
-        }
+        (application.environment.config as JsonApplicationConfig)
+            .propertyOrNull("git")
+            ?.getAs(CredentialProvider::class.java)
     }
 
     single(StringQualifier(Constants.EnvironmentVariables.ENV_UPLOAD_DIR_PATH)) {

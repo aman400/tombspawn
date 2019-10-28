@@ -25,7 +25,7 @@ services:
       - mysqldb:/var/lib/mysql
     restart: always
     env_file:
-      - scripts/mysql.env
+      - scripts/local/mysql.env
     networks:
       - tombspawn
     ports:

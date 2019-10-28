@@ -61,6 +61,9 @@ class GradleExecutor constructor(
                     }
                 }
             }
+            is Failure -> {
+                response.throwable?.printStackTrace()
+            }
         }
         return null
     }
@@ -83,12 +86,15 @@ class GradleExecutor constructor(
                     }
                 }
             }
+            is Failure -> {
+                response.throwable?.printStackTrace()
+            }
         }
         return null
     }
 
     override suspend fun pullCode(selectedBranch: String): CommandResponse {
-        val pullCodeCommand = "$gradlePath pullCode ${selectedBranch.let { "-P${Constants.Apis.TYPE_SELECT_BRANCH}=$it" } ?: ""}"
+        val pullCodeCommand = "$gradlePath pullCode ${selectedBranch.let { "-P${Constants.Apis.TYPE_SELECT_BRANCH}=$it" }}"
 
         val executionDirectory = File(appDir)
         val id = UUID.randomUUID().toString()

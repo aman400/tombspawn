@@ -1,9 +1,17 @@
 package com.tombspawn.git
 
-open class CredentialProvider(var sshFilePath: String? = null,
-                              var passphrase: String? = null,
-                              var username: String? = null,
-                              var password: String? = null) {
+import com.google.gson.annotations.SerializedName
+
+open class CredentialProvider(
+    @SerializedName("ssh_file")
+    var sshFilePath: String? = null,
+    @SerializedName("passphrase")
+    var passphrase: String? = null,
+    @SerializedName("username")
+    var username: String? = null,
+    @SerializedName("password")
+    var password: String? = null
+) {
 
     fun isPresent(): Boolean {
         return !username.isNullOrEmpty() || !sshFilePath.isNullOrEmpty()

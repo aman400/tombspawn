@@ -1,6 +1,8 @@
 package com.tombspawn.models.config
 
-import redis.clients.jedis.Protocol
+import com.google.gson.annotations.SerializedName
 
-data class Redis(val host: String = Protocol.DEFAULT_HOST,
-                 val port: Int = Protocol.DEFAULT_PORT)
+class Redis(@SerializedName("host")
+            val host: String? = null,
+            @SerializedName("port")
+            val port: Int? = null)

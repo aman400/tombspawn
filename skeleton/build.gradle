@@ -70,5 +70,5 @@ dependencies {
 
 application {
     // Define the main class for the application
-    mainClassName = 'com.tombspawn.AppKt'
+    mainClassName = 'com.tombspawn.skeleton.ApplicationKt'
 }

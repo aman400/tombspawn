@@ -48,7 +48,7 @@ fun Routing.slackEvent(database: Database, slackClient: SlackClient) {
 fun Routing.slackAction(
     database: Database,
     slackClient: SlackClient,
-    baseUrl: String,
+    baseUrl: String?,
     apps: List<App>,
     gson: Gson
 ) {
@@ -87,7 +87,7 @@ fun Routing.slackAction(
                 }
             }
             Event.EventType.DIALOG_SUBMISSION -> {
-                onDialogSubmitted(apps, slackEvent, slackClient, database, baseUrl, gson)
+                onDialogSubmitted(apps, slackEvent, slackClient, database, baseUrl ?: "", gson)
             }
         }
     }

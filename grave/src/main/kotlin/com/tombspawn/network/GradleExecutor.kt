@@ -11,8 +11,8 @@ import java.io.File
 import java.util.*
 
 class GradleExecutor constructor(
-    private val appDir: String,
-    private val gradlePath: String,
+    private val appDir: String?,
+    private val gradlePath: String?,
     private val responseListeners: MutableMap<String, CompletableDeferred<CommandResponse>>,
     private val requestExecutor: SendChannel<Command>,
     private val credentialProvider: CredentialProvider
@@ -21,7 +21,7 @@ class GradleExecutor constructor(
         val executableCommand =
             "$gradlePath fetchRemoteBranches -P${Constants.Common.ARG_OUTPUT_SEPARATOR}=${Constants.Common.OUTPUT_SEPARATOR}"
         val id = UUID.randomUUID().toString()
-        requestExecutor.send(Request(executableCommand, File(appDir), id = id))
+        requestExecutor.send(Request(executableCommand, File(appDir ?: "/"), id = id))
         val responseListener = CompletableDeferred<CommandResponse>()
         responseListeners[id] = responseListener
         when (val response = responseListener.await()) {
@@ -62,6 +62,9 @@ class GradleExecutor constructor(
                     }
                 }
             }
+            is Failure -> {
+                response.throwable?.printStackTrace()
+            }
         }
         return null
     }
@@ -83,6 +86,9 @@ class GradleExecutor constructor(
                             .filter { item -> item.isNotEmpty() }
                     }
                 }
+            }
+            is Failure -> {
+                response.throwable?.printStackTrace()
             }
         }
         return null

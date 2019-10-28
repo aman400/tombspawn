@@ -3,6 +3,7 @@ package com.tombspawn.network
 import com.tombspawn.base.common.CallError
 import com.tombspawn.base.common.CallFailure
 import com.tombspawn.base.common.CallSuccess
+import com.tombspawn.base.common.exhaustive
 import com.tombspawn.data.Database
 import com.tombspawn.base.extensions.await
 import com.tombspawn.base.extensions.copyToSuspend
@@ -44,36 +45,6 @@ fun Routing.health() {
 @Location("/app")
 data class Apk(val file: File)
 
-
-fun Routing.receiveApk(uploadDirPath: String) {
-    post<Apk> {
-        val multipart = call.receiveMultipart()
-        var description: String
-        multipart.forEachPart { part ->
-            when (part) {
-                is PartData.FormItem -> {
-                    if (part.name == "description") {
-                        description = part.value
-                        println(description)
-                    }
-                }
-                is PartData.FileItem -> {
-                    val ext = File(part.originalFileName).extension
-                    val name = File(part.originalFileName).name
-                    val file = File(uploadDirPath, "upload-app.$ext")
-                    part.streamProvider().use { input ->
-                        file.outputStream().buffered().use { output ->
-                            input.copyToSuspend(output)
-                            call.respond(mapOf("message" to "Upload Complete"))
-                        }
-                    }
-                }
-            }
-
-            part.dispose()
-        }
-    }
-}
 
 @Throws(Exception::class)
 suspend fun fetchBotData(client: HttpClient, database: Database, botToken: String) = coroutineScope {

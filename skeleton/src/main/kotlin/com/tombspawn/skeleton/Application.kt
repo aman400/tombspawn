@@ -1,9 +1,15 @@
 package com.tombspawn.skeleton
 
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.tombspawn.base.annotations.DoNotSerialize
 import com.tombspawn.base.common.exhaustive
+import com.tombspawn.base.config.JsonApplicationConfig
+import com.tombspawn.base.di.LOGGER
 import com.tombspawn.base.di.gsonModule
 import com.tombspawn.base.di.httpClientModule
 import com.tombspawn.skeleton.di.config
+import com.tombspawn.skeleton.di.gradleBotClient
 import com.tombspawn.skeleton.git.CredentialProvider
 import com.tombspawn.skeleton.git.GitClient
 import com.tombspawn.skeleton.models.App
@@ -18,8 +24,12 @@ import io.ktor.locations.KtorExperimentalLocationsAPI
 import io.ktor.locations.Locations
 import io.ktor.request.path
 import io.ktor.response.respond
+import io.ktor.routing.get
 import io.ktor.routing.routing
-import io.ktor.server.netty.EngineMain
+import io.ktor.server.engine.applicationEngineEnvironment
+import io.ktor.server.engine.connector
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
 import io.ktor.util.error
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.runBlocking
@@ -31,7 +41,24 @@ import org.koin.ktor.ext.inject
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 
-fun main(args: Array<String>): Unit = EngineMain.main(args)
+fun main(args: Array<String>) {
+    val env = applicationEngineEnvironment {
+        module {
+            module()
+        }
+
+        connector {
+            this.host = "0.0.0.0"
+            this.port = 8080
+        }
+
+        args.takeIf { it.isNotEmpty() }?.first()?.let {
+            LOGGER.debug(it)
+            config = JsonApplicationConfig(Gson(), it)
+        }
+    }
+    embeddedServer(Netty, env).start(true)
+}
 
 @KtorExperimentalLocationsAPI
 @Suppress("unused")
@@ -40,7 +67,7 @@ fun Application.module() {
 
     val LOGGER = LoggerFactory.getLogger("com.tombspawn.skeleton.Application")
 
-    val apps: List<App> by inject {
+    val app: App by inject {
         parametersOf(this, this as CoroutineScope)
     }
 
@@ -48,8 +75,13 @@ fun Application.module() {
         parametersOf(this)
     }
 
+    val gitClient: GitClient by inject {
+        parametersOf(app, credentialProvider)
+    }
+
+
     install(Koin) {
-        modules(listOf(gsonModule, httpClientModule, config))
+        modules(listOf(gsonModule, httpClientModule, config, gradleBotClient))
         logger(object : Logger() {
             override fun log(level: org.koin.core.logger.Level, msg: MESSAGE) {
                 when (level) {
@@ -131,12 +163,25 @@ fun Application.module() {
     }
 
     runBlocking {
-        apps.forEach {
-            GitClient(it, credentialProvider).clone()
-        }
+         gitClient.clone()
     }
 
     routing {
 
+        get("/app/generate/") {
+//            app.gradleExecutor?.generateApp()
+        }
+
+        get("/branches") {
+            app.gradleExecutor?.fetchAllBranches()?.let {
+                call.respond(it)
+            } ?: call.respond("[]")
+        }
+
+        get("/flavours") {
+            app.gradleExecutor?.fetchProductFlavours()?.let {
+                call.respond(it)
+            } ?: call.respond("[]")
+        }
     }
 }

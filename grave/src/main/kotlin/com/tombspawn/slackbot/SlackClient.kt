@@ -2,7 +2,6 @@ package com.tombspawn.slackbot
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
-import com.tombspawn.auth.models.SlackAuthResponse
 import com.tombspawn.base.common.*
 import com.tombspawn.data.DBUser
 import com.tombspawn.data.Database
@@ -126,30 +125,6 @@ class SlackClient constructor(
         } ?: ""}${System.currentTimeMillis()}"
 
         withContext(Dispatchers.IO) {
-            /*when (val pullCodeResponse = app.gradleExecutor?.pullCode(selectedBranch ?: "master")) {
-                is Failure -> {
-                    LOGGER.error(
-                        if (pullCodeResponse.error.isNullOrEmpty()) "Unable to pull code from branch: $selectedBranch" else pullCodeResponse.error,
-                        pullCodeResponse.throwable
-                    )
-                    if (responseUrl != null) {
-                        sendMessage(
-                            responseUrl,
-                            RequestData(
-                                response = pullCodeResponse.error
-                                    ?: "Unable to pull latest changes from branch `$selectedBranch`."
-                            )
-                        )
-                    } else {
-                        sendMessage(
-                            pullCodeResponse.error ?: "Unable to pull latest changes from branch `$selectedBranch`.",
-                            channelId,
-                            null
-                        )
-                    }
-                }
-            }*/
-
             val buildVariants = app.gradleExecutor?.fetchBuildVariants()
             buildVariants?.let {
                 database.addBuildVariants(it, app.id)
@@ -795,39 +770,5 @@ class SlackClient constructor(
         }
 
         return ims
-    }
-
-    suspend fun verifySlackAuth(code: String): DBUser? {
-        val call = httpClient.call {
-            url {
-                encodedPath = "api/oauth.access"
-                parameters.append(Constants.Slack.CODE, code)
-                parameters.append(Constants.Slack.CLIENT_ID, slack.clientId)
-                parameters.append(Constants.Slack.CLIENT_SECRET, slack.secret)
-            }
-            method = HttpMethod.Get
-        }
-
-        return when (val response = call.await<SlackAuthResponse>()) {
-            is CallSuccess -> {
-                response.data?.let { data ->
-                    if (data.successful == true) {
-                        data.user?.let {
-                            database.addUser(it.id!!, it.name, it.email, Constants.Database.USER_TYPE_USER)
-                        }
-                    } else {
-                        null
-                    }
-                }
-            }
-            is CallFailure -> {
-                LOGGER.error(response.errorBody, response.throwable)
-                null
-            }
-            is CallError -> {
-                LOGGER.error(response.throwable?.message, response.throwable)
-                null
-            }
-        }
     }
 }

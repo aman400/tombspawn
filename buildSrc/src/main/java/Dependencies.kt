@@ -21,6 +21,11 @@ object TestDeps {
 
 object Kotlin {
     const val stdlib = "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${Versions.kotlin}"
+    const val html = "org.jetbrains.kotlinx:kotlinx-html-jvm:0.6.12"
+}
+
+object Auth {
+    const val jwt = "com.auth0:java-jwt:3.8.1"
 }
 
 object Gson {
@@ -35,6 +40,17 @@ object Koin {
     const val lib = "org.koin:koin-ktor:2.0.1"
 }
 
+object Docker {
+    const val lib = "com.github.docker-java:docker-java:3.2.0-rc1"
+}
+
+object Database {
+    const val mysql = "mysql:mysql-connector-java:8.0.12"
+    const val exposed = "org.jetbrains.exposed:exposed:0.14.1"
+    const val pool = "com.zaxxer:HikariCP:3.3.1"
+    const val redis = "redis.clients:jedis:3.1.0"
+}
+
 object Ktor {
     const val netty = "io.ktor:ktor-server-netty:${Versions.ktorVersion}"
     const val json = "io.ktor:ktor-client-json:${Versions.ktorVersion}"
@@ -46,6 +62,7 @@ object Ktor {
     const val sessions = "io.ktor:ktor-server-sessions:${Versions.ktorVersion}"
     const val jwt = "io.ktor:ktor-auth-jwt:${Versions.ktorVersion}"
     const val jvmLogging = "io.ktor:ktor-client-logging-jvm:${Versions.ktorVersion}"
+    const val curl = "io.ktor:ktor-client-curl:${Versions.ktorVersion}"
 
     const val test = "io.ktor:ktor-server-tests:${Versions.ktorVersion}"
 }

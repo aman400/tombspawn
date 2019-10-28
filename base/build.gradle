@@ -30,4 +30,5 @@ dependencies {
     api Ktor.apache
     api Gson.lib
     api Koin.lib
+    api Log.logback
 }

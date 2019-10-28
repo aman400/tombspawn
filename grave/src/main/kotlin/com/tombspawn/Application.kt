@@ -1,52 +1,49 @@
 package com.tombspawn
 
 import com.google.gson.Gson
-import com.tombspawn.auth.JWTConfig
-import com.tombspawn.auth.RedisSessionStorage
-import com.tombspawn.auth.sessions.SlackSession
+import com.tombspawn.base.common.CallError
+import com.tombspawn.base.common.CallFailure
+import com.tombspawn.base.common.CallSuccess
+import com.tombspawn.base.common.exhaustive
+import com.tombspawn.base.config.JsonApplicationConfig
 import com.tombspawn.base.di.gsonModule
 import com.tombspawn.base.di.httpClientModule
+import com.tombspawn.base.extensions.await
+import com.tombspawn.base.extensions.isDebug
 import com.tombspawn.data.Database
 import com.tombspawn.data.StringMap
 import com.tombspawn.di.*
-import com.tombspawn.extensions.commandExecutor
-import com.tombspawn.base.extensions.isDebug
+import com.tombspawn.docker.createContainers
 import com.tombspawn.git.CredentialProvider
-import com.tombspawn.git.GitClient
-import com.tombspawn.base.common.CommandResponse
-import com.tombspawn.models.config.App
-import com.tombspawn.models.config.Common
-import com.tombspawn.models.config.JWT
-import com.tombspawn.models.config.Slack
-import com.tombspawn.base.common.exhaustive
+import com.tombspawn.models.Reference
+import com.tombspawn.models.config.*
+import com.tombspawn.network.docker.DockerApiClient
+import com.tombspawn.network.fetchBotData
 import com.tombspawn.network.githubWebhook
+import com.tombspawn.network.health
+import com.tombspawn.network.status
 import com.tombspawn.slackbot.*
 import com.tombspawn.utils.Constants
-import io.ktor.application.Application
-import io.ktor.application.ApplicationCallPipeline
-import io.ktor.application.call
-import io.ktor.application.install
-import io.ktor.auth.Authentication
-import io.ktor.auth.jwt.jwt
+import io.ktor.application.*
 import io.ktor.client.HttpClient
+import io.ktor.client.call.call
 import io.ktor.features.*
 import io.ktor.gson.gson
-import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.URLProtocol
 import io.ktor.locations.KtorExperimentalLocationsAPI
 import io.ktor.locations.Locations
 import io.ktor.request.path
 import io.ktor.response.respond
+import io.ktor.routing.get
 import io.ktor.routing.routing
-import io.ktor.server.netty.EngineMain
-import io.ktor.sessions.*
+import io.ktor.server.engine.applicationEngineEnvironment
+import io.ktor.server.engine.connector
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
 import io.ktor.util.error
-import io.ktor.util.hex
 import kotlinx.coroutines.*
-import com.tombspawn.network.fetchBotData
-import com.tombspawn.network.health
-import com.tombspawn.network.status
 import org.koin.core.logger.Logger
 import org.koin.core.logger.MESSAGE
 import org.koin.core.parameter.parametersOf
@@ -55,18 +52,50 @@ import org.koin.ktor.ext.Koin
 import org.koin.ktor.ext.inject
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
-import java.time.Duration
+import java.io.File
+import java.util.concurrent.TimeUnit
 
-fun main(args: Array<String>): Unit = EngineMain.main(args)
+fun main(args: Array<String>) {
+    val env = applicationEngineEnvironment {
+        module {
+            module()
+        }
+
+        var host = "0.0.0.0"
+        var port = 80
+        args.firstOrNull()?.let { fileName ->
+            File(fileName).bufferedReader().use {
+                val text = it.readText()
+                config = JsonApplicationConfig(Gson(), text).also {
+                    it.propertyOrNull("server")?.getAs(ServerConf::class.java)?.let {
+                        it.host?.let {
+                            host = it
+                        }
+                        it.port?.let {
+                            port = it
+                        }
+                    }
+                }
+            }
+        }
+
+        connector {
+            this.host = host
+            this.port = port
+        }
+    }
+    val server = embeddedServer(Netty, env).start(true)
+
+    Runtime.getRuntime().addShutdownHook(Thread {
+        server.stop(1, 7, TimeUnit.SECONDS)
+    })
+    Thread.currentThread().join()
+}
 
 @KtorExperimentalLocationsAPI
 @Suppress("unused") // Referenced in application.conf
 fun Application.module() {
     val LOGGER = LoggerFactory.getLogger("com.application")
-
-    val jwt: JWT by inject {
-        parametersOf(this)
-    }
 
     val apps: List<App> by inject {
         parametersOf(this, this as CoroutineScope)
@@ -80,13 +109,11 @@ fun Application.module() {
         parametersOf(this)
     }
 
-    val jwtConfig: JWTConfig by inject {
-        parametersOf(jwt.secret, jwt.domain, jwt.audience)
-    }
-
     val credentialProvider: CredentialProvider by inject {
         parametersOf(this)
     }
+
+    val dockerApiClient by inject<DockerApiClient>()
 
     val uploadDirPath: String by inject(StringQualifier(Constants.EnvironmentVariables.ENV_UPLOAD_DIR_PATH))
     val gson: Gson by inject()
@@ -95,7 +122,7 @@ fun Application.module() {
         modules(
             listOf(
                 dbModule, httpClientModule, gradleBotClient, redisClient,
-                slackModule, gsonModule, authentication, config
+                slackModule, gsonModule, config, docker
             )
         )
         logger(object : Logger() {
@@ -115,48 +142,14 @@ fun Application.module() {
         })
     }
 
-    install(CORS) {
-        method(HttpMethod.Get)
-        method(HttpMethod.Put)
-        method(HttpMethod.Post)
-        method(HttpMethod.Delete)
-        method(HttpMethod.Options)
-        header(HttpHeaders.XForwardedProto)
-        header(HttpHeaders.AccessControlAllowCredentials)
-        header(HttpHeaders.AccessControlAllowHeaders)
-        header(HttpHeaders.AccessControlAllowMethods)
-        header(HttpHeaders.AccessControlAllowOrigin)
-//        anyHost()
-
-//        host("192.168.0.101:3000", listOf("http", "https"))
-//        host("10.1.1.179:3000", listOf("http", "https"))
-//        host("localhost:3000", listOf("http", "https"))
-//        host("127.0.0.1:3000", listOf("http", "https"))
-
-        allowCredentials = true
-        allowSameOrigin = true
-        maxAge = Duration.ofDays(1)
-    }
-
     val database: Database by inject {
         parametersOf(this, isDebug)
     }
 
-    install(Authentication) {
-        jwt(name = "slack-auth") {
-            verifier(jwtConfig.verifier)
-            realm = jwt.realm
-            validate { credential ->
-                credential.payload.getClaim("id").asString()?.let { database.findUser(it) }
-            }
-            skipWhen { call ->
-                try {
-                    jwtConfig.verifier.verify(call.sessions.get<SlackSession>()?.token) != null
-                } catch (exception: Exception) {
-                    false
-                }
-            }
-        }
+    environment.monitor.subscribe(ApplicationStopping) {
+        LOGGER.debug("Clearing data")
+        database.clear()
+        LOGGER.debug("Data cleared")
     }
 
     install(StatusPages) {
@@ -199,24 +192,12 @@ fun Application.module() {
         }
     }
 
-
-    val client: HttpClient by inject()
+    val slackHttpClient: HttpClient by inject {
+        parametersOf("slack.com", URLProtocol.HTTPS, null)
+    }
 
     val sessionMap: StringMap by inject {
         parametersOf(this)
-    }
-
-    install(Sessions) {
-        val secretHashKey = hex("6819b57a326945c1968f45236589")
-
-        cookie<SlackSession>(Constants.Slack.SESSION, RedisSessionStorage(sessionMap, "Session_", 3600)) {
-            cookie.extensions
-            cookie.path = "/"
-            if (!isDebug) {
-                cookie.secure = true
-            }
-            transform(SessionTransportTransformerMessageAuthentication(secretHashKey, "HmacSHA256"))
-        }
     }
 
     intercept(ApplicationCallPipeline.Monitoring) {
@@ -244,22 +225,19 @@ fun Application.module() {
     }
 
     runBlocking {
-        fetchBotData(client, database, slack.botToken)
+        fetchBotData(slackHttpClient, database, slack.botToken)
     }
     runBlocking { database.addApps(apps) }
 
-    runBlocking {
-        cloneApps(apps, credentialProvider)
-    }
-
-    val responseListener = mutableMapOf<String, CompletableDeferred<CommandResponse>>()
-    val requestExecutor = commandExecutor(responseListener)
-
     launch(Dispatchers.IO) {
-        apps.forEach {
-            initApp(it, database, it.dir ?: "/", it.id)
-        }
+        createContainers(dockerApiClient, apps, common, credentialProvider, gson)
     }
+
+//    launch(Dispatchers.IO) {
+//        apps.forEach {
+//            initApp(it, database, it.dir ?: "/", it.id)
+//        }
+//    }
 
     launch {
         database.addVerbs(
@@ -307,15 +285,63 @@ fun Application.module() {
         githubWebhook(apps, database, slackClient)
         mockApi(database)
         createApi(slackClient, database)
-//        standup(slackClient)
-//        auth(slackClient, jwtConfig, database)
-//        users(database)
-    }
-}
+        get("/branches") {
+            apps.first().networkClient?.let { client ->
+                val call = client.call  {
+                    method = HttpMethod.Get
+                    url {
+                        encodedPath = "/branches"
+//                        parameter("token", botToken)
+                    }
+                }
 
-suspend fun cloneApps(apps: List<App>, credentialProvider: CredentialProvider) = coroutineScope {
-    apps.forEach {
-        GitClient.clone(it, credentialProvider)
+                when (val response = call.await<List<Reference>>()) {
+                    is CallSuccess -> {
+                        response.data?.let { references ->
+                            this.call.respond(references)
+                        }
+                    }
+                    is CallFailure -> {
+                        println(response.errorBody)
+                    }
+                    is CallError -> {
+                        response.throwable?.printStackTrace()
+                    }
+                }.exhaustive
+            }
+        }
+
+        get("/flavours") {
+            println("requesting ")
+            println("requesting ${apps.first().appUrl}")
+//            launch(Dispatchers.IO) {
+                apps.first().networkClient?.let { client ->
+                    println("requesting ${apps.first().appUrl}")
+                    val call = client.call {
+                        method = HttpMethod.Get
+                        url {
+                            encodedPath = "/flavours"
+//                        parameter("token", botToken)
+                        }
+                    }
+
+                    when (val response = call.await<List<String>>()) {
+                        is CallSuccess -> {
+                            response.data?.let { references ->
+                                println(references.toString())
+                            }
+                        }
+                        is CallFailure -> {
+                            println(response.errorBody)
+                        }
+                        is CallError -> {
+                            response.throwable?.printStackTrace()
+                        }
+                    }.exhaustive
+                }
+//            }
+            call.respond("""{"flavour": "free"}""")
+        }
     }
 }
 

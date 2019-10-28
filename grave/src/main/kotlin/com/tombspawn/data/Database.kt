@@ -22,7 +22,7 @@ import java.util.concurrent.Executors
 import kotlin.coroutines.CoroutineContext
 
 
-class Database(dbUrl: String, dbUsername: String, dbPass: String, private val isDebug: Boolean) {
+class Database constructor(dbUrl: String?, dbUsername: String?, dbPass: String?, private val isDebug: Boolean) {
     private val dispatcher: CoroutineContext
     private val connectionPool: HikariDataSource
     private val connection: Database
@@ -45,6 +45,10 @@ class Database(dbUrl: String, dbUsername: String, dbPass: String, private val is
         transaction(connection) {
             SchemaUtils.createMissingTablesAndColumns(Users, UserTypes, Apps, BuildTypes, Flavours, Subscriptions, Verbs, Apis, Refs)
         }
+    }
+
+    fun clear() {
+        connectionPool.close()
     }
 
     suspend fun findSubscriptions(refName: String, appId: String): List<ResultRow>? = withContext(dispatcher) {

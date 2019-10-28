@@ -27,11 +27,18 @@ dependencies {
     testImplementation Ktor.test
 
     implementation Kotlin.stdlib
+    implementation Kotlin.html
+
     implementation Log.logback
     implementation Gson.lib
-    implementation 'org.jetbrains.exposed:exposed:0.14.1'
-    implementation 'mysql:mysql-connector-java:8.0.12'
+
+    implementation Database.exposed
+    implementation Database.mysql
+    implementation Database.pool
+    implementation Database.redis
+
     implementation Koin.lib
+
     implementation Ktor.jvmLogging
     implementation Ktor.netty
     implementation Ktor.json
@@ -40,12 +47,10 @@ dependencies {
     implementation Ktor.core
     implementation Ktor.locations
     implementation Ktor.ktorGson
-    implementation Ktor.sessions
-    implementation Ktor.jwt
-    implementation group: 'com.zaxxer', name: 'HikariCP', version: '3.3.1'
-    implementation 'redis.clients:jedis:3.1.0'
-    implementation "org.jetbrains.kotlinx:kotlinx-html-jvm:0.6.12"
+
+    implementation Docker.lib
+
     implementation Jgit.lib
-    implementation 'com.auth0:java-jwt:3.8.1'
+
     implementation project(":base")
 }

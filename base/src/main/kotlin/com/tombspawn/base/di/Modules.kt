@@ -17,7 +17,11 @@ import io.ktor.client.features.logging.Logger
 import io.ktor.client.features.logging.Logging
 import io.ktor.http.URLProtocol
 import org.koin.core.qualifier.StringQualifier
+import org.koin.core.scope.Scope
 import org.koin.dsl.module
+import org.slf4j.LoggerFactory
+
+val LOGGER = LoggerFactory.getLogger("com.tombspawn.base.Modules")
 
 val gsonModule = module {
     single(StringQualifier(ARG_GSON_BUILDER)) {
@@ -59,7 +63,7 @@ val gsonModule = module {
 }
 
 val httpClientModule = module {
-    single { (hostName: String, scheme: URLProtocol?) ->
+    factory { (hostName: String?, scheme: URLProtocol?, startPath: List<String>?) ->
         HttpClient(Apache) {
             followRedirects = true
             engine {
@@ -70,7 +74,7 @@ val httpClientModule = module {
             install(Logging) {
                 logger = object : Logger {
                     override fun log(message: String) {
-                        println(message)
+                        LOGGER.debug(message)
                     }
                 }
                 level = LogLevel.ALL
@@ -82,9 +86,12 @@ val httpClientModule = module {
             defaultRequest {
                 headers.append(Constants.Headers.APP_CLIENT, Constants.Headers.APP_CLIENT_VALUE)
                 url {
-                    if (host == "localhost") {
+                    if (host == "localhost" && !hostName.isNullOrBlank()) {
                         protocol = scheme ?: URLProtocol.HTTPS
                         host = hostName
+                        startPath?.let {
+                            path(it)
+                        }
                     }
                 }
             }

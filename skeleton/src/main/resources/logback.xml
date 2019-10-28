@@ -5,18 +5,18 @@
         </encoder>
     </appender>
 
-    <root level="error">
+    <root level="debug">
         <appender-ref ref="STDOUT"/>
     </root>
 
-    <logger name="org.eclipse.jetty" level="ERROR"/>
-    <logger name="io.netty" level="ERROR"/>
+    <logger name="org.eclipse.jetty" level="DEBUG"/>
+    <logger name="io.netty" level="DEBUG"/>
     <logger name="com.zaxxer.hikari.pool.HikariPool" level="ERROR"/>
     <logger name="com.zaxxer.hikari.pool.PoolBase" level="ERROR"/>
     <logger name="com.zaxxer.hikari.HikariConfig" level="ERROR"/>
-    <logger name="org.apache.http" level="TRACE"/>
-    <logger name="io.ktor.client" level="TRACE"/>
-    <logger name="io.ktor.auth.jwt" level="TRACE"/>
+    <logger name="org.apache.http" level="DEBUG"/>
+    <logger name="io.ktor.client" level="DEBUG"/>
+    <logger name="io.ktor.auth.jwt" level="DEBUG"/>
     <logger name="Exposed" level="ERROR"/>
 
 
