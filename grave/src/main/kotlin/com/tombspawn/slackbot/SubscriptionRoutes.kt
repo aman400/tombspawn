@@ -2,7 +2,7 @@ package com.tombspawn.slackbot
 
 import com.google.gson.Gson
 import com.tombspawn.ApplicationService
-import com.tombspawn.data.Database
+import com.tombspawn.data.DatabaseService
 import com.tombspawn.models.Reference
 import com.tombspawn.models.RequestData
 import com.tombspawn.models.config.App
@@ -36,7 +36,7 @@ fun Routing.subscribe(applicationService: ApplicationService) {
 }
 
 fun CoroutineScope.subscriptionResponse(action: Action, slackClient: SlackClient, slackEvent: SlackEvent,
-                                        database: Database, apps: List<App>, gson: Gson) {
+                                        databaseService: DatabaseService, apps: List<App>, gson: Gson) {
     val appId = action.name?.substringAfter(Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK, "")
     apps.firstOrNull {
         it.id == appId
@@ -60,12 +60,12 @@ fun CoroutineScope.subscriptionResponse(action: Action, slackClient: SlackClient
 
             launch(Dispatchers.IO) {
                 val flavours =
-                    database.getFlavours(app.id)?.map { flavour ->
+                    databaseService.getFlavours(app.id)?.map { flavour ->
                         flavour.name
                     }
 
                 val buildTypes =
-                    database.getBuildTypes(app.id)?.map { buildType ->
+                    databaseService.getBuildTypes(app.id)?.map { buildType ->
                         buildType.name
                     }
 
@@ -142,21 +142,21 @@ suspend fun SlackClient.sendShowConfirmGenerateApk(channelId: String, branch: St
     sendMessage("New changes are available in `$branch` branch.", channelId, attachments)
 }
 
-fun CoroutineScope.sendSubscribeToBranch(slackEvent: SlackEvent, slackClient: SlackClient, database: Database, apps: List<App>) {
+fun CoroutineScope.sendSubscribeToBranch(slackEvent: SlackEvent, slackClient: SlackClient, databaseService: DatabaseService, apps: List<App>) {
     launch(Dispatchers.IO) {
         val appId = slackEvent.callbackId?.substringAfter(Constants.Slack.CALLBACK_SUBSCRIBE_CONSUMER)
         apps.firstOrNull {
             it.id == appId
         }?.let { app ->
             slackEvent.user?.id?.let { userId ->
-                if (!database.userExists(userId)) {
-                    slackClient.fetchUser(userId, database)
+                if (!databaseService.userExists(userId)) {
+                    slackClient.fetchUser(userId, databaseService)
                 }
                 val branch = slackEvent.dialogResponse?.get(Constants.Slack.TYPE_SELECT_BRANCH)
                 val channelId = slackEvent.channel?.id
                 if (branch != null) {
                     if (slackEvent.responseUrl != null) {
-                        if (database.subscribeUser(
+                        if (databaseService.subscribeUser(
                                 userId,
                                 app.id,
                                 branch,

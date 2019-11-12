@@ -1,11 +1,9 @@
 package com.tombspawn.slackbot
 
 import com.tombspawn.ApplicationService
-import com.tombspawn.data.Database
 import com.tombspawn.models.locations.ApiMock
 import com.tombspawn.models.locations.Slack
 import com.tombspawn.utils.Constants
-import io.ktor.application.application
 import io.ktor.application.call
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode

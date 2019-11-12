@@ -3,8 +3,7 @@ package com.tombspawn.slackbot
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.tombspawn.base.common.*
-import com.tombspawn.data.DBUser
-import com.tombspawn.data.Database
+import com.tombspawn.data.DatabaseService
 import com.tombspawn.base.extensions.await
 import com.tombspawn.base.extensions.random
 import com.tombspawn.base.extensions.toMap
@@ -35,7 +34,6 @@ import java.io.File
 import java.io.FileInputStream
 import java.net.URL
 import javax.inject.Inject
-import javax.inject.Named
 import kotlin.collections.set
 
 class SlackClient @Inject constructor(
@@ -43,7 +41,7 @@ class SlackClient @Inject constructor(
     private val httpClient: HttpClient,
     @UploadDirPath
     private val uploadDirPath: String,
-    private val database: Database,
+    private val databaseService: DatabaseService,
     private val slack: Slack,
     val gson: Gson
 ) {
@@ -355,22 +353,22 @@ class SlackClient @Inject constructor(
     }
 
 
-    suspend fun fetchUser(userId: String, database: Database) {
-        database.addUser(
+    suspend fun fetchUser(userId: String, databaseService: DatabaseService) {
+        databaseService.addUser(
             userId,
             null,
             null,
             Constants.Database.USER_TYPE_USER
         )
 
-        fetchAndUpdateUser(userId, database)
+        fetchAndUpdateUser(userId, databaseService)
     }
 
-    suspend fun addUser(userId: String, name: String, email: String, database: Database) {
-        database.addUser(userId, name, email, Constants.Database.USER_TYPE_USER)
+    suspend fun addUser(userId: String, name: String, email: String, databaseService: DatabaseService) {
+        databaseService.addUser(userId, name, email, Constants.Database.USER_TYPE_USER)
     }
 
-    private suspend fun fetchAndUpdateUser(userId: String, database: Database) {
+    private suspend fun fetchAndUpdateUser(userId: String, databaseService: DatabaseService) {
         withContext(Dispatchers.IO) {
             val call = httpClient.call {
                 method = HttpMethod.Get
@@ -384,7 +382,7 @@ class SlackClient @Inject constructor(
             when (val response = call.await<SlackProfileResponse>()) {
                 is CallSuccess -> {
                     response.data?.user?.let { user ->
-                        database.updateUser(
+                        databaseService.updateUser(
                             userId,
                             user.name,
                             user.email
@@ -404,21 +402,21 @@ class SlackClient @Inject constructor(
     }
 
 
-    suspend fun subscribeSlackEvent(database: Database, slackEvent: SlackEvent) {
+    suspend fun subscribeSlackEvent(databaseService: DatabaseService, slackEvent: SlackEvent) {
         slackEvent.event?.let { event ->
-            if (!database.userExists(event.user)) {
+            if (!databaseService.userExists(event.user)) {
                 event.user?.let { user ->
-                    fetchUser(user, database)
+                    fetchUser(user, databaseService)
                 }
             }
             when (event.type) {
                 Event.EventType.APP_MENTION, Event.EventType.MESSAGE -> {
                     withContext(Dispatchers.IO) {
-                        val user = database.getUser(Constants.Database.USER_TYPE_BOT)
+                        val user = databaseService.getUser(Constants.Database.USER_TYPE_BOT)
                         user?.let { bot ->
                             when (event.text?.substringAfter("<@${bot.slackId}>", event.text)?.trim()) {
                                 Constants.Slack.TYPE_SUBSCRIBE_CONSUMER -> {
-                                    database.getRefs(Constants.Common.APP_CONSUMER)?.filter {
+                                    databaseService.getRefs(Constants.Common.APP_CONSUMER)?.filter {
                                         it.type == RefType.BRANCH
                                     }?.forEach {
                                         println(it.name)

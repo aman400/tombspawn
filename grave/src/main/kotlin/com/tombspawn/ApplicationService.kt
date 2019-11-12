@@ -7,7 +7,7 @@ import com.github.dockerjava.api.model.Volume
 import com.google.gson.Gson
 import com.google.gson.JsonParser
 import com.tombspawn.data.Api
-import com.tombspawn.data.Database
+import com.tombspawn.data.DatabaseService
 import com.tombspawn.data.Refs
 import com.tombspawn.data.Subscriptions
 import com.tombspawn.git.CredentialProvider
@@ -35,7 +35,7 @@ import javax.inject.Inject
 
 class ApplicationService @Inject constructor(
     private val slack: Slack, private val common: Common, private val credentialProvider: CredentialProvider,
-    private val dockerClient: DockerApiClient, private val gson: Gson, private val database: Database,
+    private val dockerClient: DockerApiClient, private val gson: Gson, private val databaseService: DatabaseService,
     private val slackClient: SlackClient, private val apps: List<App>
 ) {
 
@@ -53,12 +53,12 @@ class ApplicationService @Inject constructor(
 
     private suspend fun fetchBotInfo() {
         slackClient.fetchBotData(slack.botToken)?.let { about ->
-            database.addUser(about.id!!, about.name, typeString = Constants.Database.USER_TYPE_BOT)
+            databaseService.addUser(about.id!!, about.name, typeString = Constants.Database.USER_TYPE_BOT)
         }
     }
 
     private suspend fun addApps() {
-        return database.addApps(apps)
+        return databaseService.addApps(apps)
     }
 
     private suspend fun createContainer(app: App, port: Int) =
@@ -116,18 +116,18 @@ class ApplicationService @Inject constructor(
 
     private suspend fun fetchReferences(app: App) {
         dockerClient.fetchReferences(app)?.let {
-            database.addRefs(it, app.id)
+            databaseService.addRefs(it, app.id)
         }
     }
 
     private suspend fun fetchFlavours(app: App) {
         dockerClient.fetchFlavours(app)?.let {
-            database.addFlavours(it, app.id)
+            databaseService.addFlavours(it, app.id)
         }
     }
 
     private suspend fun addVerbs() {
-        database.addVerbs(
+        databaseService.addVerbs(
             listOf(
                 Constants.Common.GET,
                 Constants.Common.PUT,
@@ -149,7 +149,7 @@ class ApplicationService @Inject constructor(
             }
             im?.let {
                 if (im.isUserDeleted == false && user.bot == false && user.id != Constants.Slack.DEFAULT_BOT_ID) {
-                    database.addUser(
+                    databaseService.addUser(
                         user.id!!,
                         user.profile?.name,
                         user.profile?.email,
@@ -179,11 +179,11 @@ class ApplicationService @Inject constructor(
             appId == it.id
         }?.let { app ->
             LOGGER.warn("Command options not set. These options can be set using '/build-fleet BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'")
-            val branchList = database.getRefs(app.id)?.map {
+            val branchList = databaseService.getRefs(app.id)?.map {
                 Reference(it.name, it.type)
             }
-            val flavourList = database.getFlavours(app.id)
-            val buildTypesList = database.getBuildTypes(app.id)
+            val flavourList = databaseService.getFlavours(app.id)
+            val buildTypesList = databaseService.getBuildTypes(app.id)
             slackClient.sendShowGenerateApkDialog(
                 branchList,
                 buildTypesList?.map { buildType -> buildType.name },
@@ -201,7 +201,7 @@ class ApplicationService @Inject constructor(
             it.id == appId
         }?.let { app ->
             slackClient.sendShowSubscriptionDialog(
-                database.getRefs(app.id),
+                databaseService.getRefs(app.id),
                 triggerId,
                 app
             )
@@ -227,7 +227,7 @@ class ApplicationService @Inject constructor(
                                     Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK,
                                     true
                                 ) == true -> {
-                                    subscriptionResponse(action, slackClient, slackEvent, database, apps, gson)
+                                    subscriptionResponse(action, slackClient, slackEvent, databaseService, apps, gson)
                                 }
                             }
                         }
@@ -237,7 +237,7 @@ class ApplicationService @Inject constructor(
             Event.EventType.MESSAGE_ACTION -> {
                 when (slackEvent.callbackId) {
                     Constants.Slack.TYPE_CREATE_MOCK_API -> {
-                        slackClient.sendShowCreateApiDialog(database.getVerbs(), slackEvent.triggerId!!)
+                        slackClient.sendShowCreateApiDialog(databaseService.getVerbs(), slackEvent.triggerId!!)
                     }
                     else -> {
 
@@ -256,7 +256,7 @@ class ApplicationService @Inject constructor(
     private suspend fun onDialogSubmitted(slackEvent: SlackEvent) = coroutineScope {
         when {
             slackEvent.callbackId?.startsWith(Constants.Slack.CALLBACK_SUBSCRIBE_CONSUMER) == true -> {
-                sendSubscribeToBranch(slackEvent, slackClient, database, apps)
+                sendSubscribeToBranch(slackEvent, slackClient, databaseService, apps)
             }
             slackEvent.callbackId == Constants.Slack.CALLBACK_CREATE_API -> {
                 createApiDialogResponse(slackEvent)
@@ -279,7 +279,7 @@ class ApplicationService @Inject constructor(
         launch(Dispatchers.IO) {
             try {
                 JsonParser().parse(response).asJsonObject
-                database.addApi(id, verb!!, response!!)
+                databaseService.addApi(id, verb!!, response!!)
 
                 slackClient.sendMessage(
                     slackEvent.responseUrl!!,
@@ -330,7 +330,7 @@ class ApplicationService @Inject constructor(
             when(headers[Constants.Github.HEADER_KEY_EVENT]?.first()) {
                  Constants.Github.HEADER_VALUE_EVENT_PUSH -> payload.ref?.let { ref ->
                     val branch = ref.substringAfter("refs/heads/")
-                    val subscriptions = database.findSubscriptions(branch, app.id)
+                    val subscriptions = databaseService.findSubscriptions(branch, app.id)
                     subscriptions.orEmpty().forEach { resultRow ->
                         launch(Dispatchers.IO) {
                             slackClient.sendShowConfirmGenerateApk(
@@ -345,11 +345,11 @@ class ApplicationService @Inject constructor(
                     launch {
                         if (payload.refType == RefType.BRANCH) {
                             payload.ref?.let { ref ->
-                                database.addRef(app.id, Reference(ref, RefType.BRANCH))
+                                databaseService.addRef(app.id, Reference(ref, RefType.BRANCH))
                             }
                         } else if (payload.refType == RefType.TAG) {
                             payload.ref?.let { ref ->
-                                database.addRef(app.id, Reference(ref, RefType.TAG))
+                                databaseService.addRef(app.id, Reference(ref, RefType.TAG))
                             }
                         }
                     }
@@ -358,11 +358,11 @@ class ApplicationService @Inject constructor(
                     launch {
                         if (payload.refType == RefType.BRANCH) {
                             payload.ref?.let { ref ->
-                                database.deleteRef(app.id, Reference(ref, RefType.BRANCH))
+                                databaseService.deleteRef(app.id, Reference(ref, RefType.BRANCH))
                             }
                         } else if (payload.refType == RefType.TAG) {
                             payload.ref?.let { ref ->
-                                database.deleteRef(app.id, Reference(ref, RefType.TAG))
+                                databaseService.deleteRef(app.id, Reference(ref, RefType.TAG))
                             }
                         }
                     }
@@ -377,19 +377,19 @@ class ApplicationService @Inject constructor(
     }
 
     suspend fun subscribeSlackEvent(slackEvent: SlackEvent) {
-        slackClient.subscribeSlackEvent(database, slackEvent)
+        slackClient.subscribeSlackEvent(databaseService, slackEvent)
     }
 
     suspend fun getApi(apiId: String, verb: String): Api? {
-        return database.getApi(apiId, verb)
+        return databaseService.getApi(apiId, verb)
     }
 
     suspend fun sendShowCreateApiDialog(triggerId: String) {
-        slackClient.sendShowCreateApiDialog(database.getVerbs(), triggerId)
+        slackClient.sendShowCreateApiDialog(databaseService.getVerbs(), triggerId)
     }
 
     fun clear() {
-        database.clear()
+        databaseService.clear()
     }
 
     companion object {

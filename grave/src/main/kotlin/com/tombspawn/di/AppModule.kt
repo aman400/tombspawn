@@ -3,7 +3,7 @@ package com.tombspawn.di
 import com.tombspawn.base.config.JsonApplicationConfig
 import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.network.Common.createHttpClient
-import com.tombspawn.data.Database
+import com.tombspawn.data.DatabaseService
 import com.tombspawn.di.qualifiers.Debuggable
 import com.tombspawn.di.qualifiers.SlackHttpClient
 import com.tombspawn.di.qualifiers.UploadDirPath
@@ -39,8 +39,8 @@ class AppModule {
 
     @Provides
     @AppScope
-    fun provideDatabase(db: Db, @Debuggable isDebug: Boolean): Database {
-        return Database(db.url, db.username, db.password, isDebug)
+    fun provideDatabase(db: Db, @Debuggable isDebug: Boolean): DatabaseService {
+        return DatabaseService(db.url, db.username, db.password, isDebug)
     }
 
     @Provides
@@ -89,16 +89,7 @@ class AppModule {
     @AppScope
     fun provideAppList(config: JsonApplicationConfig): List<App> {
         return config.configList("apps").map {
-//            val responseListener = mutableMapOf<String, CompletableDeferred<CommandResponse>>()
-//            val requestExecutor = coroutineScope.commandExecutor(responseListener)
-            it.getAs(App::class.java).apply {
-//                gradleExecutor = get {
-//                    parametersOf(application, this.dir, responseListener, requestExecutor)
-//                } as GradleExecutor
-//                networkClient = get<HttpClient> {
-//                    parametersOf(this.appUrl, URLProtocol.HTTP, null)
-//                }
-            }
+            it.getAs(App::class.java)
         }
     }
 }
