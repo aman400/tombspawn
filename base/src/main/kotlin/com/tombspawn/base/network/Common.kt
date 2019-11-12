@@ -18,7 +18,7 @@ object Common {
     fun createHttpClient(gsonSerializer: GsonSerializer, hostName: String? = null,
                          scheme: URLProtocol? = URLProtocol.HTTPS, startPath: String? = null,
                          connectionTimeout: Int = 60_000, socketConnectionTimeout: Int = 60_000,
-                         requestTimeout: Int = 20_000): HttpClient {
+                         requestTimeout: Int = 20_000, enableLogger: Boolean = true): HttpClient {
         return HttpClient(Apache) {
             followRedirects = true
             engine {
@@ -27,12 +27,16 @@ object Common {
                 connectionRequestTimeout = requestTimeout
             }
             install(Logging) {
-                logger = object : Logger {
-                    override fun log(message: String) {
-                        LOGGER.debug(message)
+                if(enableLogger) {
+                    logger = object : Logger {
+                        override fun log(message: String) {
+                            LOGGER.debug(message)
+                        }
                     }
+                    level = LogLevel.ALL
+                } else {
+                    level = LogLevel.NONE
                 }
-                level = LogLevel.ALL
             }
             install(JsonFeature) {
                 serializer = gsonSerializer

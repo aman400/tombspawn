@@ -64,9 +64,10 @@ class AppModule {
     @Provides
     @AppScope
     @SlackHttpClient
-    fun provideSlackHttpClient(gsonSerializer: GsonSerializer): HttpClient {
-        return createHttpClient(gsonSerializer, "slack.com",
-            URLProtocol.HTTPS, null)
+    fun provideSlackHttpClient(gsonSerializer: GsonSerializer, @Debuggable isDebug: Boolean): HttpClient {
+        return createHttpClient(
+            gsonSerializer, "slack.com", URLProtocol.HTTPS, null, enableLogger = isDebug
+        )
     }
 
     @Provides

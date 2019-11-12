@@ -7,6 +7,7 @@ import com.github.dockerjava.netty.NettyDockerCmdExecFactory
 import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.di.scopes.CoroutineScope
 import com.tombspawn.base.network.Common
+import com.tombspawn.di.qualifiers.Debuggable
 import com.tombspawn.di.qualifiers.DockerHttpClient
 import com.tombspawn.models.config.App
 import com.tombspawn.network.docker.DockerApiClient
@@ -34,12 +35,12 @@ class DockerModule {
     @Provides
     @AppScope
     @DockerHttpClient
-    fun provideDockerHttpClients(gsonSerializer: GsonSerializer, apps: List<App>): MutableMap<String, HttpClient> {
+    fun provideDockerHttpClients(gsonSerializer: GsonSerializer, apps: List<App>, @Debuggable isDebug: Boolean): MutableMap<String, HttpClient> {
         val dockerHttpClients = mutableMapOf<String, HttpClient>()
         apps.forEach {
             dockerHttpClients[it.id] = Common.createHttpClient(
                 gsonSerializer, it.appUrl, URLProtocol.HTTP, null,
-                240_000, 240_000, 120_000
+                0, 240_000, 120_000, isDebug
             )
         }
         return dockerHttpClients
