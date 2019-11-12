@@ -183,6 +183,9 @@ function acceptAndroidSdkLicenses() {
   echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" >"licenses/android-sdk-preview-license"
   echo -e "\n152e8995e4332c0dc80bc63bf01fe3bbccb0804a
 d975f751698a77b662f1254ddbeed3901e976f5a" >"licenses/intel-android-extra-license"
+
+  cd "$ANDROID_SDK_DIR"/tools/bin || exit
+  yes | ./sdkmanager --licenses
 }
 
 # Updates already installed Android SDK packages

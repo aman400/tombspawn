@@ -8,6 +8,8 @@ import com.tombspawn.data.Database
 import com.tombspawn.base.extensions.await
 import com.tombspawn.base.extensions.random
 import com.tombspawn.base.extensions.toMap
+import com.tombspawn.di.qualifiers.SlackHttpClient
+import com.tombspawn.di.qualifiers.UploadDirPath
 import com.tombspawn.models.*
 import com.tombspawn.models.config.App
 import com.tombspawn.models.config.Slack
@@ -27,14 +29,19 @@ import kotlinx.coroutines.withContext
 import com.tombspawn.models.slack.Event
 import com.tombspawn.models.slack.IMListData
 import com.tombspawn.models.slack.SlackUser
+import kotlinx.coroutines.coroutineScope
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.FileInputStream
 import java.net.URL
+import javax.inject.Inject
+import javax.inject.Named
 import kotlin.collections.set
 
-class SlackClient constructor(
+class SlackClient @Inject constructor(
+    @SlackHttpClient
     private val httpClient: HttpClient,
+    @UploadDirPath
     private val uploadDirPath: String,
     private val database: Database,
     private val slack: Slack,
@@ -59,6 +66,36 @@ class SlackClient constructor(
     )
 
     private val LOGGER = LoggerFactory.getLogger("com.application.slack.client")
+
+    @Throws(Exception::class)
+    suspend fun fetchBotData(botToken: String): BotInfo.Self? = coroutineScope {
+        val call = httpClient.call {
+            method = HttpMethod.Get
+            url {
+                encodedPath = "/api/rtm.connect"
+                parameter("token", botToken)
+            }
+        }
+        return@coroutineScope when(val response = call.await<BotInfo>()) {
+            is CallSuccess -> {
+                response.data?.let { botInfo ->
+                    if (botInfo.ok) {
+                        botInfo.self
+                    } else {
+                        null
+                    }
+                }
+            }
+            is CallFailure -> {
+                println(response.errorBody)
+                null
+            }
+            is CallError -> {
+                response.throwable?.printStackTrace()
+                null
+            }
+        }
+    }
 
     suspend fun updateMessage(updatedMessage: SlackMessage, channel: String) {
         withContext(Dispatchers.IO) {
@@ -116,6 +153,7 @@ class SlackClient constructor(
                 sendMessage(randomWaitingMessages.random()!!, channelId, null)
             }
         }
+
         val selectedBranch = buildData?.get(Constants.Slack.TYPE_SELECT_BRANCH)?.trim()
 
         val userAppPrefix = buildData?.get(Constants.Slack.TYPE_SELECT_APP_PREFIX)?.trim()
@@ -125,106 +163,106 @@ class SlackClient constructor(
         } ?: ""}${System.currentTimeMillis()}"
 
         withContext(Dispatchers.IO) {
-            val buildVariants = app.gradleExecutor?.fetchBuildVariants()
-            buildVariants?.let {
-                database.addBuildVariants(it, app.id)
-            }
+//            val buildVariants = app.gradleExecutor?.fetchBuildVariants()
+//            buildVariants?.let {
+//                database.addBuildVariants(it, app.id)
+//            }
 
-            val productFlavours = app.gradleExecutor?.fetchProductFlavours()
-            productFlavours?.let {
-                database.addFlavours(it, app.id)
-            }
+//            val productFlavours = app.gradleExecutor?.fetchProductFlavours()
+//            productFlavours?.let {
+//                database.addFlavours(it, app.id)
+//            }
 
-            when (val commandResponse = app.gradleExecutor?.generateApp(buildData, uploadDirPath, APKPrefix)) {
-                is Success -> {
-                    val tempDirectory = File(uploadDirPath)
-                    if (tempDirectory.exists()) {
-                        val firstFile = tempDirectory.listFiles()?.firstOrNull { file ->
-                            file?.name?.contains(APKPrefix, true) == true
-                        }
-                        firstFile?.let { file ->
-                            if (file.exists()) {
-                                uploadFile(file, channelId)
-                            } else {
-                                LOGGER.error("APK Generated but file not found in the folder")
-                                LOGGER.error(commandResponse.data)
-                                if (responseUrl != null) {
-                                    sendMessage(
-                                        responseUrl,
-                                        RequestData(
-                                            response = commandResponse.data
-                                                ?: "Something went wrong. Unable to generate the APK"
-                                        )
-                                    )
-                                } else {
-                                    sendMessage(
-                                        commandResponse.data ?: "Something went wrong. Unable to generate the APK",
-                                        channelId,
-                                        null
-                                    )
-                                }
-                            }
-                        } ?: run {
-                            LOGGER.error("APK Generated but not found in the folder")
-                            LOGGER.error(commandResponse.data)
-
-                            if (responseUrl != null) {
-                                sendMessage(
-                                    responseUrl,
-                                    RequestData(
-                                        response = commandResponse.data
-                                            ?: "Something went wrong. Unable to generate the APK"
-                                    )
-                                )
-                            } else {
-                                sendMessage(
-                                    commandResponse.data ?: "Something went wrong. Unable to generate the APK",
-                                    channelId,
-                                    null
-                                )
-                            }
-                        }
-                    } else {
-                        LOGGER.error("APK Generated but not found in the folder")
-                        LOGGER.error(commandResponse.data)
-                        if (responseUrl != null) {
-                            sendMessage(
-                                responseUrl,
-                                RequestData(
-                                    response = commandResponse.data
-                                        ?: "Something went wrong. Unable to generate the APK"
-                                )
-                            )
-                        } else {
-                            sendMessage(
-                                commandResponse.data ?: "Something went wrong. Unable to generate the APK",
-                                channelId,
-                                null
-                            )
-                        }
-                    }
-                }
-
-                is Failure -> {
-                    LOGGER.error(commandResponse.error, commandResponse.throwable)
-                    if (responseUrl != null) {
-                        sendMessage(
-                            responseUrl,
-                            RequestData(
-                                response = commandResponse.error
-                                    ?: "Something went wrong. Unable to generate the APK"
-                            )
-                        )
-                    } else {
-                        sendMessage(
-                            commandResponse.error ?: "Something went wrong. Unable to generate the APK",
-                            channelId,
-                            null
-                        )
-                    }
-                }
-
-            }
+//            when (val commandResponse = app.gradleExecutor?.generateApp(buildData, uploadDirPath, APKPrefix)) {
+//                is Success -> {
+//                    val tempDirectory = File(uploadDirPath)
+//                    if (tempDirectory.exists()) {
+//                        val firstFile = tempDirectory.listFiles()?.firstOrNull { file ->
+//                            file?.name?.contains(APKPrefix, true) == true
+//                        }
+//                        firstFile?.let { file ->
+//                            if (file.exists()) {
+//                                uploadFile(file, channelId)
+//                            } else {
+//                                LOGGER.error("APK Generated but file not found in the folder")
+//                                LOGGER.error(commandResponse.data)
+//                                if (responseUrl != null) {
+//                                    sendMessage(
+//                                        responseUrl,
+//                                        RequestData(
+//                                            response = commandResponse.data
+//                                                ?: "Something went wrong. Unable to generate the APK"
+//                                        )
+//                                    )
+//                                } else {
+//                                    sendMessage(
+//                                        commandResponse.data ?: "Something went wrong. Unable to generate the APK",
+//                                        channelId,
+//                                        null
+//                                    )
+//                                }
+//                            }
+//                        } ?: run {
+//                            LOGGER.error("APK Generated but not found in the folder")
+//                            LOGGER.error(commandResponse.data)
+//
+//                            if (responseUrl != null) {
+//                                sendMessage(
+//                                    responseUrl,
+//                                    RequestData(
+//                                        response = commandResponse.data
+//                                            ?: "Something went wrong. Unable to generate the APK"
+//                                    )
+//                                )
+//                            } else {
+//                                sendMessage(
+//                                    commandResponse.data ?: "Something went wrong. Unable to generate the APK",
+//                                    channelId,
+//                                    null
+//                                )
+//                            }
+//                        }
+//                    } else {
+//                        LOGGER.error("APK Generated but not found in the folder")
+//                        LOGGER.error(commandResponse.data)
+//                        if (responseUrl != null) {
+//                            sendMessage(
+//                                responseUrl,
+//                                RequestData(
+//                                    response = commandResponse.data
+//                                        ?: "Something went wrong. Unable to generate the APK"
+//                                )
+//                            )
+//                        } else {
+//                            sendMessage(
+//                                commandResponse.data ?: "Something went wrong. Unable to generate the APK",
+//                                channelId,
+//                                null
+//                            )
+//                        }
+//                    }
+//                }
+//
+//                is Failure -> {
+//                    LOGGER.error(commandResponse.error, commandResponse.throwable)
+//                    if (responseUrl != null) {
+//                        sendMessage(
+//                            responseUrl,
+//                            RequestData(
+//                                response = commandResponse.error
+//                                    ?: "Something went wrong. Unable to generate the APK"
+//                            )
+//                        )
+//                    } else {
+//                        sendMessage(
+//                            commandResponse.error ?: "Something went wrong. Unable to generate the APK",
+//                            channelId,
+//                            null
+//                        )
+//                    }
+//                }
+//
+//            }
         }
     }
 

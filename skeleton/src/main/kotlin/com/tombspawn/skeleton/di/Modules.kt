@@ -27,6 +27,11 @@ val config = module {
                 this.gradleExecutor = get {
                     parametersOf(application, this.dir, responseListener, requestExecutor)
                 } as GradleExecutor
+                this.gitClient = get {
+                    parametersOf(get<CredentialProvider> {
+                        parametersOf(application)
+                    })
+                }
             }
     }
 
@@ -40,8 +45,8 @@ val config = module {
             .getAs(CredentialProvider::class.java)
     }
 
-    factory { (app: App, credentialProvider: CredentialProvider) ->
-        GitClient(app, credentialProvider)
+    factory { (credentialProvider: CredentialProvider) ->
+        GitClient(credentialProvider)
     }
 }
 

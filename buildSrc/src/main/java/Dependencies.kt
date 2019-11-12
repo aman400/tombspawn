@@ -4,6 +4,7 @@ object Versions {
     const val kotlin = "1.3.50"
     const val ktorVersion = "1.3.0-beta-1"
     const val shadowJar = "5.1.0"
+    const val daggerVersion = "2.25.2"
 }
 
 object Classpaths {
@@ -49,6 +50,13 @@ object Database {
     const val exposed = "org.jetbrains.exposed:exposed:0.14.1"
     const val pool = "com.zaxxer:HikariCP:3.3.1"
     const val redis = "redis.clients:jedis:3.1.0"
+}
+
+object Dagger {
+    const val lib = "com.google.dagger:dagger:${Versions.daggerVersion}"
+    const val annotationProcessor = "com.google.dagger:dagger-compiler:${Versions.daggerVersion}"
+    const val assistedInjectLib = "com.squareup.inject:assisted-inject-annotations-dagger2:0.5.1"
+    const val assistedInjectProcessor = "com.squareup.inject:assisted-inject-processor-dagger2:0.5.1"
 }
 
 object Ktor {

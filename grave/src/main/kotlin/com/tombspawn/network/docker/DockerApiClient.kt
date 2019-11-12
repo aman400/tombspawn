@@ -6,13 +6,26 @@ import com.github.dockerjava.api.model.*
 import com.github.dockerjava.core.command.BuildImageResultCallback
 import com.github.dockerjava.core.command.EventsResultCallback
 import com.github.dockerjava.core.command.LogContainerResultCallback
-import com.tombspawn.di.docker
+import com.tombspawn.base.common.CallError
+import com.tombspawn.base.common.CallFailure
+import com.tombspawn.base.common.CallSuccess
+import com.tombspawn.base.extensions.await
+import com.tombspawn.di.qualifiers.DockerHttpClient
+import com.tombspawn.models.Reference
+import com.tombspawn.models.config.App
+import io.ktor.client.HttpClient
+import io.ktor.client.call.call
+import io.ktor.http.HttpMethod
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import java.io.File
+import javax.inject.Inject
 import kotlin.coroutines.suspendCoroutine
 
-class DockerApiClient(private val dockerClient: DockerClient) {
+class DockerApiClient @Inject constructor(private val dockerClient: DockerClient,
+                                              @DockerHttpClient private val dockerHttpClients: MutableMap<String, HttpClient>) {
     companion object {
         private val LOGGER = LoggerFactory.getLogger("com.tombspawn.docker.DockerApiClient")
         const val STATE_STARTED = "running"
@@ -23,12 +36,67 @@ class DockerApiClient(private val dockerClient: DockerClient) {
         const val STATE_DEAD = "dead"
     }
 
+    suspend fun fetchFlavours(app: App): List<String>? = coroutineScope {
+        return@coroutineScope withContext(Dispatchers.Default) {
+            dockerHttpClients[app.id]?.let { client ->
+                val call = client.call {
+                    method = HttpMethod.Get
+                    url {
+                        encodedPath = "/flavours"
+                    }
+                }
+
+                return@withContext when (val response = call.await<List<String>>()) {
+                    is CallSuccess -> {
+                        response.data?.let {
+                            it
+                        }
+                    }
+                    is CallFailure -> {
+                        println(response.errorBody)
+                        null
+                    }
+                    is CallError -> {
+                        response.throwable?.printStackTrace()
+                        null
+                    }
+                }
+            }
+        }
+    }
+
+    suspend fun fetchReferences(app: App): List<Reference>? = coroutineScope {
+        dockerHttpClients[app.id]?.let { client ->
+            val call = client.call {
+                method = HttpMethod.Get
+                url {
+                    encodedPath = "/references"
+                }
+            }
+
+            return@coroutineScope when (val response = call.await<List<Reference>>()) {
+                is CallSuccess -> {
+                    response.data?.let { references ->
+                        references
+                    }
+                }
+                is CallFailure -> {
+                    println(response.errorBody)
+                    null
+                }
+                is CallError -> {
+                    response.throwable?.printStackTrace()
+                    null
+                }
+            }
+        }
+    }
+
     suspend fun listContainer(): MutableList<Container>? {
         return suspendCoroutine {
             dockerClient.listContainersCmd()
                 .withShowSize(true)
-                .withShowAll(true)
-                .withStatusFilter(listOf("exited")).exec()
+                .withShowAll(true).exec()
         }
     }
 

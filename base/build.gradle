@@ -10,6 +10,7 @@ plugins {
 
     // Apply the java-library plugin for API and implementation separation.
     id 'java-library'
+    id "org.jetbrains.kotlin.kapt"
 }
 
 repositories {
@@ -31,4 +32,9 @@ dependencies {
     api Gson.lib
     api Koin.lib
     api Log.logback
+
+    api Dagger.lib
+    kapt Dagger.annotationProcessor
+    api Dagger.assistedInjectLib
+    kapt Dagger.assistedInjectProcessor
 }

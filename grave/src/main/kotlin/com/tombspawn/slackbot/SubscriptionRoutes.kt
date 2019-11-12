@@ -1,6 +1,7 @@
 package com.tombspawn.slackbot
 
 import com.google.gson.Gson
+import com.tombspawn.ApplicationService
 import com.tombspawn.data.Database
 import com.tombspawn.models.Reference
 import com.tombspawn.models.RequestData
@@ -25,20 +26,12 @@ import com.tombspawn.models.slack.Action
 import com.tombspawn.models.slack.action
 import com.tombspawn.models.slack.confirm
 
-fun Routing.subscribe(slackClient: SlackClient, database: Database, apps: List<App>) {
+fun Routing.subscribe(applicationService: ApplicationService) {
     post<Slack.Subscribe> { subscription ->
         val parameters = call.receiveParameters()
         val triggerId = parameters[Constants.Slack.TRIGGER_ID]
-        apps.firstOrNull {
-            it.id == subscription.appID
-        }?.let { app ->
-            slackClient.sendShowSubscriptionDialog(
-                database.getRefs(app.id),
-                triggerId!!,
-                app
-            )
-            call.respond(HttpStatusCode.OK)
-        }
+        applicationService.showSubscriptionDialog(subscription.appID, triggerId!!)
+        call.respond(HttpStatusCode.OK)
     }
 }
 

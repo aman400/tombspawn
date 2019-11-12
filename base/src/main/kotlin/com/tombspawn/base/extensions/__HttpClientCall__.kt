@@ -1,6 +1,7 @@
 package com.tombspawn.base.extensions
 
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.tombspawn.base.common.CallError
 import com.tombspawn.base.common.CallFailure
 import com.tombspawn.base.common.CallSuccess
@@ -18,7 +19,7 @@ suspend inline fun <reified T> HttpClientCall.await(): Response<T> = suspendCanc
         try {
             when {
                 response.status.isSuccess() -> {
-                    continuation.resume(CallSuccess(Gson().fromJson(response.readText(Charsets.UTF_8), T::class.java)))
+                    continuation.resume(CallSuccess(Gson().fromJson(response.readText(Charsets.UTF_8), object: TypeToken<T>() {}.type)))
                 }
 
                 response.status.value in 400..599 -> {

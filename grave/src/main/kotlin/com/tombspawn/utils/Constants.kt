@@ -3,8 +3,6 @@ package com.tombspawn.utils
 class Constants {
     class Common {
         companion object {
-            const val LOCALHOST: String = "127.0.0.1"
-            const val DEFAULT_REDIS_PORT = 6739
 
             const val APP_CONSUMER = "consumer"
 
@@ -89,8 +87,4 @@ class Constants {
         }
     }
 
-    object RequestErr {
-        const val ERR_CLIENT_ID = "ERR_MISSING_CLIENT_ID"
-        const val ERR_NO_SESSION = "ERR_NO_SESSION_FOUND"
-    }
 }

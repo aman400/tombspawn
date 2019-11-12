@@ -1,6 +1,8 @@
 FROM openjdk:8-jdk-slim
 
 ENV APPLICATION_USER skeleton
+ENV ANDROID_SDK_DIR /home/skeleton/android-sdk
+ENV ANDROID_HOME /home/skeleton/android-sdk
 
 RUN useradd -ms /bin/bash $APPLICATION_USER
 
@@ -17,11 +19,7 @@ RUN chmod +x /app/setup_android_sdk.sh
 
 USER $APPLICATION_USER
 RUN mkdir -p $HOME/.gradle
-RUN mkdir -p $HOME/android-sdk
 RUN mkdir -p /app/git
-
-ENV ANDROID_SDK_DIR $HOME/android-sdk
-ENV ANDROID_HOME $HOME/android-sdk
 
 COPY build/libs/application.jar /app/application.jar
 WORKDIR /app
