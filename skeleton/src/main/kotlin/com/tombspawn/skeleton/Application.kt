@@ -231,6 +231,12 @@ fun Application.module() {
             }
         }
 
+        get("/build-variants") {
+            app.gradleExecutor?.fetchBuildVariants()?.let {
+                call.respond(it)
+            } ?: call.respond("[]")
+        }
+
         this@routing.get<References> { reference ->
             val branchLimit = reference.branchLimit
             val tagLimit = reference.tagLimit

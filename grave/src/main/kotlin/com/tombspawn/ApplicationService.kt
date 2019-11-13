@@ -2,10 +2,7 @@ package com.tombspawn
 
 import com.google.gson.Gson
 import com.google.gson.JsonParser
-import com.tombspawn.data.Api
-import com.tombspawn.data.DatabaseService
-import com.tombspawn.data.Refs
-import com.tombspawn.data.Subscriptions
+import com.tombspawn.data.*
 import com.tombspawn.docker.DockerService
 import com.tombspawn.models.Reference
 import com.tombspawn.models.RequestData
@@ -14,9 +11,7 @@ import com.tombspawn.models.config.Common
 import com.tombspawn.models.config.Slack
 import com.tombspawn.models.github.Payload
 import com.tombspawn.models.github.RefType
-import com.tombspawn.models.slack.Event
-import com.tombspawn.models.slack.SlackEvent
-import com.tombspawn.models.slack.SlackMessage
+import com.tombspawn.models.slack.*
 import com.tombspawn.slackbot.*
 import com.tombspawn.utils.Constants
 import kotlinx.coroutines.Dispatchers
@@ -32,9 +27,9 @@ class ApplicationService @Inject constructor(
     private val common: Common,
     private val gson: Gson,
     private val databaseService: DatabaseService,
-    private val slackClient: SlackClient,
     private val apps: List<App>,
-    private val dockerService: DockerService
+    private val dockerService: DockerService,
+    private val slackService: SlackService
 ) {
 
     suspend fun init() = coroutineScope {
@@ -54,7 +49,7 @@ class ApplicationService @Inject constructor(
     }
 
     private suspend fun fetchBotInfo() {
-        slackClient.fetchBotData(slack.botToken)?.let { about ->
+        slackService.fetchBotData(slack.botToken)?.let { about ->
             databaseService.addUser(about.id!!, about.name, typeString = Constants.Database.USER_TYPE_BOT)
         }
     }
@@ -75,6 +70,12 @@ class ApplicationService @Inject constructor(
         }
     }
 
+    private suspend fun fetchBuildVariants(app: App) {
+        dockerService.fetchBuildVariants(app)?.let {
+            databaseService.addFlavours(it, app.id)
+        }
+    }
+
     private suspend fun addVerbs() {
         databaseService.addVerbs(
             listOf(
@@ -90,8 +91,8 @@ class ApplicationService @Inject constructor(
     }
 
     private suspend fun updateUserData() = coroutineScope {
-        val users = slackClient.getSlackUsers(slack.botToken, slackClient, null)
-        val ims = slackClient.getSlackBotImIds(slack.botToken, slackClient, null)
+        val users = slackService.getSlackUsers(slack.botToken)
+        val ims = slackService.getSlackBotImIds(slack.botToken)
         users.forEach { user ->
             val im = ims.firstOrNull { im ->
                 im.user == user.id
@@ -119,7 +120,7 @@ class ApplicationService @Inject constructor(
         apps.firstOrNull {
             it.id == appID
         }?.let { app ->
-            slackClient.generateAndUploadApk(buildData, channelId, app, responseUrl)
+            slackService.generateAndUploadApk(buildData, channelId, app, responseUrl)
         }
     }
 
@@ -133,7 +134,7 @@ class ApplicationService @Inject constructor(
             }
             val flavourList = databaseService.getFlavours(app.id)
             val buildTypesList = databaseService.getBuildTypes(app.id)
-            slackClient.sendShowGenerateApkDialog(
+            slackService.sendShowGenerateApkDialog(
                 branchList,
                 buildTypesList?.map { buildType -> buildType.name },
                 flavourList?.map { flavour -> flavour.name },
@@ -149,7 +150,7 @@ class ApplicationService @Inject constructor(
         apps.firstOrNull {
             it.id == appId
         }?.let { app ->
-            slackClient.sendShowSubscriptionDialog(
+            slackService.sendShowSubscriptionDialog(
                 databaseService.getRefs(app.id),
                 triggerId,
                 app
@@ -166,7 +167,7 @@ class ApplicationService @Inject constructor(
                 when (slackEvent.callbackId) {
                     // For standup bot
                     Constants.Slack.CALLBACK_STANDUP_MESSAGE -> {
-                        showStandupPopup(slackClient, slackEvent)
+                        slackService.showStandupPopup(slackEvent.triggerId!!)
                     }
                     else -> {
                         slackEvent.actions?.forEach { action ->
@@ -176,7 +177,18 @@ class ApplicationService @Inject constructor(
                                     Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK,
                                     true
                                 ) == true -> {
-                                    subscriptionResponse(action, slackClient, slackEvent, databaseService, apps, gson)
+                                    val appId = action.name?.substringAfter(Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK, "")
+                                    apps.firstOrNull {
+                                        it.id == appId
+                                    }?.let { app ->
+                                        val callback = gson.fromJson(action.value, GenerateCallback::class.java)
+                                        slackService.subscriptionResponse(app, callback, slackEvent,
+                                            databaseService.getFlavours(app.id)?.map {
+                                                it.name
+                                            }, databaseService.getBuildTypes(app.id)?.map {
+                                                it.name
+                                            })
+                                    }
                                 }
                             }
                         }
@@ -186,7 +198,7 @@ class ApplicationService @Inject constructor(
             Event.EventType.MESSAGE_ACTION -> {
                 when (slackEvent.callbackId) {
                     Constants.Slack.TYPE_CREATE_MOCK_API -> {
-                        slackClient.sendShowCreateApiDialog(databaseService.getVerbs(), slackEvent.triggerId!!)
+                        slackService.sendShowCreateApiDialog(slackEvent.triggerId!!)
                     }
                     else -> {
 
@@ -205,7 +217,14 @@ class ApplicationService @Inject constructor(
     private suspend fun onDialogSubmitted(slackEvent: SlackEvent) = coroutineScope {
         when {
             slackEvent.callbackId?.startsWith(Constants.Slack.CALLBACK_SUBSCRIBE_CONSUMER) == true -> {
-                sendSubscribeToBranch(slackEvent, slackClient, databaseService, apps)
+                val appId = slackEvent.callbackId?.substringAfter(Constants.Slack.CALLBACK_SUBSCRIBE_CONSUMER)
+                apps.firstOrNull {
+                    it.id == appId
+                }?.let { app ->
+                    val branch = slackEvent.dialogResponse?.get(Constants.Slack.TYPE_SELECT_BRANCH)
+                    val channelId = slackEvent.channel?.id
+                    slackService.sendSubscribeToBranch(slackEvent, app, branch!!, channelId!!)
+                }
             }
             slackEvent.callbackId == Constants.Slack.CALLBACK_CREATE_API -> {
                 createApiDialogResponse(slackEvent)
@@ -230,12 +249,12 @@ class ApplicationService @Inject constructor(
                 JsonParser().parse(response).asJsonObject
                 databaseService.addApi(id, verb!!, response!!)
 
-                slackClient.sendMessage(
+                slackService.sendMessage(
                     slackEvent.responseUrl!!,
                     RequestData(response = "Your `$verb` call is ready with url `${common.baseUrl}api/mock/$id`")
                 )
             } catch (exception: Exception) {
-                slackClient.sendMessage(
+                slackService.sendMessage(
                     slackEvent.responseUrl!!,
                     RequestData(response = "Invalid JSON")
                 )
@@ -250,8 +269,8 @@ class ApplicationService @Inject constructor(
             }?.let { app ->
                 if (!slackEvent.echoed.isNullOrEmpty()) {
                     launch(Dispatchers.IO) {
-                        slackClient.updateMessage(
-                            gson.fromJson(slackEvent.echoed, SlackMessage::class.java),
+                        slackService.updateMessage(
+                            slackEvent.echoed,
                             slackEvent.channel?.id!!
                         )
                     }
@@ -261,7 +280,7 @@ class ApplicationService @Inject constructor(
                 }?.mapValues { map -> map.value as String }?.toMutableMap()
 
                 launch(Dispatchers.IO) {
-                    slackClient.generateAndUploadApk(
+                    slackService.generateAndUploadApk(
                         buildData,
                         slackEvent.channel?.id ?: "general",
                         app,
@@ -282,7 +301,7 @@ class ApplicationService @Inject constructor(
                     val subscriptions = databaseService.findSubscriptions(branch, app.id)
                     subscriptions.orEmpty().forEach { resultRow ->
                         launch(Dispatchers.IO) {
-                            slackClient.sendShowConfirmGenerateApk(
+                            slackService.sendShowConfirmGenerateApk(
                                 resultRow[Subscriptions.channel],
                                 resultRow[Refs.name],
                                 Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK + app.id
@@ -326,7 +345,7 @@ class ApplicationService @Inject constructor(
     }
 
     suspend fun subscribeSlackEvent(slackEvent: SlackEvent) {
-        slackClient.subscribeSlackEvent(databaseService, slackEvent)
+        slackService.subscribeSlackEvent(slackEvent)
     }
 
     suspend fun getApi(apiId: String, verb: String): Api? {
@@ -334,7 +353,7 @@ class ApplicationService @Inject constructor(
     }
 
     suspend fun sendShowCreateApiDialog(triggerId: String) {
-        slackClient.sendShowCreateApiDialog(databaseService.getVerbs(), triggerId)
+        slackService.sendShowCreateApiDialog(triggerId)
     }
 
     fun clear() {

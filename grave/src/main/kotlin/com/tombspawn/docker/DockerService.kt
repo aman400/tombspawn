@@ -88,6 +88,10 @@ class DockerService @Inject constructor(
         return dockerClient.fetchReferences(app)
     }
 
+    suspend fun fetchBuildVariants(app: App): List<String>? {
+        return dockerClient.fetchBuildVariants(app)
+    }
+
     suspend fun fetchFlavours(app: App): List<String>? {
         return dockerClient.fetchFlavours(app)
     }

@@ -40,31 +40,3 @@ fun Routing.buildApp(applicationService: ApplicationService) {
         }
     }
 }
-
-suspend fun SlackClient.sendShowSubscriptionDialog(
-    branches: List<Ref>?,
-    triggerId: String,
-    app: App
-) {
-    val branchList = mutableListOf<Element.Option>()
-    branches?.forEach { branch ->
-        branchList.add(Element.Option("${branch.name}(${branch.type.type})", branch.name))
-    }
-    val dialog = dialog {
-        callbackId = Constants.Slack.CALLBACK_SUBSCRIBE_CONSUMER + app.id
-        title = "Subscription Details"
-        submitLabel = "Submit"
-        notifyOnCancel = false
-        elements {
-            +element {
-                type = ElementType.SELECT
-                label = "Select Branch"
-                name = Constants.Slack.TYPE_SELECT_BRANCH
-                options {
-                    +branchList
-                }
-            }
-        }
-    }
-    sendShowDialog(dialog, triggerId)
-}

@@ -65,6 +65,34 @@ class DockerApiClient @Inject constructor(private val dockerClient: DockerClient
         }
     }
 
+    suspend fun fetchBuildVariants(app: App): List<String>? = coroutineScope {
+        return@coroutineScope withContext(Dispatchers.IO) {
+            dockerHttpClients[app.id]?.let { client ->
+                val call = client.call {
+                    method = HttpMethod.Get
+                    url {
+                        encodedPath = "/build-variants"
+                    }
+                }
+                return@withContext when(val response = call.await<List<String>>()) {
+                    is CallSuccess -> {
+                        response.data?.let {
+                            it
+                        }
+                    }
+                    is CallFailure -> {
+                        LOGGER.error(response.errorBody)
+                        null
+                    }
+                    is CallError -> {
+                        LOGGER.error(response.throwable?.message, response.throwable)
+                        null
+                    }
+                }
+            }
+        }
+    }
+
     suspend fun fetchReferences(app: App): List<Reference>? = coroutineScope {
         dockerHttpClients[app.id]?.let { client ->
             val call = client.call {

@@ -8,7 +8,6 @@ import com.tombspawn.base.extensions.await
 import com.tombspawn.base.extensions.random
 import com.tombspawn.base.extensions.toMap
 import com.tombspawn.di.qualifiers.SlackHttpClient
-import com.tombspawn.di.qualifiers.UploadDirPath
 import com.tombspawn.models.*
 import com.tombspawn.models.config.App
 import com.tombspawn.models.config.Slack
@@ -39,9 +38,6 @@ import kotlin.collections.set
 class SlackClient @Inject constructor(
     @SlackHttpClient
     private val httpClient: HttpClient,
-    @UploadDirPath
-    private val uploadDirPath: String,
-    private val databaseService: DatabaseService,
     private val slack: Slack,
     val gson: Gson
 ) {
@@ -352,23 +348,7 @@ class SlackClient @Inject constructor(
         }
     }
 
-
-    suspend fun fetchUser(userId: String, databaseService: DatabaseService) {
-        databaseService.addUser(
-            userId,
-            null,
-            null,
-            Constants.Database.USER_TYPE_USER
-        )
-
-        fetchAndUpdateUser(userId, databaseService)
-    }
-
-    suspend fun addUser(userId: String, name: String, email: String, databaseService: DatabaseService) {
-        databaseService.addUser(userId, name, email, Constants.Database.USER_TYPE_USER)
-    }
-
-    private suspend fun fetchAndUpdateUser(userId: String, databaseService: DatabaseService) {
+    suspend fun fetchUser(userId: String): UserProfile? = coroutineScope {
         withContext(Dispatchers.IO) {
             val call = httpClient.call {
                 method = HttpMethod.Get
@@ -382,58 +362,18 @@ class SlackClient @Inject constructor(
             when (val response = call.await<SlackProfileResponse>()) {
                 is CallSuccess -> {
                     response.data?.user?.let { user ->
-                        databaseService.updateUser(
-                            userId,
-                            user.name,
-                            user.email
-                        )
+                        user
                     }
                 }
 
                 is CallFailure -> {
                     LOGGER.error(response.errorBody, response.throwable)
+                    null
                 }
 
                 is CallError -> {
                     LOGGER.error(response.throwable?.message, response.throwable)
-                }
-            }
-        }
-    }
-
-
-    suspend fun subscribeSlackEvent(databaseService: DatabaseService, slackEvent: SlackEvent) {
-        slackEvent.event?.let { event ->
-            if (!databaseService.userExists(event.user)) {
-                event.user?.let { user ->
-                    fetchUser(user, databaseService)
-                }
-            }
-            when (event.type) {
-                Event.EventType.APP_MENTION, Event.EventType.MESSAGE -> {
-                    withContext(Dispatchers.IO) {
-                        val user = databaseService.getUser(Constants.Database.USER_TYPE_BOT)
-                        user?.let { bot ->
-                            when (event.text?.substringAfter("<@${bot.slackId}>", event.text)?.trim()) {
-                                Constants.Slack.TYPE_SUBSCRIBE_CONSUMER -> {
-                                    databaseService.getRefs(Constants.Common.APP_CONSUMER)?.filter {
-                                        it.type == RefType.BRANCH
-                                    }?.forEach {
-                                        println(it.name)
-                                    }
-                                }
-                                Constants.Slack.TYPE_SUBSCRIBE_FLEET -> {
-                                    println("Valid Event Fleet")
-                                }
-                                else -> {
-                                    println("Invalid Event")
-                                }
-                            }
-                        }
-                    }
-                }
-                else -> {
-                    println("Unknown event type")
+                    null
                 }
             }
         }
@@ -528,43 +468,6 @@ class SlackClient @Inject constructor(
                 LOGGER.info(response.throwable?.message)
             }
         }
-    }
-
-    suspend fun sendShowCreateApiDialog(verbs: List<String>?, triggerId: String) {
-        val verbElements = verbs?.map { verb ->
-            Element.Option(verb, verb)
-        }
-
-        val dialog = dialog {
-            callbackId = Constants.Slack.CALLBACK_CREATE_API
-            title = "Create API"
-            submitLabel = "Submit"
-            notifyOnCancel = false
-            elements {
-                verbElements?.let { verbs ->
-                    +element {
-                        type = ElementType.SELECT
-                        label = "Select verb"
-                        name = Constants.Slack.TYPE_SELECT_VERB
-                        options = verbs.toMutableList()
-                    }
-                }
-
-                +element {
-                    type = ElementType.TEXT_AREA
-                    label = "Expected Response"
-                    name = Constants.Slack.TYPE_SELECT_RESPONSE
-                    optional = false
-                    hint = "Type your expected response here."
-                    maxLength = 3000
-                }
-            }
-        }
-
-        withContext(Dispatchers.IO) {
-            openActionDialog(dialog, slack.botToken, triggerId)
-        }
-
     }
 
     suspend fun sendShowGenerateApkDialog(
@@ -676,7 +579,7 @@ class SlackClient @Inject constructor(
         }
     }
 
-    private suspend fun openActionDialog(dialog: Dialog, slackBotToken: String, triggerId: String) {
+    suspend fun openActionDialog(dialog: Dialog, slackBotToken: String, triggerId: String) {
         val params = ParametersBuilder().apply {
             append(Constants.Slack.DIALOG, gson.toJson(dialog))
             append(Constants.Slack.TOKEN, slackBotToken)
@@ -778,8 +681,8 @@ class SlackClient @Inject constructor(
         }
     }
 
-    suspend fun getSlackUsers(token: String, slackClient: SlackClient, nextCursor: String?): List<SlackUser> {
-        val data = slackClient.getUserList(token, nextCursor)
+    suspend fun getSlackUsers(token: String, nextCursor: String?): List<SlackUser> {
+        val data = getUserList(token, nextCursor)
         val cursor = data?.responseMetadata?.nextCursor
         val users = mutableListOf<SlackUser>()
 
@@ -788,21 +691,21 @@ class SlackClient @Inject constructor(
         }
 
         if (!cursor.isNullOrEmpty()) {
-            users.addAll(getSlackUsers(token, slackClient, cursor))
+            users.addAll(getSlackUsers(token, cursor))
         }
 
         return users
     }
 
-    suspend fun getSlackBotImIds(token: String, slackClient: SlackClient, nextCursor: String?): List<IMListData.IM> {
-        val data = slackClient.getIMList(token, nextCursor)
+    suspend fun getSlackBotImIds(token: String, nextCursor: String?): List<IMListData.IM> {
+        val data = getIMList(token, nextCursor)
         val cursor = data?.responseMetadata?.nextCursor
         val ims = mutableListOf<IMListData.IM>()
         data?.ims?.let {
             ims.addAll(it)
         }
         if (!cursor.isNullOrEmpty()) {
-            ims.addAll(getSlackBotImIds(token, slackClient, cursor))
+            ims.addAll(getSlackBotImIds(token, cursor))
         }
 
         return ims
