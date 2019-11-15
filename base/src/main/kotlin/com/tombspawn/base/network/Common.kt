@@ -1,7 +1,6 @@
 package com.tombspawn.base.network
 
 import com.tombspawn.base.di.Constants
-import com.tombspawn.base.di.LOGGER
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.apache.Apache
 import io.ktor.client.features.defaultRequest
@@ -11,8 +10,10 @@ import io.ktor.client.features.logging.LogLevel
 import io.ktor.client.features.logging.Logger
 import io.ktor.client.features.logging.Logging
 import io.ktor.http.URLProtocol
+import org.slf4j.LoggerFactory
 
 object Common {
+    val LOGGER = LoggerFactory.getLogger("com.tombspawn.base.network.Common")
     @JvmStatic
     @JvmOverloads
     fun createHttpClient(gsonSerializer: GsonSerializer, hostName: String? = null,

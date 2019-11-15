@@ -16,8 +16,9 @@ import org.eclipse.jgit.transport.TagOpt
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.IOException
+import javax.inject.Inject
 
-class GitClient constructor(private val provider: CredentialProvider) {
+class GitClient @Inject constructor(private val provider: CredentialProvider) {
     private val logger = LoggerFactory.getLogger("GitClient")
     fun clone(dir: String, gitUri: String) {
         if (!try {
@@ -123,14 +124,10 @@ class GitClient constructor(private val provider: CredentialProvider) {
 
     suspend fun getTagsAsync(dir: String): Deferred<List<String>> = coroutineScope {
         async(Dispatchers.IO) {
-            var origin: String
-            return@async Git(initRepository(dir).also {
-                val storedConfig = it.config
-                origin = storedConfig.getSubsections("remote").first()
-            }).use { git ->
-                val tags = git.tagList().call()
+            return@async Git(initRepository(dir)).use { git ->
+                var tags = git.tagList().call()
                 RevWalk(git.repository).use { revWalk ->
-                    tags.sortByDescending {
+                    tags = tags.sortedByDescending {
                         revWalk.parseCommit(it.objectId).commitTime
                     }
                 }
@@ -141,7 +138,7 @@ class GitClient constructor(private val provider: CredentialProvider) {
         }
     }
 
-    suspend fun checkoutAync(branch: String, dir: String): Deferred<Boolean> = coroutineScope {
+    suspend fun checkoutAsync(branch: String, dir: String): Deferred<Boolean> = coroutineScope {
         async(Dispatchers.IO) {
             return@async Git(initRepository(dir)).use { git ->
                 git.branchList().call().filter {

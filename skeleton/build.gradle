@@ -11,11 +11,12 @@ plugins {
     // Apply the application plugin to add support for building a CLI application.
     id 'application'
     id 'com.github.johnrengelman.shadow'
+    id "org.jetbrains.kotlin.kapt"
 }
 
 group 'skeleton'
 version '0.1'
-mainClassName = "com.tombspawn.ApplicationKt"
+mainClassName = "com.tombspawn.skeleton.Skeleton"
 
 sourceSets {
     main.kotlin.srcDirs = main.java.srcDirs = ['src/main/kotlin']
@@ -28,6 +29,16 @@ sourceSets {
 sourceCompatibility = 1.8
 compileKotlin {
     kotlinOptions.jvmTarget = "1.8"
+}
+
+kapt {
+    correctErrorTypes = true
+    javacOptions {
+        // Increase the max count of errors from annotation processors.
+        // Default is 100.
+        option("-Xmaxerrs", 500)
+    }
+    generateStubs = true
 }
 
 repositories {
@@ -52,8 +63,6 @@ dependencies {
 
     implementation Kotlin.stdlib
 
-    implementation Koin.lib
-
     implementation Ktor.jvmLogging
     implementation Ktor.netty
     implementation Ktor.json
@@ -65,10 +74,15 @@ dependencies {
     implementation Jgit.lib
     implementation project(":base")
 
+    api Dagger.lib
+    kapt Dagger.annotationProcessor
+    api Dagger.assistedInjectLib
+    kapt Dagger.assistedInjectProcessor
+
     testImplementation Ktor.test
 }
 
 application {
     // Define the main class for the application
-    mainClassName = 'com.tombspawn.skeleton.ApplicationKt'
+    mainClassName = 'com.tombspawn.skeleton.Skeleton'
 }

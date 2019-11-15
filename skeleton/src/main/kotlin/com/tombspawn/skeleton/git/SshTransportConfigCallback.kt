@@ -11,7 +11,7 @@ import org.eclipse.jgit.transport.Transport
 import org.eclipse.jgit.util.FS
 
 
-class SshTransportConfigCallback(val sshPrivateKeyFile: String?, val passphrase: String?)  : TransportConfigCallback {
+class SshTransportConfigCallback(val sshPrivateKeyFile: String?, val passphrase: String?) : TransportConfigCallback {
     private val sshSessionFactory = object : JschConfigSessionFactory() {
         override fun configure(hc: OpenSshConfig.Host, session: Session) {
             session.setConfig("StrictHostKeyChecking", "no")

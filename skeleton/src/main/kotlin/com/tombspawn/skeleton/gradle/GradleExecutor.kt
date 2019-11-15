@@ -1,6 +1,8 @@
 package com.tombspawn.skeleton.gradle
 
 import com.tombspawn.base.common.*
+import com.tombspawn.skeleton.di.qualifiers.AppDir
+import com.tombspawn.skeleton.di.qualifiers.GradlePath
 import com.tombspawn.skeleton.git.CredentialProvider
 import com.tombspawn.skeleton.models.*
 import com.tombspawn.skeleton.utils.Constants
@@ -8,22 +10,23 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.SendChannel
 import java.io.File
 import java.util.*
+import javax.inject.Inject
 
-class GradleExecutor constructor(
+class GradleExecutor @Inject constructor(
+    @AppDir
     private val appDir: String,
+    @GradlePath
     private val gradlePath: String,
-    private val responseListeners: MutableMap<String, CompletableDeferred<CommandResponse>>,
-    private val requestExecutor: SendChannel<Command>,
+    private val requestExecutor: SendChannel<@JvmSuppressWildcards Command>,
     private val credentialProvider: CredentialProvider
 ): CommandExecutor {
     override suspend fun fetchAllBranches(): List<Reference>? {
         val executableCommand =
             "$gradlePath fetchRemoteBranches -P${Constants.Common.ARG_OUTPUT_SEPARATOR}=${Constants.Common.OUTPUT_SEPARATOR}"
         val id = UUID.randomUUID().toString()
-        requestExecutor.send(Request(executableCommand, File(appDir), id = id))
-        val responseListener = CompletableDeferred<CommandResponse>()
-        responseListeners[id] = responseListener
-        when (val response = responseListener.await()) {
+        val request = Request(executableCommand, File(appDir), id = id, listener = CompletableDeferred())
+        requestExecutor.send(request)
+        when (val response = request.listener!!.await()) {
             is Success -> {
                 response.data?.let {
                     val parsedResponse = it.split(Constants.Common.OUTPUT_SEPARATOR)
@@ -47,10 +50,9 @@ class GradleExecutor constructor(
         val executableCommand =
             "$gradlePath getProductFlavours -P${Constants.Common.ARG_OUTPUT_SEPARATOR}=${Constants.Common.OUTPUT_SEPARATOR}"
         val id = UUID.randomUUID().toString()
-        requestExecutor.send(Request(executableCommand, File(appDir), id = id))
-        val responseListener = CompletableDeferred<CommandResponse>()
-        responseListeners[id] = responseListener
-        when (val response = responseListener.await()) {
+        val request = Request(executableCommand, File(appDir), id = id, listener = CompletableDeferred())
+        requestExecutor.send(request)
+        when (val response = request.listener!!.await()) {
             is Success -> {
                 response.data?.let {
                     val parsedResponse = it.split(Constants.Common.OUTPUT_SEPARATOR)
@@ -72,10 +74,9 @@ class GradleExecutor constructor(
         val executableCommand =
             "$gradlePath getBuildVariants -P${Constants.Common.ARG_OUTPUT_SEPARATOR}=${Constants.Common.OUTPUT_SEPARATOR}"
         val id = UUID.randomUUID().toString()
-        requestExecutor.send(Request(executableCommand, File(appDir), id = id))
-        val responseListener = CompletableDeferred<CommandResponse>()
-        responseListeners[id] = responseListener
-        when (val response = responseListener.await()) {
+        val request = Request(executableCommand, File(appDir), id = id, listener = CompletableDeferred())
+        requestExecutor.send(request)
+        when (val response = request.listener!!.await()) {
             is Success -> {
                 response.data?.let {
                     val parsedResponse = it.split(Constants.Common.OUTPUT_SEPARATOR)
@@ -98,10 +99,9 @@ class GradleExecutor constructor(
 
         val executionDirectory = File(appDir)
         val id = UUID.randomUUID().toString()
-        requestExecutor.send(Request(pullCodeCommand, executionDirectory, id = id))
-        val responseListener = CompletableDeferred<CommandResponse>()
-        responseListeners[id] = responseListener
-        return responseListener.await()
+        val request = Request(pullCodeCommand, executionDirectory, id = id, listener = CompletableDeferred())
+        requestExecutor.send(request)
+        return request.listener!!.await()
     }
 
     override suspend fun generateApp(parameters: MutableMap<String, String>?,
@@ -121,9 +121,8 @@ class GradleExecutor constructor(
         executableCommand += " -Pgradlebot.git.username=${credentialProvider.username}"
 
         val buildId = UUID.randomUUID().toString()
-        requestExecutor.send(Request(executableCommand, executionDirectory, id = buildId))
-        val buildApkResponseListener = CompletableDeferred<CommandResponse>()
-        responseListeners[buildId] = buildApkResponseListener
-        return buildApkResponseListener.await()
+        val request = Request(executableCommand, executionDirectory, id = buildId, listener = CompletableDeferred())
+        requestExecutor.send(request)
+        return request.listener!!.await()
     }
 }

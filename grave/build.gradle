@@ -5,7 +5,7 @@ apply plugin: 'kotlin-kapt'
 
 group 'grave'
 version '0.6'
-mainClassName = "com.tombspawn.ApplicationKt"
+mainClassName = "com.tombspawn.Grave"
 
 sourceSets {
     main.kotlin.srcDirs = main.java.srcDirs = ['src/main/kotlin']
@@ -21,6 +21,7 @@ kapt {
         // Default is 100.
         option("-Xmaxerrs", 500)
     }
+    generateStubs = true
 }
 
 sourceCompatibility = 1.8
@@ -68,4 +69,9 @@ dependencies {
 
     implementation 'com.google.code.findbugs:jsr305:3.0.2'
 
+}
+
+application {
+    // Define the main class for the application
+    mainClassName = 'com.tombspawn.Grave'
 }
