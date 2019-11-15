@@ -1,5 +1,9 @@
 package com.tombspawn.skeleton.utils
 
+import com.tombspawn.base.common.CallSuccess
+import com.tombspawn.base.common.Response
+import kotlinx.coroutines.delay
+
 class Constants {
     object Common {
         const val OUTPUT_SEPARATOR = "##***##"

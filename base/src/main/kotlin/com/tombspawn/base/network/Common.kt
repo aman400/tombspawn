@@ -1,5 +1,7 @@
 package com.tombspawn.base.network
 
+import com.tombspawn.base.common.CallSuccess
+import com.tombspawn.base.common.Response
 import com.tombspawn.base.di.Constants
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.apache.Apache
@@ -10,6 +12,7 @@ import io.ktor.client.features.logging.LogLevel
 import io.ktor.client.features.logging.Logger
 import io.ktor.client.features.logging.Logging
 import io.ktor.http.URLProtocol
+import kotlinx.coroutines.delay
 import org.slf4j.LoggerFactory
 
 object Common {
@@ -56,4 +59,26 @@ object Common {
             }
         }
     }
+}
+
+
+suspend fun <T> retryCall(
+    times: Int = 0,
+    initialDelay: Long = 100, // 0.1 second
+    maxDelay: Long = 1000,    // 1 second
+    factor: Double = 2.0,
+    block: suspend () -> Response<T>
+): Response<T> {
+    var currentDelay = initialDelay
+    repeat(times) {
+        val data = block()
+        when (data) {
+            is CallSuccess -> {
+                return data
+            }
+        }
+        delay(currentDelay)
+        currentDelay = (currentDelay * factor).toLong().coerceAtLeast(maxDelay)
+    }
+    return block() // last attempt
 }
