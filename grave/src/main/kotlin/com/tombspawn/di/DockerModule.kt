@@ -5,12 +5,10 @@ import com.github.dockerjava.core.DefaultDockerClientConfig
 import com.github.dockerjava.core.DockerClientBuilder
 import com.github.dockerjava.netty.NettyDockerCmdExecFactory
 import com.tombspawn.base.di.scopes.AppScope
-import com.tombspawn.base.di.scopes.CoroutineScope
 import com.tombspawn.base.network.Common
 import com.tombspawn.di.qualifiers.Debuggable
 import com.tombspawn.di.qualifiers.DockerHttpClient
 import com.tombspawn.models.config.App
-import com.tombspawn.network.docker.DockerApiClient
 import dagger.Module
 import dagger.Provides
 import io.ktor.client.HttpClient

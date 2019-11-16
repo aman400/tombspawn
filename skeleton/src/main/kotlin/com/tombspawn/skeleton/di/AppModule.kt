@@ -53,7 +53,7 @@ object AppModule {
     @Provides
     @AppScope
     @FileUploadDir
-    fun provideFileUploadDir(): String {
-        return "temp"
+    fun provideUploadDirPath(): String {
+        return "${System.getProperty("user.dir")}/temp"
     }
 }

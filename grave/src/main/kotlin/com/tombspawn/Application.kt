@@ -167,6 +167,7 @@ fun Application.module(appComponent: AppComponent) {
         status()
         health()
         buildApp(appComponent.applicationService())
+        apkCallback(appComponent.applicationService())
         slackEvent(appComponent.applicationService())
         subscribe(appComponent.applicationService())
         slackAction(appComponent.applicationService())

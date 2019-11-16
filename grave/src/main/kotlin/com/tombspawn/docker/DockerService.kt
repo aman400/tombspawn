@@ -10,7 +10,6 @@ import com.tombspawn.models.AppContainerRequest
 import com.tombspawn.models.Reference
 import com.tombspawn.models.config.App
 import com.tombspawn.models.config.Common
-import com.tombspawn.network.docker.DockerApiClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -94,5 +93,9 @@ class DockerService @Inject constructor(
 
     suspend fun fetchFlavours(app: App): List<String>? {
         return dockerClient.fetchFlavours(app)
+    }
+
+    suspend fun generateApp(app: App) {
+        dockerClient.generateApp(app)
     }
 }

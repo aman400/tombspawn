@@ -14,6 +14,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.call
 import io.ktor.http.HttpMethod
 import io.ktor.util.error
+import kotlinx.coroutines.coroutineScope
 import org.slf4j.LoggerFactory
 import java.io.File
 import javax.inject.Inject
@@ -91,7 +92,7 @@ class ApplicationService @Inject constructor(
     }
 
     suspend fun generateApp(parameters: MutableMap<String, String>?,
-                            callbackUri: String?, appPrefix: String?) {
+                            callbackUri: String?, appPrefix: String?) = coroutineScope {
 
         val apkPrefix = "${appPrefix?.let {
             "$it-"
@@ -109,7 +110,7 @@ class ApplicationService @Inject constructor(
                                 val responseData = uploadHttpClient.call(url) {
                                     method = HttpMethod.Post
                                     body = MultiPartContent.build {
-                                        add("prefix", apkPrefix)
+                                        add("title", apkPrefix)
                                         add("file", file.readBytes(), filename = file.name)
                                     }
                                 }.await<JsonObject>()

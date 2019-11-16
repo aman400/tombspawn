@@ -1,4 +1,4 @@
-package com.tombspawn.network.docker
+package com.tombspawn.docker
 
 import com.github.dockerjava.api.DockerClient
 import com.github.dockerjava.api.async.ResultCallbackTemplate
@@ -6,16 +6,20 @@ import com.github.dockerjava.api.model.*
 import com.github.dockerjava.core.command.BuildImageResultCallback
 import com.github.dockerjava.core.command.EventsResultCallback
 import com.github.dockerjava.core.command.LogContainerResultCallback
+import com.google.gson.JsonObject
 import com.tombspawn.base.common.CallError
 import com.tombspawn.base.common.CallFailure
 import com.tombspawn.base.common.CallSuccess
+import com.tombspawn.base.common.exhaustive
 import com.tombspawn.base.extensions.await
 import com.tombspawn.di.qualifiers.DockerHttpClient
 import com.tombspawn.models.Reference
 import com.tombspawn.models.config.App
 import io.ktor.client.HttpClient
 import io.ktor.client.call.call
+import io.ktor.client.request.parameter
 import io.ktor.http.HttpMethod
+import io.ktor.http.parametersOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
@@ -88,6 +92,37 @@ class DockerApiClient @Inject constructor(private val dockerClient: DockerClient
                         LOGGER.error(response.throwable?.message, response.throwable)
                         null
                     }
+                }
+            }
+        }
+    }
+
+    suspend fun generateApp(app: App) = coroutineScope {
+        val userAppPrefix = "Abcd"
+
+        val APKPrefix = "${userAppPrefix.let {
+            "$it-"
+        } ?: ""}${System.currentTimeMillis()}"
+        dockerHttpClients[app.id]?.let { client ->
+            when(val response = client.call {
+                method = HttpMethod.Get
+                url {
+                    encodedPath = "/app/generate/"
+                }
+                parametersOf("APP_PREFIX" to listOf(APKPrefix), "CALLBACK_URI" to listOf("http://0.0.0.0:6552/callback/12345"))
+            }.await<JsonObject>()) {
+                is CallSuccess -> {
+                    println(response.data)
+                    null
+                }
+                is CallFailure -> {
+                    println(response.errorBody)
+                    null
+                }
+                is CallError -> {
+                    response.throwable?.printStackTrace()
+                    println(response.throwable)
+                    null
                 }
             }
         }

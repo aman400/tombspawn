@@ -3,6 +3,7 @@ package com.tombspawn
 import com.google.gson.Gson
 import com.google.gson.JsonParser
 import com.tombspawn.data.*
+import com.tombspawn.di.qualifiers.UploadDirPath
 import com.tombspawn.docker.DockerService
 import com.tombspawn.models.Reference
 import com.tombspawn.models.RequestData
@@ -27,9 +28,11 @@ class ApplicationService @Inject constructor(
     private val common: Common,
     private val gson: Gson,
     private val databaseService: DatabaseService,
-    private val apps: List<App>,
+    val apps: List<App>,
     private val dockerService: DockerService,
-    private val slackService: SlackService
+    private val slackService: SlackService,
+    @UploadDirPath
+    val uploadDirPath: String
 ) {
 
     suspend fun init() = coroutineScope {
@@ -112,15 +115,15 @@ class ApplicationService @Inject constructor(
     }
 
     suspend fun generateAndUploadApk(
-        buildData: MutableMap<String, String>?,
-        channelId: String,
-        appID: String,
-        responseUrl: String
+//        buildData: MutableMap<String, String>?,
+//        channelId: String,
+        appID: String
+//        responseUrl: String
     ) {
         apps.firstOrNull {
             it.id == appID
         }?.let { app ->
-            slackService.generateAndUploadApk(buildData, channelId, app, responseUrl)
+            dockerService.generateApp(app)
         }
     }
 

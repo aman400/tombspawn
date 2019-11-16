@@ -26,6 +26,8 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.util.error
 import io.ktor.util.toMap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
@@ -160,7 +162,7 @@ fun Application.module(appComponent: AppComponent) {
     }
 
     routing {
-        get("/app/generate/") {
+        get("/app/generate") {
             val params = this.call.request.queryParameters.toMap().mapValues { values ->
                 values.value.first()
             }.toMutableMap()
@@ -171,7 +173,10 @@ fun Application.module(appComponent: AppComponent) {
             params.remove("APP_PREFIX")
             params.remove("CALLBACK_URI")
 
-            applicationService.generateApp(params, callbackUri, userAppPrefix)
+            launch(Dispatchers.IO) {
+                applicationService.generateApp(params, callbackUri, userAppPrefix)
+            }
+            call.respond("{\"message\": \"ok\"}")
         }
 
         get("/build-variants") {

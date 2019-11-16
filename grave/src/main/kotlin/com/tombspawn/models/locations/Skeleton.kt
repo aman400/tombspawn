@@ -6,6 +6,12 @@ import io.ktor.locations.Location
 class Apps {
     @Location("/{id}")
     data class App(val id: String) {
+        @Location("/callback/{callbackId}")
+        data class Callback(val app: App, val callbackId: String)
+
+        @Location("/generate")
+        data class CreateApp(val app: App)
+
         @Location("/branches")
         data class Branches(val app: App, val branchLimit: Int? = -1, val tagLimit: Int? = -1)
 

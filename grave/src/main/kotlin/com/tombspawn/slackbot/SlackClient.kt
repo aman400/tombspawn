@@ -130,31 +130,33 @@ class SlackClient @Inject constructor(
         app: App,
         responseUrl: String? = null
     ) {
-        val additionalParams = buildData?.get(Constants.Slack.TYPE_ADDITIONAL_PARAMS)?.trim()
+//        val additionalParams = buildData?.get(Constants.Slack.TYPE_ADDITIONAL_PARAMS)?.trim()
+//
+//        additionalParams?.let {
+//            it.toMap()?.forEach { key, value ->
+//                if (!buildData.containsKey(key)) {
+//                    buildData[key] = value
+//                }
+//            }
+//        }
+//
+//        withContext(Dispatchers.IO) {
+//            if (responseUrl != null) {
+//                sendMessage(responseUrl, RequestData(response = randomWaitingMessages.random()!!))
+//            } else {
+//                sendMessage(randomWaitingMessages.random()!!, channelId, null)
+//            }
+//        }
 
-        additionalParams?.let {
-            it.toMap()?.forEach { key, value ->
-                if (!buildData.containsKey(key)) {
-                    buildData[key] = value
-                }
-            }
-        }
+//        val selectedBranch = buildData?.get(Constants.Slack.TYPE_SELECT_BRANCH)?.trim()
 
-        withContext(Dispatchers.IO) {
-            if (responseUrl != null) {
-                sendMessage(responseUrl, RequestData(response = randomWaitingMessages.random()!!))
-            } else {
-                sendMessage(randomWaitingMessages.random()!!, channelId, null)
-            }
-        }
-
-        val selectedBranch = buildData?.get(Constants.Slack.TYPE_SELECT_BRANCH)?.trim()
-
-        val userAppPrefix = buildData?.get(Constants.Slack.TYPE_SELECT_APP_PREFIX)?.trim()
+        val userAppPrefix = "Abcd"
 
         val APKPrefix = "${userAppPrefix?.let {
             "$it-"
         } ?: ""}${System.currentTimeMillis()}"
+
+
 
         withContext(Dispatchers.IO) {
 //            val buildVariants = app.gradleExecutor?.fetchBuildVariants()
