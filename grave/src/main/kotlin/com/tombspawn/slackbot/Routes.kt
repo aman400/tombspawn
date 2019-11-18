@@ -1,6 +1,7 @@
 package com.tombspawn.slackbot
 
 import com.tombspawn.ApplicationService
+import com.tombspawn.base.common.ErrorResponse
 import com.tombspawn.base.extensions.copyToSuspend
 import com.tombspawn.base.extensions.toMap
 import com.tombspawn.models.locations.Apps
@@ -20,8 +21,6 @@ import io.ktor.request.receiveMultipart
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.Routing
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import java.io.File
 
@@ -78,7 +77,7 @@ fun Routing.buildApp(applicationService: ApplicationService) {
         }
 
         text?.trim()?.toMap()?.let { buildData ->
-//            applicationService.generateAndUploadApk(buildData, channelId!!, command.appID, responseUrl!!)
+            applicationService.generateApk(buildData, channelId!!, command.appID, responseUrl!!)
             call.respond(HttpStatusCode.OK)
         } ?: run {
             LOGGER.warn("Command options not set. These options can be set using '/build-fleet BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'")
@@ -90,7 +89,7 @@ fun Routing.buildApp(applicationService: ApplicationService) {
 
 
 fun Routing.apkCallback(applicationService: ApplicationService) {
-    post<Apps.App.Callback> { callback ->
+    post<Apps.App.Callback.Success> { callback ->
         var title = ""
         var receivedFile: File
         val multipart = call.receiveMultipart()
@@ -102,7 +101,7 @@ fun Routing.apkCallback(applicationService: ApplicationService) {
                     }
                 }
                 is PartData.FileItem -> {
-                    val directory = File("${applicationService.uploadDirPath}/${callback.callbackId}")
+                    val directory = File("${applicationService.uploadDirPath}/${callback.callback.callbackId}")
                     if(!directory.exists()) {
                         directory.mkdirs()
                     }
@@ -110,6 +109,7 @@ fun Routing.apkCallback(applicationService: ApplicationService) {
                     part.streamProvider()
                         .use { input -> file.outputStream().buffered().use { output -> input.copyToSuspend(output) } }
                     receivedFile = file
+                    applicationService.uploadApk(callback.callback, receivedFile)
                 }
             }
 
@@ -118,10 +118,15 @@ fun Routing.apkCallback(applicationService: ApplicationService) {
         call.respond("{\"message\": \"ok\"}")
     }
 
+    post<Apps.App.Callback.Failure> { callback ->
+        val errorResponse = call.receive<ErrorResponse>()
+        applicationService.reportFailure(callback.callback, errorResponse)
+    }
+
     get<Apps.App.CreateApp> { app ->
-        launch (Dispatchers.IO) {
-            applicationService.generateAndUploadApk(app.app.id)
-        }
+//        launch (Dispatchers.IO) {
+//            applicationService.generateAndUploadApk(app.app.id)
+//        }
         call.respond("{\"message\": \"ok\"}")
     }
 }

@@ -9,6 +9,7 @@ import com.tombspawn.network.githubWebhook
 import com.tombspawn.network.health
 import com.tombspawn.network.status
 import com.tombspawn.slackbot.*
+import com.tombspawn.utils.Constants
 import io.ktor.application.*
 import io.ktor.features.*
 import io.ktor.gson.gson
@@ -41,8 +42,8 @@ class Grave(val args: Array<String>) {
                 module(appComponent)
             }
 
-            var host = "0.0.0.0"
-            var port = 80
+            var host = Constants.Common.DEFAULT_HOST
+            var port = Constants.Common.DEFAULT_PORT
             args.firstOrNull()?.let { fileName ->
                 File(fileName).bufferedReader().use {
                     val text = it.readText()

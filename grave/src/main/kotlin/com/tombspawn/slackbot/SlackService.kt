@@ -1,8 +1,13 @@
 package com.tombspawn.slackbot
 
 import com.google.gson.Gson
+import com.tombspawn.base.common.CallError
+import com.tombspawn.base.common.CallFailure
+import com.tombspawn.base.common.CallSuccess
+import com.tombspawn.base.extensions.await
 import com.tombspawn.data.DatabaseService
 import com.tombspawn.data.Ref
+import com.tombspawn.models.CallResponse
 import com.tombspawn.models.Reference
 import com.tombspawn.models.RequestData
 import com.tombspawn.models.config.App
@@ -10,14 +15,21 @@ import com.tombspawn.models.config.Slack
 import com.tombspawn.models.github.RefType
 import com.tombspawn.models.slack.*
 import com.tombspawn.utils.Constants
+import io.ktor.client.request.forms.formData
+import io.ktor.http.ContentType
+import io.ktor.http.Headers
+import io.ktor.http.HttpHeaders
+import io.ktor.http.append
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileInputStream
 import javax.inject.Inject
 
 class SlackService @Inject constructor(private val slackClient: SlackClient, val slack: Slack,
-                                       val gson: Gson, val databaseService: DatabaseService) {
+                                       val gson: Gson, private val databaseService: DatabaseService) {
 
     suspend fun sendMessage(message: String, channelId: String, attachments: List<Attachment>?) {
         slackClient.sendMessage(message, channelId, attachments)
@@ -29,6 +41,59 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
 
     suspend fun updateMessage(echoed: String?, channelId: String) {
         return slackClient.updateMessage(gson.fromJson(echoed, SlackMessage::class.java), channelId)
+    }
+
+    suspend fun uploadFile(file: File, channelId: String, onFinish: (() -> Unit)? = null) {
+        withContext(Dispatchers.IO) {
+            val buf = ByteArray(file.length().toInt())
+            FileInputStream(file).use {
+                it.read(buf)
+            }
+            val formData = formData {
+                append("token", slack.botToken)
+                append("title", file.nameWithoutExtension)
+                append("filename", file.name)
+                append("filetype", "auto")
+                append("channels", channelId)
+                append(
+                    "file",
+                    buf,
+                    Headers.build {
+                        append(HttpHeaders.ContentType, ContentType.Application.OctetStream)
+                        append(HttpHeaders.ContentDisposition, " filename=${file.name}")
+                    }
+                )
+            }
+
+            try {
+                when (val response = slackClient.uploadFile(formData)) {
+                    is CallSuccess -> {
+                        if (response.data?.delivered == true) {
+                            LOGGER.info("delivered")
+                        } else {
+                            sendMessage(
+                                "Unable to deliver apk to this channel reason: ${response.data?.error}",
+                                channelId,
+                                null
+                            )
+                            LOGGER.error("Not delivered")
+                        }
+                    }
+                    is CallFailure -> {
+                        LOGGER.error("Not delivered")
+                        LOGGER.error(response.errorBody, response.throwable)
+                    }
+                    is CallError -> {
+                        LOGGER.error("Call failed unable to deliver APK")
+                        LOGGER.error(response.throwable?.message, response.throwable)
+                    }
+                }
+                onFinish?.invoke()
+            } catch (exception: Exception) {
+                LOGGER.error("Unable to push apk to Slack.", exception)
+                onFinish?.invoke()
+            }
+        }
     }
 
     suspend fun sendShowGenerateApkDialog(
@@ -299,15 +364,6 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
 
     suspend fun getSlackBotImIds(token: String, nextCursor: String? = null): List<IMListData.IM> {
         return slackClient.getSlackBotImIds(token, nextCursor)
-    }
-
-    suspend fun generateAndUploadApk(
-        buildData: MutableMap<String, String>?,
-        channelId: String,
-        app: App,
-        responseUrl: String? = null
-    ) {
-        return slackClient.generateAndUploadApk(buildData, channelId, app, responseUrl)
     }
 
     suspend fun sendSubscribeToBranch(

@@ -1,10 +1,12 @@
 package com.tombspawn.skeleton
 
+import com.tombspawn.base.common.CommonConstants
 import com.tombspawn.base.config.JsonApplicationConfig
 import com.tombspawn.base.di.DaggerCoreComponent
 import com.tombspawn.skeleton.di.AppComponent
 import com.tombspawn.skeleton.di.DaggerAppComponent
 import com.tombspawn.skeleton.locations.References
+import com.tombspawn.skeleton.models.config.CommonConfig
 import com.tombspawn.skeleton.models.config.ServerConf
 import io.ktor.application.Application
 import io.ktor.application.ApplicationCallPipeline
@@ -167,14 +169,16 @@ fun Application.module(appComponent: AppComponent) {
                 values.value.first()
             }.toMutableMap()
 
-            val userAppPrefix = params["APP_PREFIX"]?.trim()
-            val callbackUri = params["CALLBACK_URI"]?.trim()
+            val userAppPrefix = params[CommonConstants.APP_PREFIX]?.trim()
+            val successCallbackUri = params[CommonConstants.SUCCESS_CALLBACK_URI]?.trim()
+            val failureCallbackUri = params[CommonConstants.FAILURE_CALLBACK_URI]?.trim()
 
-            params.remove("APP_PREFIX")
-            params.remove("CALLBACK_URI")
+            params.remove(CommonConstants.APP_PREFIX)
+            params.remove(CommonConstants.SUCCESS_CALLBACK_URI)
+            params.remove(CommonConstants.FAILURE_CALLBACK_URI)
 
             launch(Dispatchers.IO) {
-                applicationService.generateApp(params, callbackUri, userAppPrefix)
+                applicationService.generateApp(params, successCallbackUri, failureCallbackUri, userAppPrefix)
             }
             call.respond("{\"message\": \"ok\"}")
         }

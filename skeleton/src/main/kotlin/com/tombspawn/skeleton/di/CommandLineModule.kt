@@ -1,12 +1,9 @@
 package com.tombspawn.skeleton.di
 
 import com.tombspawn.base.common.Command
-import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.skeleton.commandline.getCommandExecutor
 import com.tombspawn.skeleton.di.qualifiers.AppDir
 import com.tombspawn.skeleton.di.qualifiers.GradlePath
-import com.tombspawn.skeleton.git.CredentialProvider
-import com.tombspawn.skeleton.gradle.GradleExecutor
 import com.tombspawn.skeleton.models.App
 import com.tombspawn.skeleton.models.config.CommonConfig
 import dagger.Module

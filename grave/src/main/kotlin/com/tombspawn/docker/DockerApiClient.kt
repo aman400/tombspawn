@@ -7,17 +7,14 @@ import com.github.dockerjava.core.command.BuildImageResultCallback
 import com.github.dockerjava.core.command.EventsResultCallback
 import com.github.dockerjava.core.command.LogContainerResultCallback
 import com.google.gson.JsonObject
-import com.tombspawn.base.common.CallError
-import com.tombspawn.base.common.CallFailure
-import com.tombspawn.base.common.CallSuccess
-import com.tombspawn.base.common.exhaustive
+import com.tombspawn.base.common.*
 import com.tombspawn.base.extensions.await
+import com.tombspawn.base.network.withRetry
 import com.tombspawn.di.qualifiers.DockerHttpClient
 import com.tombspawn.models.Reference
 import com.tombspawn.models.config.App
 import io.ktor.client.HttpClient
 import io.ktor.client.call.call
-import io.ktor.client.request.parameter
 import io.ktor.http.HttpMethod
 import io.ktor.http.parametersOf
 import kotlinx.coroutines.Dispatchers
@@ -28,8 +25,10 @@ import java.io.File
 import javax.inject.Inject
 import kotlin.coroutines.suspendCoroutine
 
-class DockerApiClient @Inject constructor(private val dockerClient: DockerClient,
-                                              @DockerHttpClient private val dockerHttpClients: MutableMap<String, HttpClient>) {
+class DockerApiClient @Inject constructor(
+    private val dockerClient: DockerClient,
+    @DockerHttpClient private val dockerHttpClients: MutableMap<String, HttpClient>
+) {
     companion object {
         private val LOGGER = LoggerFactory.getLogger("com.tombspawn.docker.DockerApiClient")
         const val STATE_STARTED = "running"
@@ -41,27 +40,24 @@ class DockerApiClient @Inject constructor(private val dockerClient: DockerClient
     }
 
     suspend fun fetchFlavours(app: App): List<String>? = coroutineScope {
-        return@coroutineScope withContext(Dispatchers.Default) {
-            dockerHttpClients[app.id]?.let { client ->
+        dockerHttpClients[app.id]?.let { client ->
+            withRetry(20, 10000, -1) {
                 val call = client.call {
                     method = HttpMethod.Get
                     url {
                         encodedPath = "/flavours"
                     }
                 }
-
-                return@withContext when (val response = call.await<List<String>>()) {
+                call.await<List<String>>()
+            }.let { response ->
+                when (response) {
                     is CallSuccess -> {
-                        response.data?.let {
-                            it
-                        }
+                        response.data
                     }
                     is CallFailure -> {
-                        println(response.errorBody)
                         null
                     }
                     is CallError -> {
-                        response.throwable?.printStackTrace()
                         null
                     }
                 }
@@ -78,7 +74,7 @@ class DockerApiClient @Inject constructor(private val dockerClient: DockerClient
                         encodedPath = "/build-variants"
                     }
                 }
-                return@withContext when(val response = call.await<List<String>>()) {
+                return@withContext when (val response = call.await<List<String>>()) {
                     is CallSuccess -> {
                         response.data?.let {
                             it
@@ -97,59 +93,41 @@ class DockerApiClient @Inject constructor(private val dockerClient: DockerClient
         }
     }
 
-    suspend fun generateApp(app: App) = coroutineScope {
-        val userAppPrefix = "Abcd"
-
-        val APKPrefix = "${userAppPrefix.let {
-            "$it-"
-        } ?: ""}${System.currentTimeMillis()}"
-        dockerHttpClients[app.id]?.let { client ->
-            when(val response = client.call {
+    suspend fun generateApp(appId: String, vararg params: Pair<String, List<String>>): Response<JsonObject> = coroutineScope {
+        dockerHttpClients[appId]?.let { client ->
+            return@coroutineScope client.call {
                 method = HttpMethod.Get
                 url {
-                    encodedPath = "/app/generate/"
+                    encodedPath = "/app/generate"
+                    parameters.appendAll(parametersOf(*params))
                 }
-                parametersOf("APP_PREFIX" to listOf(APKPrefix), "CALLBACK_URI" to listOf("http://0.0.0.0:6552/callback/12345"))
-            }.await<JsonObject>()) {
-                is CallSuccess -> {
-                    println(response.data)
-                    null
-                }
-                is CallFailure -> {
-                    println(response.errorBody)
-                    null
-                }
-                is CallError -> {
-                    response.throwable?.printStackTrace()
-                    println(response.throwable)
-                    null
-                }
-            }
-        }
+            }.await<JsonObject>()
+        } ?: CallFailure("Http Client not found")
     }
 
     suspend fun fetchReferences(app: App): List<Reference>? = coroutineScope {
         dockerHttpClients[app.id]?.let { client ->
-            val call = client.call {
-                method = HttpMethod.Get
-                url {
-                    encodedPath = "/references"
-                }
-            }
-
-            return@coroutineScope when (val response = call.await<List<Reference>>()) {
-                is CallSuccess -> {
-                    response.data?.let { references ->
-                        references
+            withRetry(20, 10000, -1) {
+                val call = client.call {
+                    method = HttpMethod.Get
+                    url {
+                        encodedPath = "/references"
                     }
                 }
-                is CallFailure -> {
-                    println(response.errorBody)
-                    null
-                }
-                is CallError -> {
-                    response.throwable?.printStackTrace()
-                    null
+                call.await<List<Reference>>()
+            }.let { response ->
+                when (response) {
+                    is CallSuccess -> {
+                        response.data
+                    }
+                    is CallFailure -> {
+                        println(response.errorBody)
+                        null
+                    }
+                    is CallError -> {
+                        response.throwable?.printStackTrace()
+                        null
+                    }
                 }
             }
         }

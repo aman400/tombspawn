@@ -5,11 +5,15 @@ import com.github.dockerjava.api.model.ExposedPort
 import com.github.dockerjava.api.model.Ports
 import com.github.dockerjava.api.model.Volume
 import com.google.gson.Gson
+import com.google.gson.JsonObject
+import com.tombspawn.base.common.*
 import com.tombspawn.git.CredentialProvider
 import com.tombspawn.models.AppContainerRequest
 import com.tombspawn.models.Reference
 import com.tombspawn.models.config.App
 import com.tombspawn.models.config.Common
+import io.ktor.client.call.HttpClientCall
+import io.ktor.http.parametersOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -34,9 +38,9 @@ class DockerService @Inject constructor(
         coroutineScope {
             dockerClient.createImage(File("/Users/aman/git/ramukaka/skeleton/DockerFile"), "skeleton")
             val networkId = dockerClient.createNetwork("tombspawn")
-            val gradle = dockerClient.createVolume("gradle")
+//            val gradle = dockerClient.createVolume("gradle")
             val android = dockerClient.createVolume("android")
-            val gradleBind = Bind(gradle, Volume("/home/skeleton/.gradle/"))
+//            val gradleBind = Bind(gradle, Volume("/home/skeleton/.gradle/"))
             val androidBind = Bind(android, Volume("/home/skeleton/.android/"))
             val gitApps = dockerClient.createVolume("git")
             val appVolumeBind = Bind(gitApps, Volume("/app/git/"))
@@ -72,7 +76,10 @@ class DockerService @Inject constructor(
                     "application.jar",
                     request,
                     "--verbose"
-                ), null, listOf(gradleBind, androidBind, appVolumeBind),
+                ), null, listOf(
+//                    gradleBind,
+                    androidBind, appVolumeBind
+                ),
                 portBindings, listOf(exposedPort)
             )?.let { containerId ->
                 dockerClient.logContainerCommand(app.id, containerId)
@@ -95,7 +102,16 @@ class DockerService @Inject constructor(
         return dockerClient.fetchFlavours(app)
     }
 
-    suspend fun generateApp(app: App) {
-        dockerClient.generateApp(app)
+    suspend fun generateApp(
+        appId: String, successCallbackUri: String, failureCallbackUri: String,
+        apkPrefix: String, buildData: Map<String, String>
+    ): Response<JsonObject> {
+        return dockerClient.generateApp(appId,
+            CommonConstants.APP_PREFIX to listOf(apkPrefix),
+            CommonConstants.SUCCESS_CALLBACK_URI to listOf(successCallbackUri),
+            CommonConstants.FAILURE_CALLBACK_URI to listOf(failureCallbackUri), *buildData.map {
+                Pair(it.key, listOf(it.value))
+            }.toTypedArray()
+        )
     }
 }

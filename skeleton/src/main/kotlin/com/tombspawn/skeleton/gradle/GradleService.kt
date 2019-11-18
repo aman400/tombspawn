@@ -2,7 +2,6 @@ package com.tombspawn.skeleton.gradle
 
 import com.tombspawn.base.common.CommandResponse
 import com.tombspawn.skeleton.models.Reference
-import com.tombspawn.skeleton.models.config.CommonConfig
 import javax.inject.Inject
 
 class GradleService @Inject constructor(private val gradleExecutor: GradleExecutor) {

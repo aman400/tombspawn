@@ -1,73 +1,65 @@
 package com.tombspawn.utils
 
 class Constants {
-    class Common {
-        companion object {
+    object Common {
+        const val DEFAULT_HOST = "0.0.0.0"
+        const val DEFAULT_PORT = 55555
 
-            const val APP_CONSUMER = "consumer"
+        const val APP_CONSUMER = "consumer"
 
-            const val OUTPUT_SEPARATOR = "##***##"
-            const val ARG_OUTPUT_SEPARATOR = "OUTPUT_SEPARATOR"
+        const val OUTPUT_SEPARATOR = "##***##"
+        const val ARG_OUTPUT_SEPARATOR = "OUTPUT_SEPARATOR"
 
-            const val GET = "GET"
-            const val PUT = "PUT"
-            const val POST = "POST"
-            const val DELETE = "DELETE"
-            const val PATCH = "PATCH"
-            const val HEAD = "HEAD"
-            const val OPTIONS = "OPTIONS"
-        }
+        const val GET = "GET"
+        const val PUT = "PUT"
+        const val POST = "POST"
+        const val DELETE = "DELETE"
+        const val PATCH = "PATCH"
+        const val HEAD = "HEAD"
+        const val OPTIONS = "OPTIONS"
     }
 
-    class EnvironmentVariables {
-        companion object {
-            const val ENV_UPLOAD_DIR_PATH = "UPLOAD_DIR_PATH"
-        }
-    }
+    object Slack {
+        const val SESSION = "slack_session"
+        const val CALLBACK_STANDUP_MESSAGE: String = "callback_standup_message"
+        const val CALLBACK_STANDUP_DIALOG: String = "callback_standup_dialog"
+        const val DEFAULT_BOT_ID: String = "USLACKBOT"
 
-    class Slack {
-        companion object {
-            const val SESSION = "slack_session"
-            const val CALLBACK_STANDUP_MESSAGE: String = "callback_standup_message"
-            const val CALLBACK_STANDUP_DIALOG: String = "callback_standup_dialog"
-            const val DEFAULT_BOT_ID: String = "USLACKBOT"
+        const val CALLBACK_GENERATE_APK = "generate_apk_"
+        const val CALLBACK_CONFIRM_GENERATE_APK = "confirm_generate_apk_"
+        const val CALLBACK_CREATE_API = "create_api"
 
-            const val CALLBACK_GENERATE_APK = "generate_apk_"
-            const val CALLBACK_CONFIRM_GENERATE_APK = "confirm_generate_apk_"
-            const val CALLBACK_CREATE_API = "create_api"
+        const val TOKEN = "token"
+        const val CHANNEL = "channel"
+        const val TEXT = "text"
+        const val TS = "ts"
+        const val ATTACHMENTS = "attachments"
+        const val DIALOG = "dialog"
+        const val USER = "user"
+        const val CURSOR = "cursor"
+        const val LIMIT = "limit"
+        const val CLIENT_ID = "client_id"
+        const val CLIENT_SECRET = "client_secret"
+        const val CODE = "code"
 
-            const val TOKEN = "token"
-            const val CHANNEL = "channel"
-            const val TEXT = "text"
-            const val TS = "ts"
-            const val ATTACHMENTS = "attachments"
-            const val DIALOG = "dialog"
-            const val USER = "user"
-            const val CURSOR = "cursor"
-            const val LIMIT = "limit"
-            const val CLIENT_ID = "client_id"
-            const val CLIENT_SECRET = "client_secret"
-            const val CODE = "code"
+        const val CALLBACK_SUBSCRIBE_CONSUMER = "subscribe_consumer_"
 
-            const val CALLBACK_SUBSCRIBE_CONSUMER = "subscribe_consumer_"
+        const val TYPE_SUBSCRIBE_CONSUMER = "subscribe-consumer"
+        const val TYPE_SUBSCRIBE_FLEET = "subscribe-fleet"
+        const val TRIGGER_ID: String = "trigger_id"
+        const val CHANNEL_ID: String = "channel_id"
+        const val USER_ID: String = "user_id"
 
-            const val TYPE_SUBSCRIBE_CONSUMER = "subscribe-consumer"
-            const val TYPE_SUBSCRIBE_FLEET = "subscribe-fleet"
-            const val TRIGGER_ID: String = "trigger_id"
-            const val CHANNEL_ID: String = "channel_id"
-            const val USER_ID: String = "user_id"
+        const val TYPE_SELECT_VERB = "VERB"
+        const val TYPE_SELECT_RESPONSE = "RESPONSE"
 
-            const val TYPE_SELECT_VERB = "VERB"
-            const val TYPE_SELECT_RESPONSE = "RESPONSE"
-
-            const val TYPE_SELECT_BRANCH: String = "BRANCH"
-            const val TYPE_SELECT_BUILD_TYPE: String = "BUILD_TYPE"
-            const val TYPE_SELECT_FLAVOUR: String = "FLAVOUR"
-            const val TYPE_SELECT_APP_PREFIX: String = "APP_PREFIX"
-            const val TYPE_SELECT_URL: String = "APP_URL"
-            const val TYPE_ADDITIONAL_PARAMS = "ADDITIONAL_PARAMS"
-            const val TYPE_CREATE_MOCK_API = "mock-api"
-        }
+        const val TYPE_SELECT_BRANCH: String = "BRANCH"
+        const val TYPE_SELECT_BUILD_TYPE: String = "BUILD_TYPE"
+        const val TYPE_SELECT_FLAVOUR: String = "FLAVOUR"
+        const val TYPE_SELECT_APP_PREFIX: String = "APP_PREFIX"
+        const val TYPE_SELECT_URL: String = "APP_URL"
+        const val TYPE_ADDITIONAL_PARAMS = "ADDITIONAL_PARAMS"
+        const val TYPE_CREATE_MOCK_API = "mock-api"
     }
 
     class Github {

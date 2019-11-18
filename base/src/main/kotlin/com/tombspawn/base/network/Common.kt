@@ -1,5 +1,7 @@
 package com.tombspawn.base.network
 
+import com.tombspawn.base.common.CallError
+import com.tombspawn.base.common.CallFailure
 import com.tombspawn.base.common.CallSuccess
 import com.tombspawn.base.common.Response
 import com.tombspawn.base.di.Constants
@@ -62,7 +64,7 @@ object Common {
 }
 
 
-suspend fun <T> retryCall(
+suspend fun <T> withRetry(
     times: Int = 0,
     initialDelay: Long = 100, // 0.1 second
     maxDelay: Long = 1000,    // 1 second
@@ -71,14 +73,23 @@ suspend fun <T> retryCall(
 ): Response<T> {
     var currentDelay = initialDelay
     repeat(times) {
-        val data = block()
-        when (data) {
+        when (val data = block()) {
             is CallSuccess -> {
                 return data
             }
+            is CallFailure -> {
+                data.throwable?.printStackTrace()
+            }
+            is CallError -> {
+                data.throwable?.printStackTrace()
+            }
         }
         delay(currentDelay)
-        currentDelay = (currentDelay * factor).toLong().coerceAtLeast(maxDelay)
+        currentDelay = (currentDelay * factor).toLong().apply {
+            if(maxDelay >= 0) {
+                coerceAtLeast(maxDelay)
+            }
+        }
     }
     return block() // last attempt
 }

@@ -1,18 +1,12 @@
 package com.tombspawn.skeleton
 
-import com.google.gson.JsonObject
 import com.tombspawn.base.common.*
-import com.tombspawn.base.extensions.await
-import com.tombspawn.base.network.MultiPartContent
+import com.tombspawn.skeleton.app.AppClient
 import com.tombspawn.skeleton.di.qualifiers.FileUploadDir
-import com.tombspawn.skeleton.di.qualifiers.UploadAppClient
 import com.tombspawn.skeleton.git.GitService
 import com.tombspawn.skeleton.gradle.GradleService
 import com.tombspawn.skeleton.models.RefType
 import com.tombspawn.skeleton.models.Reference
-import io.ktor.client.HttpClient
-import io.ktor.client.call.call
-import io.ktor.http.HttpMethod
 import io.ktor.util.error
 import kotlinx.coroutines.coroutineScope
 import org.slf4j.LoggerFactory
@@ -22,8 +16,7 @@ import javax.inject.Inject
 class ApplicationService @Inject constructor(
     private val gitService: GitService,
     private val gradleService: GradleService,
-    @UploadAppClient
-    private val uploadHttpClient: HttpClient,
+    private val appClient: AppClient,
     @FileUploadDir
     private val fileUploadDir: String
 ) {
@@ -91,8 +84,8 @@ class ApplicationService @Inject constructor(
         return gradleService.pullCode(selectedBranch)
     }
 
-    suspend fun generateApp(parameters: MutableMap<String, String>?,
-                            callbackUri: String?, appPrefix: String?) = coroutineScope {
+    suspend fun generateApp(parameters: MutableMap<String, String>?, successCallbackUri: String?,
+                            failureCallbackUri: String?, appPrefix: String?) = coroutineScope {
 
         val apkPrefix = "${appPrefix?.let {
             "$it-"
@@ -100,22 +93,14 @@ class ApplicationService @Inject constructor(
 
         when (val response = gradleService.generateApp(parameters, fileUploadDir, apkPrefix)) {
             is Success -> {
-                callbackUri?.let { url ->
-                    val tempDirectory = File(fileUploadDir)
-                    if (tempDirectory.exists()) {
-                        tempDirectory.listFiles { _, name ->
-                            name.contains(apkPrefix, true)
-                        }?.firstOrNull()?.let { file ->
-                            if (file.exists()) {
-                                val responseData = uploadHttpClient.call(url) {
-                                    method = HttpMethod.Post
-                                    body = MultiPartContent.build {
-                                        add("title", apkPrefix)
-                                        add("file", file.readBytes(), filename = file.name)
-                                    }
-                                }.await<JsonObject>()
-
-                                when (responseData) {
+                val tempDirectory = File(fileUploadDir)
+                if (tempDirectory.exists()) {
+                    tempDirectory.listFiles { _, name ->
+                        name.contains(apkPrefix, true)
+                    }?.firstOrNull()?.let { file ->
+                        if (file.exists()) {
+                            successCallbackUri?.let { url ->
+                                when (val responseData = appClient.uploadFile(url, apkPrefix, file)) {
                                     is CallSuccess -> {
                                         LOGGER.debug("Uploaded successfully")
                                     }
@@ -123,24 +108,38 @@ class ApplicationService @Inject constructor(
                                         responseData.throwable?.let {
                                             LOGGER.error(it)
                                         }
+                                        failureCallbackUri?.let { errorUrl ->
+                                            appClient.reportFailure(errorUrl, ErrorResponse(responseData.errorBody ?:
+                                            "Something went wrong. Unable to upload file"))
+                                        }
                                     }
                                     is CallError -> {
                                         responseData.throwable?.let {
                                             LOGGER.error(it)
+                                        }
+                                        failureCallbackUri?.let { errorUrl ->
+                                            appClient.reportFailure(errorUrl, ErrorResponse(
+                                                responseData.throwable?.message
+                                                ?: "Something went wrong. Unable to upload file"))
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                } ?: run {
-                    LOGGER.error("Callback uri is null")
+                } else {
+                    failureCallbackUri?.let { errorUrl ->
+                        appClient.reportFailure(errorUrl, ErrorResponse(
+                            "File not found"))
+                    }
                 }
             }
             is Failure -> {
-                response.throwable?.printStackTrace()
-            }
-            null -> {
+                failureCallbackUri?.let { errorUrl ->
+                    LOGGER.error(response.error)
+                    appClient.reportFailure(errorUrl, ErrorResponse(
+                        response.error ?: "File not found"))
+                }
             }
         }
     }

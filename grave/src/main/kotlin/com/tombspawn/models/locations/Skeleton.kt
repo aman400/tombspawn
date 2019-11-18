@@ -7,7 +7,12 @@ class Apps {
     @Location("/{id}")
     data class App(val id: String) {
         @Location("/callback/{callbackId}")
-        data class Callback(val app: App, val callbackId: String)
+        data class Callback(val app: App, val callbackId: String) {
+            @Location("/success")
+            class Success(val callback: Callback)
+            @Location("/failure")
+            class Failure(val callback: Callback)
+        }
 
         @Location("/generate")
         data class CreateApp(val app: App)

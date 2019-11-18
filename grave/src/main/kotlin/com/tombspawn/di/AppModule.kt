@@ -1,9 +1,12 @@
 package com.tombspawn.di
 
+import com.google.common.base.Optional
 import com.tombspawn.base.config.JsonApplicationConfig
 import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.network.Common.createHttpClient
 import com.tombspawn.data.DatabaseService
+import com.tombspawn.data.StringMap
+import com.tombspawn.di.qualifiers.AppCacheMap
 import com.tombspawn.di.qualifiers.Debuggable
 import com.tombspawn.di.qualifiers.SlackHttpClient
 import com.tombspawn.di.qualifiers.UploadDirPath
@@ -15,6 +18,10 @@ import io.ktor.application.Application
 import io.ktor.client.HttpClient
 import io.ktor.client.features.json.GsonSerializer
 import io.ktor.http.URLProtocol
+import redis.clients.jedis.JedisPool
+import redis.clients.jedis.JedisPoolConfig
+import redis.clients.jedis.Protocol
+
 
 @Module
 class AppModule {
@@ -80,10 +87,8 @@ class AppModule {
     @Provides
     @AppScope
     @Debuggable
-    fun provideIsDebug(config: JsonApplicationConfig): Boolean {
-        return config.propertyOrNull("server")?.getAs(ServerConf::class.java)?.let {
-            it.debug == true
-        } ?: false
+    fun provideIsDebug(serverConf: Optional<ServerConf>): Boolean {
+        return serverConf.get()?.debug ?: false
     }
 
     @Provides
@@ -92,5 +97,24 @@ class AppModule {
         return config.configList("apps").map {
             it.getAs(App::class.java)
         }
+    }
+
+    @Provides
+    @AppScope
+    fun provideServerConf(config: JsonApplicationConfig): Optional<ServerConf> {
+        return Optional.fromNullable(config.propertyOrNull("server")?.getAs(ServerConf::class.java))
+    }
+
+    @Provides
+    @AppScope
+    fun applicationJedis(redis: Redis): JedisPool {
+        return JedisPool(JedisPoolConfig(), redis.host, redis.port?: Protocol.DEFAULT_PORT)
+    }
+
+    @Provides
+    @AppScope
+    @AppCacheMap
+    fun provideAppCacheMap(jedis: JedisPool): StringMap {
+        return StringMap(jedis.resource)
     }
 }

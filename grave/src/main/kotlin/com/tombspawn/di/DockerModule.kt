@@ -38,7 +38,7 @@ class DockerModule {
         apps.forEach {
             dockerHttpClients[it.id] = Common.createHttpClient(
                 gsonSerializer, it.appUrl, URLProtocol.HTTP, null,
-                0, 0, 0, isDebug
+                60000, 60000, 60000, isDebug
             )
         }
         return dockerHttpClients

@@ -27,6 +27,7 @@ import kotlinx.coroutines.withContext
 import com.tombspawn.models.slack.Event
 import com.tombspawn.models.slack.IMListData
 import com.tombspawn.models.slack.SlackUser
+import io.ktor.http.content.PartData
 import kotlinx.coroutines.coroutineScope
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -41,24 +42,6 @@ class SlackClient @Inject constructor(
     private val slack: Slack,
     val gson: Gson
 ) {
-    private val randomWaitingMessages = listOf(
-        "Utha le re Baghwan..",
-        "Jai Maharashtra!!",
-        "Try Holding your Breath!!",
-        "Hold your horses!!",
-        "Checking Anti-Camp Radius",
-        "Creating Randomly Generated Feature",
-        "Doing Something You Don't Wanna Know About",
-        "Doing The Impossible",
-        "Don't Panic",
-        "Ensuring Everything Works Perfektly",
-        "Generating Plans for Faster-Than-Light Travel",
-        "Hitting Your Keyboard Won't Make This Faster",
-        "In The Grey, No One Can Hear You Scream",
-        "Loading, Don't Wait If You Don't Want To",
-        "Preparing to Spin You Around Rapidly"
-    )
-
     private val LOGGER = LoggerFactory.getLogger("com.application.slack.client")
 
     @Throws(Exception::class)
@@ -70,7 +53,7 @@ class SlackClient @Inject constructor(
                 parameter("token", botToken)
             }
         }
-        return@coroutineScope when(val response = call.await<BotInfo>()) {
+        return@coroutineScope when (val response = call.await<BotInfo>()) {
             is CallSuccess -> {
                 response.data?.let { botInfo ->
                     if (botInfo.ok) {
@@ -124,144 +107,6 @@ class SlackClient @Inject constructor(
         }
     }
 
-    suspend fun generateAndUploadApk(
-        buildData: MutableMap<String, String>?,
-        channelId: String,
-        app: App,
-        responseUrl: String? = null
-    ) {
-//        val additionalParams = buildData?.get(Constants.Slack.TYPE_ADDITIONAL_PARAMS)?.trim()
-//
-//        additionalParams?.let {
-//            it.toMap()?.forEach { key, value ->
-//                if (!buildData.containsKey(key)) {
-//                    buildData[key] = value
-//                }
-//            }
-//        }
-//
-//        withContext(Dispatchers.IO) {
-//            if (responseUrl != null) {
-//                sendMessage(responseUrl, RequestData(response = randomWaitingMessages.random()!!))
-//            } else {
-//                sendMessage(randomWaitingMessages.random()!!, channelId, null)
-//            }
-//        }
-
-//        val selectedBranch = buildData?.get(Constants.Slack.TYPE_SELECT_BRANCH)?.trim()
-
-        val userAppPrefix = "Abcd"
-
-        val APKPrefix = "${userAppPrefix?.let {
-            "$it-"
-        } ?: ""}${System.currentTimeMillis()}"
-
-
-
-        withContext(Dispatchers.IO) {
-//            val buildVariants = app.gradleExecutor?.fetchBuildVariants()
-//            buildVariants?.let {
-//                database.addBuildVariants(it, app.id)
-//            }
-
-//            val productFlavours = app.gradleExecutor?.fetchProductFlavours()
-//            productFlavours?.let {
-//                database.addFlavours(it, app.id)
-//            }
-
-//            when (val commandResponse = app.gradleExecutor?.generateApp(buildData, uploadDirPath, APKPrefix)) {
-//                is Success -> {
-//                    val tempDirectory = File(uploadDirPath)
-//                    if (tempDirectory.exists()) {
-//                        val firstFile = tempDirectory.listFiles()?.firstOrNull { file ->
-//                            file?.name?.contains(APKPrefix, true) == true
-//                        }
-//                        firstFile?.let { file ->
-//                            if (file.exists()) {
-//                                uploadFile(file, channelId)
-//                            } else {
-//                                LOGGER.error("APK Generated but file not found in the folder")
-//                                LOGGER.error(commandResponse.data)
-//                                if (responseUrl != null) {
-//                                    sendMessage(
-//                                        responseUrl,
-//                                        RequestData(
-//                                            response = commandResponse.data
-//                                                ?: "Something went wrong. Unable to generate the APK"
-//                                        )
-//                                    )
-//                                } else {
-//                                    sendMessage(
-//                                        commandResponse.data ?: "Something went wrong. Unable to generate the APK",
-//                                        channelId,
-//                                        null
-//                                    )
-//                                }
-//                            }
-//                        } ?: run {
-//                            LOGGER.error("APK Generated but not found in the folder")
-//                            LOGGER.error(commandResponse.data)
-//
-//                            if (responseUrl != null) {
-//                                sendMessage(
-//                                    responseUrl,
-//                                    RequestData(
-//                                        response = commandResponse.data
-//                                            ?: "Something went wrong. Unable to generate the APK"
-//                                    )
-//                                )
-//                            } else {
-//                                sendMessage(
-//                                    commandResponse.data ?: "Something went wrong. Unable to generate the APK",
-//                                    channelId,
-//                                    null
-//                                )
-//                            }
-//                        }
-//                    } else {
-//                        LOGGER.error("APK Generated but not found in the folder")
-//                        LOGGER.error(commandResponse.data)
-//                        if (responseUrl != null) {
-//                            sendMessage(
-//                                responseUrl,
-//                                RequestData(
-//                                    response = commandResponse.data
-//                                        ?: "Something went wrong. Unable to generate the APK"
-//                                )
-//                            )
-//                        } else {
-//                            sendMessage(
-//                                commandResponse.data ?: "Something went wrong. Unable to generate the APK",
-//                                channelId,
-//                                null
-//                            )
-//                        }
-//                    }
-//                }
-//
-//                is Failure -> {
-//                    LOGGER.error(commandResponse.error, commandResponse.throwable)
-//                    if (responseUrl != null) {
-//                        sendMessage(
-//                            responseUrl,
-//                            RequestData(
-//                                response = commandResponse.error
-//                                    ?: "Something went wrong. Unable to generate the APK"
-//                            )
-//                        )
-//                    } else {
-//                        sendMessage(
-//                            commandResponse.error ?: "Something went wrong. Unable to generate the APK",
-//                            channelId,
-//                            null
-//                        )
-//                    }
-//                }
-//
-//            }
-        }
-    }
-
     suspend fun sendMessage(url: String, data: RequestData?) = withContext(Dispatchers.IO) {
         val call = httpClient.call {
             url(url)
@@ -286,68 +131,15 @@ class SlackClient @Inject constructor(
     }
 
 
-    private suspend fun uploadFile(file: File, channelId: String, deleteFile: Boolean = true) {
-        withContext(Dispatchers.IO) {
-            val buf = ByteArray(file.length().toInt())
-            FileInputStream(file).use {
-                it.read(buf)
+    suspend fun uploadFile(formData: List<PartData>): Response<CallResponse> {
+        val call = httpClient.call {
+            url {
+                encodedPath = "/api/files.upload"
             }
-            val formData = formData {
-                append("token", slack.botToken)
-                append("title", file.nameWithoutExtension)
-                append("filename", file.name)
-                append("filetype", "auto")
-                append("channels", channelId)
-                append(
-                    "file",
-                    buf,
-                    Headers.build {
-                        append(HttpHeaders.ContentType, ContentType.Application.OctetStream)
-                        append(HttpHeaders.ContentDisposition, " filename=${file.name}")
-                    }
-                )
-            }
-            val call = httpClient.call {
-                url {
-                    encodedPath = "/api/files.upload"
-                }
-                method = HttpMethod.Post
-                body = MultiPartFormDataContent(formData)
-            }
-            try {
-                val response = call.await<CallResponse>()
-                when (response) {
-                    is CallSuccess -> {
-                        if (response.data?.delivered == true) {
-                            LOGGER.info("delivered")
-                        } else {
-                            sendMessage(
-                                "Unable to deliver apk to this channel reason: ${response.data?.error}",
-                                channelId,
-                                null
-                            )
-                            LOGGER.error("Not delivered")
-                        }
-                    }
-                    is CallFailure -> {
-                        LOGGER.error("Not delivered")
-                        LOGGER.error(response.errorBody, response.throwable)
-                    }
-                    is CallError -> {
-                        LOGGER.error("Call failed unable to deliver APK")
-                        LOGGER.error(response.throwable?.message, response.throwable)
-                    }
-                }.exhaustive
-
-                if (deleteFile)
-                    file.delete()
-            } catch (exception: Exception) {
-                LOGGER.error("Unable to push apk to Slack.", exception)
-                if (deleteFile) {
-                    file.delete()
-                }
-            }
+            method = HttpMethod.Post
+            body = MultiPartFormDataContent(formData)
         }
+        return call.await()
     }
 
     suspend fun fetchUser(userId: String): UserProfile? = coroutineScope {
@@ -469,115 +261,6 @@ class SlackClient @Inject constructor(
             is CallError -> {
                 LOGGER.info(response.throwable?.message)
             }
-        }
-    }
-
-    suspend fun sendShowGenerateApkDialog(
-        branches: List<Reference>?,
-        buildTypes: List<String>?,
-        flavours: List<String>?,
-        echo: String?,
-        triggerId: String,
-        callbackId: String,
-        defaultAppUrl: String
-    ) {
-        val dialogElementList = mutableListOf<Element>()
-        val branchList = mutableListOf<Element.Option>()
-        branches?.forEach { branch ->
-            branchList.add(Element.Option("${branch.name}(${branch.type.type})", branch.name))
-        }
-        val defaultValue: String? = if (branches?.size == 1) branchList[0].label else null
-
-        if (branchList.size > 0) {
-            dialogElementList.add(
-                Element(
-                    ElementType.SELECT, "Select Branch",
-                    Constants.Slack.TYPE_SELECT_BRANCH,
-                    defaultValue = defaultValue,
-                    options = branchList
-                )
-            )
-        }
-
-        val buildTypeList = mutableListOf<Element.Option>()
-        buildTypes?.forEach {
-            buildTypeList.add(Element.Option(it, it))
-        }
-
-        if (buildTypeList.size > 0) {
-            dialogElementList.add(
-                Element(
-                    ElementType.SELECT, "Select Build Type",
-                    Constants.Slack.TYPE_SELECT_BUILD_TYPE, options = buildTypeList
-                )
-            )
-        }
-
-        val flavourList = mutableListOf<Element.Option>()
-        flavours?.forEach {
-            flavourList.add(Element.Option(it, it))
-        }
-
-        if (flavourList.size > 0) {
-            dialogElementList.add(
-                Element(
-                    ElementType.SELECT, "Select Flavour",
-                    Constants.Slack.TYPE_SELECT_FLAVOUR, options = flavourList
-                )
-            )
-        }
-
-        dialogElementList.add(
-            Element(
-                ElementType.TEXT,
-                "App URL",
-                Constants.Slack.TYPE_SELECT_URL,
-                defaultAppUrl,
-                hint = defaultAppUrl,
-                maxLength = 150,
-                optional = true,
-                defaultValue = defaultAppUrl,
-                inputType = Element.InputType.URL
-            )
-        )
-
-        if (dialogElementList.size < 4) {
-            dialogElementList.add(
-                Element(
-                    ElementType.TEXT,
-                    "App Prefix",
-                    Constants.Slack.TYPE_SELECT_APP_PREFIX,
-                    hint = "Prefixes this along with the generated App name",
-                    maxLength = 50,
-                    optional = true
-                )
-            )
-        }
-
-        dialogElementList.add(
-            Element(
-                ElementType.TEXT_AREA,
-                "Advanced Options",
-                Constants.Slack.TYPE_ADDITIONAL_PARAMS,
-                optional = true,
-                hint = "Advanced Options for Android Devs",
-                maxLength = 3000
-            )
-        )
-
-        val dialog = dialog {
-            this.callbackId = callbackId
-            title = "Generate APK"
-            submitLabel = "Submit"
-            notifyOnCancel = false
-            state = echo
-            elements {
-                +dialogElementList
-            }
-        }
-
-        withContext(Dispatchers.IO) {
-            openActionDialog(dialog, slack.botToken, triggerId)
         }
     }
 
