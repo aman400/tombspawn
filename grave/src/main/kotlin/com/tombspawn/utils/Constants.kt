@@ -52,14 +52,6 @@ class Constants {
 
         const val TYPE_SELECT_VERB = "VERB"
         const val TYPE_SELECT_RESPONSE = "RESPONSE"
-
-        const val TYPE_SELECT_BRANCH: String = "BRANCH"
-        const val TYPE_SELECT_BUILD_TYPE: String = "BUILD_TYPE"
-        const val TYPE_SELECT_FLAVOUR: String = "FLAVOUR"
-        const val TYPE_SELECT_APP_PREFIX: String = "APP_PREFIX"
-        const val TYPE_SELECT_URL: String = "APP_URL"
-        const val TYPE_ADDITIONAL_PARAMS = "ADDITIONAL_PARAMS"
-        const val TYPE_CREATE_MOCK_API = "mock-api"
     }
 
     class Github {

@@ -22,7 +22,7 @@ class GradleService @Inject constructor(private val gradleExecutor: GradleExecut
     }
 
     suspend fun generateApp(parameters: MutableMap<String, String>?,
-                            uploadDirPath: String, APKPrefix: String): CommandResponse {
-        return gradleExecutor.generateApp(parameters, uploadDirPath, APKPrefix)
+                            uploadDirPath: String, APKPrefix: String, onPreProcess: (suspend () -> Boolean)): CommandResponse {
+        return gradleExecutor.generateApp(parameters, uploadDirPath, APKPrefix, onPreProcess)
     }
 }

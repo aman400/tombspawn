@@ -1,7 +1,7 @@
 object Versions {
     const val jgitVersion = "5.4.3.201909031940-r"
     const val junitVersion = "4.12"
-    const val kotlin = "1.3.50"
+    const val kotlin = "1.3.60"
     const val ktorVersion = "1.3.0-beta-1"
     const val shadowJar = "5.1.0"
     const val daggerVersion = "2.25.2"
@@ -35,10 +35,6 @@ object Gson {
 
 object Log {
     const val logback = "ch.qos.logback:logback-classic:1.2.3"
-}
-
-object Koin {
-    const val lib = "org.koin:koin-ktor:2.0.1"
 }
 
 object Docker {

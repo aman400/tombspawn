@@ -3,6 +3,7 @@ package com.tombspawn
 import com.google.common.base.Optional
 import com.google.gson.Gson
 import com.google.gson.JsonParser
+import com.google.gson.reflect.TypeToken
 import com.tombspawn.base.common.*
 import com.tombspawn.base.extensions.toMap
 import com.tombspawn.data.*
@@ -24,10 +25,7 @@ import com.tombspawn.models.slack.GenerateCallback
 import com.tombspawn.models.slack.SlackEvent
 import com.tombspawn.slackbot.SlackService
 import com.tombspawn.utils.Constants
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import org.apache.http.client.utils.URIBuilder
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -72,11 +70,6 @@ class ApplicationService @Inject constructor(
         fetchBotInfo()
         apps.forEachIndexed { index, app ->
             dockerService.createContainer(app, common.basePort + index)
-            GlobalScope.launch(Dispatchers.IO) {
-                // Add app start delay
-                fetchFlavours(app)
-                fetchReferences(app)
-            }
         }
         addVerbs()
         updateUserData()
@@ -92,21 +85,34 @@ class ApplicationService @Inject constructor(
         return databaseService.addApps(apps)
     }
 
-    private suspend fun fetchReferences(app: App) {
-        dockerService.fetchReferences(app)?.let {
-            databaseService.addRefs(it, app.id)
+    suspend fun fetchAppsData() = coroutineScope {
+        apps.forEach {
+            withContext(Dispatchers.IO) {
+                fetchReferences(it)
+                fetchFlavours(it)
+                fetchBuildVariants(it)
+            }
         }
     }
 
-    private suspend fun fetchFlavours(app: App) {
+    suspend fun fetchReferences(app: App) {
+        dockerService.fetchReferences(app)?.let {
+            databaseService.addRefs(it, app.id)
+            cacheMap.setData("${app.id}_references", gson.toJson(it, object: TypeToken<List<Reference>>() {}.type))
+        }
+    }
+
+    suspend fun fetchFlavours(app: App) {
         dockerService.fetchFlavours(app)?.let {
             databaseService.addFlavours(it, app.id)
+            cacheMap.setData("${app.id}_flavours", gson.toJson(it, object: TypeToken<List<String>>() {}.type))
         }
     }
 
     private suspend fun fetchBuildVariants(app: App) {
         dockerService.fetchBuildVariants(app)?.let {
-            databaseService.addFlavours(it, app.id)
+            databaseService.addBuildVariants(it, app.id)
+            cacheMap.setData("${app.id}_build_variants", gson.toJson(it, object: TypeToken<List<String>>() {}.type))
         }
     }
 
@@ -151,7 +157,7 @@ class ApplicationService @Inject constructor(
         appID: String,
         responseUrl: String
     ) {
-        val additionalParams = buildData[Constants.Slack.TYPE_ADDITIONAL_PARAMS]?.trim()
+        val additionalParams = buildData[SlackConstants.TYPE_ADDITIONAL_PARAMS]?.trim()
 
         additionalParams?.let {
             it.toMap()?.forEach { key, value ->
@@ -161,8 +167,8 @@ class ApplicationService @Inject constructor(
             }
         }
 
-        val userAppPrefix = buildData[Constants.Slack.TYPE_SELECT_APP_PREFIX]
-        buildData.remove(Constants.Slack.TYPE_SELECT_APP_PREFIX)
+        val userAppPrefix = buildData[SlackConstants.TYPE_SELECT_APP_PREFIX]
+        buildData.remove(SlackConstants.TYPE_SELECT_APP_PREFIX)
         val apkPrefix = "${userAppPrefix?.let {
             "$it-"
         } ?: ""}${System.currentTimeMillis()}"
@@ -215,20 +221,48 @@ class ApplicationService @Inject constructor(
             appId == it.id
         }?.let { app ->
             LOGGER.warn("Command options not set. These options can be set using '/build-fleet BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'")
-            val branchList = databaseService.getRefs(app.id)?.map {
-                Reference(it.name, it.type)
-            }
-            val flavourList = databaseService.getFlavours(app.id)
-            val buildTypesList = databaseService.getBuildTypes(app.id)
+            val branchList = getReferences(app.id)
+            val flavourList = getFlavours(app.id)
+            val buildTypesList = getBuildVariants(app.id)
             slackService.sendShowGenerateApkDialog(
                 branchList,
-                buildTypesList?.map { buildType -> buildType.name },
-                flavourList?.map { flavour -> flavour.name },
+                buildTypesList,
+                flavourList,
                 null,
                 triggerId,
                 Constants.Slack.CALLBACK_GENERATE_APK + app.id,
                 app.appUrl ?: ""
             )
+        }
+    }
+
+    suspend fun getFlavours(appId: String): List<String>? {
+        return cacheMap.getData("${appId}_flavours")?.let {
+            LOGGER.debug("Flavours: Cache hit")
+            gson.fromJson<List<String>>(it, object: TypeToken<List<String>>() {}.type)
+        } ?: databaseService.getFlavours(appId)?.map {
+            LOGGER.debug("Flavours: Cache miss")
+            it.name
+        }
+    }
+
+    suspend fun getReferences(appId: String): List<Reference>? {
+        return cacheMap.getData("${appId}_references")?.let {
+            LOGGER.debug("References: Cache hit")
+            gson.fromJson<List<Reference>>(it, object: TypeToken<List<Reference>>() {}.type)
+        } ?: databaseService.getRefs(appId)?.map {
+            LOGGER.debug("References: Cache miss")
+            Reference(it.name, it.type)
+        }
+    }
+
+    suspend fun getBuildVariants(appId: String): List<String>? {
+        return cacheMap.getData("${appId}_build_variants")?.let {
+            LOGGER.debug("Build Variants: Cache hit")
+            gson.fromJson<List<String>>(it, object: TypeToken<List<String>>() {}.type)
+        } ?: databaseService.getBuildTypes(appId)?.map {
+            LOGGER.debug("Build Variants: Cache miss")
+            it.name
         }
     }
 
@@ -284,7 +318,7 @@ class ApplicationService @Inject constructor(
             }
             Event.EventType.MESSAGE_ACTION -> {
                 when (slackEvent.callbackId) {
-                    Constants.Slack.TYPE_CREATE_MOCK_API -> {
+                    SlackConstants.TYPE_CREATE_MOCK_API -> {
                         slackService.sendShowCreateApiDialog(slackEvent.triggerId!!)
                     }
                     else -> {
@@ -308,7 +342,7 @@ class ApplicationService @Inject constructor(
                 apps.firstOrNull {
                     it.id == appId
                 }?.let { app ->
-                    val branch = slackEvent.dialogResponse?.get(Constants.Slack.TYPE_SELECT_BRANCH)
+                    val branch = slackEvent.dialogResponse?.get(SlackConstants.TYPE_SELECT_BRANCH)
                     val channelId = slackEvent.channel?.id
                     slackService.sendSubscribeToBranch(slackEvent, app, branch!!, channelId!!)
                 }
@@ -374,6 +408,15 @@ class ApplicationService @Inject constructor(
         }
     }
 
+    suspend fun updatedCachedRefs(app: App) {
+        databaseService.getRefs(app.id)?.map {
+            Reference(it.name, it.type)
+        }?.let {
+            cacheMap.setData("${app.id}_references", gson.toJson(it, object: TypeToken<List<Reference>>() {}.type))
+        }
+
+    }
+
     suspend fun handleGithubEvent(headers: Map<String, List<String>>, payload: Payload) = coroutineScope {
         apps.firstOrNull {
             it.repoId == payload.repository?.id
@@ -397,10 +440,12 @@ class ApplicationService @Inject constructor(
                         if (payload.refType == RefType.BRANCH) {
                             payload.ref?.let { ref ->
                                 databaseService.addRef(app.id, Reference(ref, RefType.BRANCH))
+                                updatedCachedRefs(app)
                             }
                         } else if (payload.refType == RefType.TAG) {
                             payload.ref?.let { ref ->
                                 databaseService.addRef(app.id, Reference(ref, RefType.TAG))
+                                updatedCachedRefs(app)
                             }
                         }
                     }
@@ -410,10 +455,12 @@ class ApplicationService @Inject constructor(
                         if (payload.refType == RefType.BRANCH) {
                             payload.ref?.let { ref ->
                                 databaseService.deleteRef(app.id, Reference(ref, RefType.BRANCH))
+                                updatedCachedRefs(app)
                             }
                         } else if (payload.refType == RefType.TAG) {
                             payload.ref?.let { ref ->
                                 databaseService.deleteRef(app.id, Reference(ref, RefType.TAG))
+                                updatedCachedRefs(app)
                             }
                         }
                     }

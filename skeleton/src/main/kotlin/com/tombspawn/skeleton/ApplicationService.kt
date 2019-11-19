@@ -90,8 +90,13 @@ class ApplicationService @Inject constructor(
         val apkPrefix = "${appPrefix?.let {
             "$it-"
         } ?: ""}${System.currentTimeMillis()}"
+        val branch = parameters?.get(SlackConstants.TYPE_SELECT_BRANCH)
 
-        when (val response = gradleService.generateApp(parameters, fileUploadDir, apkPrefix)) {
+        when (val response = gradleService.generateApp(parameters, fileUploadDir, apkPrefix) {
+            branch?.let {
+                checkoutBranch(it)
+            } ?: false
+        }) {
             is Success -> {
                 val tempDirectory = File(fileUploadDir)
                 if (tempDirectory.exists()) {

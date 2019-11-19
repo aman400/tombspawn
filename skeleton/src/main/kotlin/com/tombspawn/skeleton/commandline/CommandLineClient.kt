@@ -1,6 +1,7 @@
 package com.tombspawn.skeleton.commandline
 
 import com.tombspawn.base.common.*
+import com.tombspawn.skeleton.gradle.GradleService
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -8,6 +9,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.channels.actor
 import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.runBlocking
 import java.io.IOException
 
 fun CoroutineScope.getCommandExecutor(): SendChannel<Command> {
@@ -16,6 +18,11 @@ fun CoroutineScope.getCommandExecutor(): SendChannel<Command> {
             when (command) {
                 is Request -> {
                     try {
+                        if(command is Processable) {
+                            runBlocking {
+                                command.onPreProcess()
+                            }
+                        }
                         val strings = command.command.split(Regex("\\s+"))
                         val builder = ProcessBuilder(strings)
                             .directory(command.workingDir)
@@ -28,9 +35,20 @@ fun CoroutineScope.getCommandExecutor(): SendChannel<Command> {
                             waitFor(command.timeoutAmount, command.timeoutUnit)
                         }
                         val exitValue = builder.exitValue()
+
                         if (exitValue == 0) {
+                            if(command is Processable) {
+                                runBlocking {
+                                    command.onPostProcess(Success(response))
+                                }
+                            }
                             command.listener?.complete(Success(response))
                         } else {
+                            if(command is Processable) {
+                                runBlocking {
+                                    command.onPostProcess(Failure(errorText))
+                                }
+                            }
                             command.listener?.complete(Failure(errorText))
                         }
                     } catch (exception: IOException) {

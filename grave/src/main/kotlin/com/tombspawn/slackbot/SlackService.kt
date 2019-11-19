@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import com.tombspawn.base.common.CallError
 import com.tombspawn.base.common.CallFailure
 import com.tombspawn.base.common.CallSuccess
+import com.tombspawn.base.common.SlackConstants
 import com.tombspawn.base.extensions.await
 import com.tombspawn.data.DatabaseService
 import com.tombspawn.data.Ref
@@ -116,7 +117,7 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
             dialogElementList.add(
                 Element(
                     ElementType.SELECT, "Select Branch",
-                    Constants.Slack.TYPE_SELECT_BRANCH,
+                    SlackConstants.TYPE_SELECT_BRANCH,
                     defaultValue = defaultValue,
                     options = branchList
                 )
@@ -132,7 +133,7 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
             dialogElementList.add(
                 Element(
                     ElementType.SELECT, "Select Build Type",
-                    Constants.Slack.TYPE_SELECT_BUILD_TYPE, options = buildTypeList
+                    SlackConstants.TYPE_SELECT_BUILD_TYPE, options = buildTypeList
                 )
             )
         }
@@ -146,7 +147,7 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
             dialogElementList.add(
                 Element(
                     ElementType.SELECT, "Select Flavour",
-                    Constants.Slack.TYPE_SELECT_FLAVOUR, options = flavourList
+                    SlackConstants.TYPE_SELECT_FLAVOUR, options = flavourList
                 )
             )
         }
@@ -155,7 +156,7 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
             Element(
                 ElementType.TEXT,
                 "App URL",
-                Constants.Slack.TYPE_SELECT_URL,
+                SlackConstants.TYPE_SELECT_URL,
                 defaultAppUrl,
                 hint = defaultAppUrl,
                 maxLength = 150,
@@ -170,7 +171,7 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
                 Element(
                     ElementType.TEXT,
                     "App Prefix",
-                    Constants.Slack.TYPE_SELECT_APP_PREFIX,
+                    SlackConstants.TYPE_SELECT_APP_PREFIX,
                     hint = "Prefixes this along with the generated App name",
                     maxLength = 50,
                     optional = true
@@ -182,7 +183,7 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
             Element(
                 ElementType.TEXT_AREA,
                 "Advanced Options",
-                Constants.Slack.TYPE_ADDITIONAL_PARAMS,
+                SlackConstants.TYPE_ADDITIONAL_PARAMS,
                 optional = true,
                 hint = "Advanced Options for Android Devs",
                 maxLength = 3000
@@ -223,7 +224,7 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
                 +element {
                     type = ElementType.SELECT
                     label = "Select Branch"
-                    name = Constants.Slack.TYPE_SELECT_BRANCH
+                    name = SlackConstants.TYPE_SELECT_BRANCH
                     options {
                         +branchList
                     }
@@ -235,8 +236,8 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
 
     suspend fun showStandupPopup(triggerId: String) {
         // Handle only single action
-        val dialog = com.tombspawn.models.slack.dialog {
-            callbackId = com.tombspawn.utils.Constants.Slack.CALLBACK_STANDUP_DIALOG
+        val dialog = dialog {
+            callbackId = Constants.Slack.CALLBACK_STANDUP_DIALOG
             title = "Standup notes"
             submitLabel = "Submit"
             notifyOnCancel = false
@@ -288,7 +289,7 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
                             generateCallback {
                                 generate = true
                                 data {
-                                    +Pair(Constants.Slack.TYPE_SELECT_BRANCH, branch)
+                                    +Pair(SlackConstants.TYPE_SELECT_BRANCH, branch)
                                 }
                             }
                         )
@@ -302,7 +303,7 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
                         value = gson.toJson(
                             GenerateCallback(
                                 false,
-                                mutableMapOf(Constants.Slack.TYPE_SELECT_BRANCH to branch)
+                                mutableMapOf(SlackConstants.TYPE_SELECT_BRANCH to branch)
                             )
                         )
                     }
@@ -321,7 +322,7 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
         val updatedMessage = slackEvent.originalMessage?.copy(attachments = null)
         if (callback.generate) {
             var branchList: List<Reference>? = null
-            callback.data?.get(Constants.Slack.TYPE_SELECT_BRANCH)?.let { branch ->
+            callback.data?.get(SlackConstants.TYPE_SELECT_BRANCH)?.let { branch ->
                 branchList = listOf(Reference(branch, RefType.BRANCH))
             }
 

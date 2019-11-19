@@ -24,6 +24,9 @@ import io.ktor.server.engine.connector
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.util.error
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
@@ -92,6 +95,12 @@ fun Application.module(appComponent: AppComponent) {
 
     runBlocking {
         appComponent.applicationService().init()
+    }
+
+    launch(Dispatchers.IO) {
+        // Let containers start
+        delay(10000)
+        appComponent.applicationService().fetchAppsData()
     }
 
     environment.monitor.subscribe(ApplicationStopping) {

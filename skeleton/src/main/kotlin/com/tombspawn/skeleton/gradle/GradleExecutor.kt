@@ -19,7 +19,7 @@ class GradleExecutor @Inject constructor(
     private val gradlePath: String,
     private val requestExecutor: SendChannel<@JvmSuppressWildcards Command>,
     private val credentialProvider: CredentialProvider
-): CommandExecutor {
+) : CommandExecutor {
     override suspend fun fetchAllBranches(): List<Reference>? {
         val executableCommand =
             "$gradlePath fetchRemoteBranches -P${Constants.Common.ARG_OUTPUT_SEPARATOR}=${Constants.Common.OUTPUT_SEPARATOR}"
@@ -34,8 +34,12 @@ class GradleExecutor @Inject constructor(
                         return parsedResponse[1]
                             .split("\n")
                             .filter { item -> item.isNotEmpty() }
-                            .map { Reference(it.substringAfter("#tag-", it),
-                                if(it.startsWith("#tag-")) RefType.TAG else RefType.BRANCH) }
+                            .map {
+                                Reference(
+                                    it.substringAfter("#tag-", it),
+                                    if (it.startsWith("#tag-")) RefType.TAG else RefType.BRANCH
+                                )
+                            }
                     }
                 }
             }
@@ -95,7 +99,8 @@ class GradleExecutor @Inject constructor(
     }
 
     override suspend fun pullCode(selectedBranch: String): CommandResponse {
-        val pullCodeCommand = "$gradlePath pullCode ${selectedBranch.let { "-P${Constants.Apis.TYPE_SELECT_BRANCH}=$it" }}"
+        val pullCodeCommand =
+            "$gradlePath pullCode ${selectedBranch.let { "-P${SlackConstants.TYPE_SELECT_BRANCH}=$it" }}"
 
         val executionDirectory = File(appDir)
         val id = UUID.randomUUID().toString()
@@ -104,24 +109,29 @@ class GradleExecutor @Inject constructor(
         return request.listener!!.await()
     }
 
-    override suspend fun generateApp(parameters: MutableMap<String, String>?,
-                                     uploadDirPath: String, APKPrefix: String): CommandResponse {
-        parameters?.remove(Constants.Apis.TYPE_ADDITIONAL_PARAMS)
+    override suspend fun generateApp(
+        parameters: MutableMap<String, String>?,
+        uploadDirPath: String, APKPrefix: String,
+        onPreProcess: (suspend () -> Boolean)
+    ): CommandResponse {
         val executionDirectory = File(appDir)
-
-        parameters?.remove(Constants.Apis.TYPE_SELECT_APP_PREFIX)
-
         var executableCommand =
-            "$gradlePath assembleWithArgs -PFILE_PATH=$uploadDirPath -P${Constants.Apis.TYPE_SELECT_APP_PREFIX}=$APKPrefix"
+            "$gradlePath assembleWithArgs -PFILE_PATH=$uploadDirPath -P${SlackConstants.TYPE_SELECT_APP_PREFIX}=$APKPrefix"
 
-        parameters?.forEach { key, value ->
+        parameters?.filter {
+            it.key != SlackConstants.TYPE_SELECT_APP_PREFIX
+                    && it.key != SlackConstants.TYPE_ADDITIONAL_PARAMS
+                    && it.key != SlackConstants.TYPE_SELECT_BRANCH
+        }?.forEach { key, value ->
             executableCommand += " -P$key=$value"
         }
 
         executableCommand += " -Pgradlebot.git.username=${credentialProvider.username}"
 
         val buildId = UUID.randomUUID().toString()
-        val request = Request(executableCommand, executionDirectory, id = buildId, listener = CompletableDeferred())
+        val request = GenerateAppCommand(executableCommand, executionDirectory,
+            id = buildId, listener = CompletableDeferred(), preProcess = onPreProcess)
+        requestExecutor.onSend
         requestExecutor.send(request)
         return request.listener!!.await()
     }
