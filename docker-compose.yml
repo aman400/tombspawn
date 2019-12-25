@@ -9,12 +9,6 @@ volumes:
     name: mysqldb
   redisdb:
     name: redisdb
-  app:
-    name: app
-  sdk:
-    name: sdk
-  gradle:
-    name: gradle
 
 services:
   db:
@@ -43,18 +37,20 @@ services:
       - "6379:6379"
   application:
     container_name: application
-    user: "tombspawn"
     depends_on:
       - db
       - redis
-    build: .
+    build:
+      context: .
+      args:
+        USER_ID: ${USER_ID:-0}
+        GROUP_ID: ${GROUP_ID:-0}
+      dockerfile: Dockerfile
     image: application
     restart: always
     volumes:
-      - ${CONF_PATH}:/app/application.conf
-      - app:/app/
-      - sdk:/opt/android/sdk/
-      - gradle:/home/tombspawn/.gradle/
+      - ${CONF_PATH}:/app/application.json
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - tombspawn
     ports:

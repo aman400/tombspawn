@@ -17,4 +17,22 @@ class StringMap constructor(jedis: Jedis): Redis<String>(jedis) {
             jedis.set(key, value)
         }
     }
+
+    companion object {
+        fun getAppCacheMapKey(appId: String, branch: String): String {
+            return "${appId}_refs_${branch}"
+        }
+
+        fun getReferencesCacheKey(appId: String): String {
+            return "${appId}_references"
+        }
+
+        fun getFlavoursCacheKey(appId: String): String {
+            return "${appId}_flavours"
+        }
+
+        fun getBuildVariantCacheKey(appId: String): String {
+            return "${appId}_build_variants"
+        }
+    }
 }

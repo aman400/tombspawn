@@ -95,24 +95,24 @@ class ApplicationService @Inject constructor(
         }
     }
 
-    suspend fun fetchReferences(app: App) {
+    private suspend fun fetchReferences(app: App) {
         dockerService.fetchReferences(app)?.let {
             databaseService.addRefs(it, app.id)
-            cacheMap.setData("${app.id}_references", gson.toJson(it, object: TypeToken<List<Reference>>() {}.type))
+            cacheMap.setData(StringMap.getReferencesCacheKey(app.id), gson.toJson(it, object: TypeToken<List<Reference>>() {}.type))
         }
     }
 
-    suspend fun fetchFlavours(app: App) {
+    private suspend fun fetchFlavours(app: App) {
         dockerService.fetchFlavours(app)?.let {
             databaseService.addFlavours(it, app.id)
-            cacheMap.setData("${app.id}_flavours", gson.toJson(it, object: TypeToken<List<String>>() {}.type))
+            cacheMap.setData(StringMap.getFlavoursCacheKey(app.id), gson.toJson(it, object: TypeToken<List<String>>() {}.type))
         }
     }
 
     private suspend fun fetchBuildVariants(app: App) {
         dockerService.fetchBuildVariants(app)?.let {
             databaseService.addBuildVariants(it, app.id)
-            cacheMap.setData("${app.id}_build_variants", gson.toJson(it, object: TypeToken<List<String>>() {}.type))
+            cacheMap.setData(StringMap.getBuildVariantCacheKey(app.id), gson.toJson(it, object: TypeToken<List<String>>() {}.type))
         }
     }
 
@@ -157,8 +157,9 @@ class ApplicationService @Inject constructor(
         appID: String,
         responseUrl: String
     ) {
+        // Get the additional parameters
         val additionalParams = buildData[SlackConstants.TYPE_ADDITIONAL_PARAMS]?.trim()
-
+        // Parse extra parameters into map.
         additionalParams?.let {
             it.toMap()?.forEach { key, value ->
                 if (!buildData.containsKey(key)) {
@@ -168,25 +169,33 @@ class ApplicationService @Inject constructor(
         }
 
         val userAppPrefix = buildData[SlackConstants.TYPE_SELECT_APP_PREFIX]
+        // Remove application prefix
         buildData.remove(SlackConstants.TYPE_SELECT_APP_PREFIX)
+        // Remove additional params
+        buildData.remove(SlackConstants.TYPE_ADDITIONAL_PARAMS)
+        // Generate the application prefix
         val apkPrefix = "${userAppPrefix?.let {
             "$it-"
         } ?: ""}${System.currentTimeMillis()}"
 
+        // Find the app to be generated
         apps.firstOrNull {
             it.id == appID
         }?.let { app ->
+            // Unique callback id
             val callbackId = System.nanoTime()
+            // Base url for callback
             val uriBuilder = config.get()?.let {
                 URIBuilder().setScheme(it.scheme ?: "http")
-                    .setHost("docker.for.mac.localhost")
-//                    .setHost(it.host ?: Constants.Common.DEFAULT_HOST)
+//                    .setHost("docker.for.mac.localhost")
+                    .setHost(it.host ?: Constants.Common.DEFAULT_HOST)
                     .setPort(it.port ?: Constants.Common.DEFAULT_PORT)
             } ?: URIBuilder().setScheme("http")
-                .setHost("docker.for.mac.localhost")
-//                .setHost(Constants.Common.DEFAULT_HOST)
+//                .setHost("docker.for.mac.localhost")
+                .setHost(Constants.Common.DEFAULT_HOST)
                 .setPort(Constants.Common.DEFAULT_PORT)
             uriBuilder.path = "apps/${app.id}/callback/$callbackId"
+            // Save the application generation cache.
             cacheMap.setData(
                 callbackId.toString(), gson.toJson(
                     ApkCallbackCache(callbackId.toString(), responseUrl, channelId),
@@ -194,6 +203,8 @@ class ApplicationService @Inject constructor(
                 ).toString()
             )
             val callbackUri = uriBuilder.build().toASCIIString()
+
+            // Generate the application
             when (val response = dockerService.generateApp(
                 app.id,
                 "$callbackUri/success",
@@ -236,8 +247,10 @@ class ApplicationService @Inject constructor(
         }
     }
 
-    suspend fun getFlavours(appId: String): List<String>? {
-        return cacheMap.getData("${appId}_flavours")?.let {
+    private suspend fun getFlavours(appId: String): List<String>? {
+        return cacheMap.getData(StringMap.getFlavoursCacheKey(appId)).takeIf {
+            !it.isNullOrEmpty()
+        }?.let {
             LOGGER.debug("Flavours: Cache hit")
             gson.fromJson<List<String>>(it, object: TypeToken<List<String>>() {}.type)
         } ?: databaseService.getFlavours(appId)?.map {
@@ -246,8 +259,10 @@ class ApplicationService @Inject constructor(
         }
     }
 
-    suspend fun getReferences(appId: String): List<Reference>? {
-        return cacheMap.getData("${appId}_references")?.let {
+    private suspend fun getReferences(appId: String): List<Reference>? {
+        return cacheMap.getData(StringMap.getReferencesCacheKey(appId)).takeIf {
+            !it.isNullOrEmpty()
+        }?.let {
             LOGGER.debug("References: Cache hit")
             gson.fromJson<List<Reference>>(it, object: TypeToken<List<Reference>>() {}.type)
         } ?: databaseService.getRefs(appId)?.map {
@@ -256,8 +271,10 @@ class ApplicationService @Inject constructor(
         }
     }
 
-    suspend fun getBuildVariants(appId: String): List<String>? {
-        return cacheMap.getData("${appId}_build_variants")?.let {
+    private suspend fun getBuildVariants(appId: String): List<String>? {
+        return cacheMap.getData(StringMap.getBuildVariantCacheKey(appId)).takeIf {
+            !it.isNullOrEmpty()
+        }?.let {
             LOGGER.debug("Build Variants: Cache hit")
             gson.fromJson<List<String>>(it, object: TypeToken<List<String>>() {}.type)
         } ?: databaseService.getBuildTypes(appId)?.map {
@@ -491,13 +508,25 @@ class ApplicationService @Inject constructor(
         cacheMap.close()
     }
 
-    suspend fun uploadApk(apkCallback: Apps.App.Callback, receivedFile: File) {
+    suspend fun uploadApk(apkCallback: Apps.App.Callback, receivedFile: File, params: MutableMap<String, String>) {
         val callback = gson.fromJson<ApkCallbackCache>(cacheMap.getData(apkCallback.callbackId), ApkCallbackCache::class.java)
         cacheMap.delete(apkCallback.callbackId)
         if (receivedFile.exists()) {
+            println(params)
             slackService.uploadFile(receivedFile, callback.channelId!!) {
                 // Delete the file and parent directories after upload
                 receivedFile.parentFile.deleteRecursively()
+//                params.remove(SlackConstants.TYPE_SELECT_APP_PREFIX)
+//                params[SlackConstants.TYPE_SELECT_BRANCH]?.let { branch ->
+//                    val key = StringMap.getAppCacheMapKey(apkCallback.app.id, branch)
+//                    val data = cacheMap.getData(key)?.let {
+//                        gson.fromJson<MutableList<Map<String, String>>>(it, apkCacheTypeToken)
+//                    } ?: mutableListOf()
+//                    cacheMap.setData(key, data.let {
+//                        it.add(params)
+//                        gson.toJson(it, apkCacheTypeToken)
+//                    })
+//                } ?:
             }
         } else {
             LOGGER.error("APK Generated but file not found in the folder")

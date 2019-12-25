@@ -36,7 +36,7 @@ class DockerService @Inject constructor(
 
     suspend fun createContainer(app: App, port: Int) =
         coroutineScope {
-            dockerClient.createImage(File("/Users/aman/git/ramukaka/skeleton/DockerFile"), "skeleton")
+            dockerClient.createImage(File("${System.getProperty("user.dir")}/skeleton/DockerFile"), "skeleton")
             val networkId = dockerClient.createNetwork("tombspawn")
 //            val gradle = dockerClient.createVolume("gradle")
             val android = dockerClient.createVolume("android")

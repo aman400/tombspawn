@@ -1,50 +1,66 @@
 FROM openjdk:8-jdk-slim
 
-ENV APPLICATION_USER tombspawn
-RUN useradd -ms /bin/bash $APPLICATION_USER
+ARG USER_ID
+ARG GROUP_ID
 
-ENV ANDROID_HOME /opt/android/sdk/
-ENV PATH ${PATH}:${ANDROID_HOME}/tools:${ANDROID_HOME}/tools/bin:${ANDROID_HOME}/platform-tools
+RUN apt-get update \
+     && apt-get clean \
+     && echo y | apt-get install unzip \
+     && echo y | apt-get install wget \
+     && echo y | apt-get install curl \
+     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
 ENV REPO_OS_OVERRIDE linux
-ENV GRADLE_HOME /home/${APPLICATION_USER}/.gradle
 
-RUN apt-get update
-RUN apt-get install unzip
-RUN echo y | apt-get install wget
+ENV DOCKER_CHANNEL stable
+ENV DOCKER_VERSION 19.03.5
 
-RUN mkdir -p ${ANDROID_HOME} \
-    && mkdir /home/${APPLICATION_USER}/.android \
-    && chown -R ${APPLICATION_USER} /home/${APPLICATION_USER}/.android \
-    && cd /opt \
-    && wget -q https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip -O android-sdk-tools.zip \
-    && unzip -q android-sdk-tools.zip -d ${ANDROID_HOME} \
-    && rm -f android-sdk-tools.zip \
-    && echo y | sdkmanager --install "tools" "build-tools;29.0.2" "build-tools;28.0.3" "platform-tools" "platforms;android-28" \
-        "extras;google;google_play_services" "extras;google;m2repository" "extras;android;m2repository" "extras;android;gapid;1" \
-         "extras;android;gapid;3" "extras;google;instantapps" "extras;google;webdriver" --verbose \
-    && echo y | sdkmanager --licenses \
-    && chown -R ${APPLICATION_USER} ${ANDROID_HOME}
+RUN set -eux; \
+	\
+# this "case" statement is generated via "update.sh"
+	apkArch="$(uname -m)"; \
+	case "$apkArch" in \
+# amd64
+		x86_64) dockerArch='x86_64' ;; \
+# arm32v6
+		armhf) dockerArch='armel' ;; \
+# arm32v7
+		armv7) dockerArch='armhf' ;; \
+# arm64v8
+		aarch64) dockerArch='aarch64' ;; \
+		*) echo >&2 "error: unsupported architecture ($apkArch)"; exit 1 ;;\
+	esac; \
+	\
+	if ! wget -O docker.tgz "https://download.docker.com/linux/static/${DOCKER_CHANNEL}/${dockerArch}/docker-${DOCKER_VERSION}.tgz"; then \
+		echo >&2 "error: failed to download 'docker-${DOCKER_VERSION}' from '${DOCKER_CHANNEL}' for '${dockerArch}'"; \
+		exit 1; \
+	fi; \
+	\
+	tar --extract \
+		--file docker.tgz \
+		--strip-components 1 \
+		--directory /usr/local/bin/ \
+	; \
+	rm docker.tgz; \
+	\
+	dockerd --version; \
+	docker --version
 
-RUN apt-get update && apt-get install -y git \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+COPY scripts/remote/docker-entrypoint.sh /usr/local/bin/
+
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["sh"]
 
 RUN mkdir /app
-RUN chown -R $APPLICATION_USER /app
 
 RUN mkdir /skeleton
-RUN chown -R $APPLICATION_USER /skeleton
-COPY /skeleton/build/libs/application.jar /skeleton/application.jar
-COPY /skeleton/Dockerfile /app/Dockerfile
-
-
-RUN mkdir $GRADLE_HOME
-COPY /scripts/local/gradle.properties ${GRADLE_HOME}/gradle.properties
-RUN chown -R $APPLICATION_USER $GRADLE_HOME
-
-USER $APPLICATION_USER
+COPY /skeleton/build/libs/application.jar /skeleton/build/libs/application.jar
+COPY /skeleton/Dockerfile /skeleton/Dockerfile
 
 COPY grave/build/libs/application.jar /app/application.jar
 WORKDIR /app
 
-CMD ["java", "-server", "-XX:+UnlockExperimentalVMOptions", "-XX:+UseCGroupMemoryLimitForHeap", "-XX:InitialRAMFraction=2", "-XX:MinRAMFraction=2", "-XX:MaxRAMFraction=2", "-XX:+UseG1GC", "-XX:MaxGCPauseMillis=100", "-XX:+UseStringDeduplication", "-jar", "application.jar", "-config=application.conf"]
+
+CMD ["java", "-server", "-XX:+UnlockExperimentalVMOptions", "-XX:+UseCGroupMemoryLimitForHeap", "-XX:InitialRAMFraction=2", "-XX:MinRAMFraction=2", "-XX:MaxRAMFraction=2", "-XX:+UseG1GC", "-XX:MaxGCPauseMillis=100", "-XX:+UseStringDeduplication", "-jar", "application.jar", "/app/application.json"]

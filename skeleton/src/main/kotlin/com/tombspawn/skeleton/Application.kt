@@ -169,7 +169,7 @@ fun Application.module(appComponent: AppComponent) {
                 values.value.first()
             }.toMutableMap()
 
-            val userAppPrefix = params[CommonConstants.APP_PREFIX]?.trim()
+            val userAppPrefix = params[CommonConstants.APP_PREFIX]?.trim() ?: ""
             val successCallbackUri = params[CommonConstants.SUCCESS_CALLBACK_URI]?.trim()
             val failureCallbackUri = params[CommonConstants.FAILURE_CALLBACK_URI]?.trim()
 

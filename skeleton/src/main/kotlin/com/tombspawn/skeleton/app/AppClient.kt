@@ -16,11 +16,14 @@ import javax.inject.Inject
 
 class AppClient @Inject constructor(@UploadAppClient
                                     private val uploadHttpClient: HttpClient) {
-    suspend fun uploadFile(url: String, apkPrefix: String, file: File): Response<JsonObject> {
+    suspend fun uploadFile(url: String, apkPrefix: String, file: File, parameters: Map<String, String>?): Response<JsonObject> {
         return uploadHttpClient.call(url) {
             method = HttpMethod.Post
             body = MultiPartContent.build {
                 add("title", apkPrefix)
+                parameters?.forEach { (key, value) ->
+                    add(key, value)
+                }
                 add("file", file.readBytes(), filename = file.name)
             }
         }.await()

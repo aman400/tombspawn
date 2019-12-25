@@ -85,15 +85,12 @@ class ApplicationService @Inject constructor(
     }
 
     suspend fun generateApp(parameters: MutableMap<String, String>?, successCallbackUri: String?,
-                            failureCallbackUri: String?, appPrefix: String?) = coroutineScope {
-
-        val apkPrefix = "${appPrefix?.let {
-            "$it-"
-        } ?: ""}${System.currentTimeMillis()}"
+                            failureCallbackUri: String?, apkPrefix: String) = coroutineScope {
         val branch = parameters?.get(SlackConstants.TYPE_SELECT_BRANCH)
 
         when (val response = gradleService.generateApp(parameters, fileUploadDir, apkPrefix) {
             branch?.let {
+                // Checkout to given branch before app generation
                 checkoutBranch(it)
             } ?: false
         }) {
@@ -105,11 +102,13 @@ class ApplicationService @Inject constructor(
                     }?.firstOrNull()?.let { file ->
                         if (file.exists()) {
                             successCallbackUri?.let { url ->
-                                when (val responseData = appClient.uploadFile(url, apkPrefix, file)) {
+                                when (val responseData = appClient.uploadFile(url, apkPrefix, file, parameters)) {
                                     is CallSuccess -> {
+                                        file.delete()
                                         LOGGER.debug("Uploaded successfully")
                                     }
                                     is CallFailure -> {
+                                        file.delete()
                                         responseData.throwable?.let {
                                             LOGGER.error(it)
                                         }
@@ -119,6 +118,7 @@ class ApplicationService @Inject constructor(
                                         }
                                     }
                                     is CallError -> {
+                                        file.delete()
                                         responseData.throwable?.let {
                                             LOGGER.error(it)
                                         }

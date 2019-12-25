@@ -91,13 +91,20 @@ fun Routing.buildApp(applicationService: ApplicationService) {
 fun Routing.apkCallback(applicationService: ApplicationService) {
     post<Apps.App.Callback.Success> { callback ->
         var title = ""
-        var receivedFile: File
+        var receivedFile: File? = null
         val multipart = call.receiveMultipart()
+        val otherData = mutableMapOf<String, String>()
         multipart.forEachPart { part ->
             when (part) {
                 is PartData.FormItem -> {
                     if (part.name == "title") {
                         title = part.value
+                    } else {
+                        part.takeIf {
+                            part.name != null
+                        }?.let {
+                            otherData[part.name!!] = part.value
+                        }
                     }
                 }
                 is PartData.FileItem -> {
@@ -109,11 +116,13 @@ fun Routing.apkCallback(applicationService: ApplicationService) {
                     part.streamProvider()
                         .use { input -> file.outputStream().buffered().use { output -> input.copyToSuspend(output) } }
                     receivedFile = file
-                    applicationService.uploadApk(callback.callback, receivedFile)
                 }
             }
 
             part.dispose()
+            receivedFile?.let {
+                applicationService.uploadApk(callback.callback, it, otherData)
+            }
         }
         call.respond("{\"message\": \"ok\"}")
     }

@@ -7,9 +7,6 @@ class Constants {
 
         const val APP_CONSUMER = "consumer"
 
-        const val OUTPUT_SEPARATOR = "##***##"
-        const val ARG_OUTPUT_SEPARATOR = "OUTPUT_SEPARATOR"
-
         const val GET = "GET"
         const val PUT = "PUT"
         const val POST = "POST"
@@ -20,7 +17,6 @@ class Constants {
     }
 
     object Slack {
-        const val SESSION = "slack_session"
         const val CALLBACK_STANDUP_MESSAGE: String = "callback_standup_message"
         const val CALLBACK_STANDUP_DIALOG: String = "callback_standup_dialog"
         const val DEFAULT_BOT_ID: String = "USLACKBOT"
@@ -38,9 +34,6 @@ class Constants {
         const val USER = "user"
         const val CURSOR = "cursor"
         const val LIMIT = "limit"
-        const val CLIENT_ID = "client_id"
-        const val CLIENT_SECRET = "client_secret"
-        const val CODE = "code"
 
         const val CALLBACK_SUBSCRIBE_CONSUMER = "subscribe_consumer_"
 
@@ -48,7 +41,6 @@ class Constants {
         const val TYPE_SUBSCRIBE_FLEET = "subscribe-fleet"
         const val TRIGGER_ID: String = "trigger_id"
         const val CHANNEL_ID: String = "channel_id"
-        const val USER_ID: String = "user_id"
 
         const val TYPE_SELECT_VERB = "VERB"
         const val TYPE_SELECT_RESPONSE = "RESPONSE"

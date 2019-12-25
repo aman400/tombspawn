@@ -153,7 +153,6 @@ class DockerApiClient @Inject constructor(
         }
     }
 
-    @Suppress("BlockingMethodInNonBlockingContext")
     suspend fun createImage(file: File, tag: String) {
         coroutineScope {
             dockerClient.listImagesCmd().withImageNameFilter(tag).exec().firstOrNull() ?: dockerClient.buildImageCmd(
