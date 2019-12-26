@@ -20,7 +20,7 @@ import javax.inject.Inject
 
 class GitClient @Inject constructor(private val provider: CredentialProvider) {
     private val logger = LoggerFactory.getLogger("GitClient")
-    fun clone(dir: String, gitUri: String) {
+    fun clone(dir: String, gitUri: String, onComplete: ((success: Boolean) -> Unit)? = null) {
         if (!try {
                 println("Generating app")
                 initRepository(dir).use {
@@ -60,13 +60,13 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
                     }
 
                     override fun endTask() {
+                        onComplete?.invoke(true)
                         LOGGER.debug("End task")
                     }
 
                     override fun isCancelled(): Boolean {
                         return false
                     }
-
                 })
                 .setCloneAllBranches(true)
                 .setCallback(object : CloneCommand.Callback {

@@ -8,10 +8,7 @@ import com.tombspawn.skeleton.di.DaggerAppComponent
 import com.tombspawn.skeleton.locations.References
 import com.tombspawn.skeleton.models.config.CommonConfig
 import com.tombspawn.skeleton.models.config.ServerConf
-import io.ktor.application.Application
-import io.ktor.application.ApplicationCallPipeline
-import io.ktor.application.call
-import io.ktor.application.install
+import io.ktor.application.*
 import io.ktor.features.*
 import io.ktor.gson.gson
 import io.ktor.http.HttpStatusCode
@@ -155,6 +152,12 @@ fun Application.module(appComponent: AppComponent) {
                 LOGGER.debug("$key: ${valuesList.joinToString(",")}")
             }
         }
+    }
+
+    environment.monitor.subscribe(ApplicationStopping) {
+        LOGGER.debug("Clearing data")
+        appComponent.applicationService().clear()
+        LOGGER.debug("Data cleared")
     }
 
     val applicationService = appComponent.applicationService()

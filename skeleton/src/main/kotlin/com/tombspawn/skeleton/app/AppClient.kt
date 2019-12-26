@@ -29,6 +29,13 @@ class AppClient @Inject constructor(@UploadAppClient
         }.await()
     }
 
+    suspend fun initComplete(url: String, success: Boolean): Response<JsonObject> {
+        return uploadHttpClient.call(url) {
+            method = HttpMethod.Post
+            body = JsonObject().addProperty("success", success)
+        }.await()
+    }
+
     suspend fun reportFailure(url: String, errorResponse: ErrorResponse): Response<JsonObject> {
         return uploadHttpClient.call(url) {
             this.contentType(ContentType.Application.Json)

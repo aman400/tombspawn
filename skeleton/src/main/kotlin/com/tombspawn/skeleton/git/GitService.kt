@@ -7,8 +7,8 @@ import javax.inject.Inject
 
 class GitService @Inject constructor(private val app: App, private val gitClient: GitClient) {
 
-    fun clone() {
-        gitClient.clone(app.dir!!, app.uri!!)
+    fun clone(onComplete: ((success: Boolean) -> Unit)? = null) {
+        gitClient.clone(app.dir!!, app.uri!!, onComplete)
     }
 
     suspend fun fetchRemoteBranches(): Deferred<FetchResult> {

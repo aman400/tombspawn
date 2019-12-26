@@ -3,30 +3,44 @@ package com.tombspawn.skeleton
 import com.tombspawn.base.common.*
 import com.tombspawn.skeleton.app.AppClient
 import com.tombspawn.skeleton.di.qualifiers.FileUploadDir
+import com.tombspawn.skeleton.di.qualifiers.InitCallbackUri
 import com.tombspawn.skeleton.git.GitService
 import com.tombspawn.skeleton.gradle.GradleService
 import com.tombspawn.skeleton.models.RefType
 import com.tombspawn.skeleton.models.Reference
 import io.ktor.util.error
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
 import java.io.File
 import javax.inject.Inject
+import kotlin.coroutines.CoroutineContext
 
 class ApplicationService @Inject constructor(
     private val gitService: GitService,
     private val gradleService: GradleService,
     private val appClient: AppClient,
     @FileUploadDir
-    private val fileUploadDir: String
-) {
+    private val fileUploadDir: String,
+    @InitCallbackUri
+    private val initCallbackUri: String
+): CoroutineScope {
+
+    private val job = Job()
 
     fun init() {
         clone()
     }
 
+    fun clear() {
+        job.cancelChildren()
+    }
+
     private fun clone() {
-        gitService.clone()
+        gitService.clone {
+            launch(Dispatchers.IO) {
+                appClient.initComplete(initCallbackUri, success = false)
+            }
+        }
     }
 
     suspend fun fetchRemoteBranches() {
@@ -152,4 +166,7 @@ class ApplicationService @Inject constructor(
     companion object {
         private val LOGGER = LoggerFactory.getLogger("com.tombspawn.skeleton.ApplicationService")
     }
+
+    override val coroutineContext: CoroutineContext
+        get() = job + Dispatchers.IO
 }

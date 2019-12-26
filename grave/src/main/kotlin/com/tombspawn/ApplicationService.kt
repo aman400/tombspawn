@@ -8,6 +8,7 @@ import com.tombspawn.base.common.*
 import com.tombspawn.base.extensions.toMap
 import com.tombspawn.data.*
 import com.tombspawn.di.qualifiers.AppCacheMap
+import com.tombspawn.di.qualifiers.Debuggable
 import com.tombspawn.di.qualifiers.UploadDirPath
 import com.tombspawn.docker.DockerService
 import com.tombspawn.models.Reference
@@ -44,6 +45,8 @@ class ApplicationService @Inject constructor(
     val uploadDirPath: String,
     @AppCacheMap
     val cacheMap: StringMap,
+    @Debuggable
+    val debug: Boolean,
     val config: Optional<ServerConf>
 ) {
 
@@ -85,8 +88,10 @@ class ApplicationService @Inject constructor(
         return databaseService.addApps(apps)
     }
 
-    suspend fun fetchAppsData() = coroutineScope {
-        apps.forEach {
+    suspend fun fetchAppData(appId: String) {
+        apps.firstOrNull {
+            appId == it.id
+        }?.let {
             withContext(Dispatchers.IO) {
                 fetchReferences(it)
                 fetchFlavours(it)
@@ -185,15 +190,21 @@ class ApplicationService @Inject constructor(
             // Unique callback id
             val callbackId = System.nanoTime()
             // Base url for callback
-            val uriBuilder = config.get()?.let {
-                URIBuilder().setScheme(it.scheme ?: "http")
+            val uriBuilder = if(debug) {
+                config.get()?.let {
+                    URIBuilder().setScheme(it.scheme ?: "http")
 //                    .setHost("docker.for.mac.localhost")
-                    .setHost(it.host ?: Constants.Common.DEFAULT_HOST)
-                    .setPort(it.port ?: Constants.Common.DEFAULT_PORT)
-            } ?: URIBuilder().setScheme("http")
+                        .setHost(it.host ?: Constants.Common.DEFAULT_HOST)
+                        .setPort(it.port ?: Constants.Common.DEFAULT_PORT)
+                } ?: URIBuilder().setScheme("http")
 //                .setHost("docker.for.mac.localhost")
-                .setHost(Constants.Common.DEFAULT_HOST)
-                .setPort(Constants.Common.DEFAULT_PORT)
+                    .setHost(Constants.Common.DEFAULT_HOST)
+                    .setPort(Constants.Common.DEFAULT_PORT)
+            } else {
+                URIBuilder().setScheme("http")
+                    .setHost("application")
+                    .setPort(config.get()?.port ?: Constants.Common.DEFAULT_PORT)
+            }
             uriBuilder.path = "apps/${app.id}/callback/$callbackId"
             // Save the application generation cache.
             cacheMap.setData(
@@ -203,7 +214,7 @@ class ApplicationService @Inject constructor(
                 ).toString()
             )
             val callbackUri = uriBuilder.build().toASCIIString()
-
+            println(callbackUri)
             // Generate the application
             when (val response = dockerService.generateApp(
                 app.id,

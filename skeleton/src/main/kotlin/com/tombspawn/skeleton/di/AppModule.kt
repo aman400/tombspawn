@@ -3,6 +3,7 @@ package com.tombspawn.skeleton.di
 import com.tombspawn.base.config.JsonApplicationConfig
 import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.network.Common
+import com.tombspawn.skeleton.di.qualifiers.InitCallbackUri
 import com.tombspawn.skeleton.di.qualifiers.FileUploadDir
 import com.tombspawn.skeleton.di.qualifiers.UploadAppClient
 import com.tombspawn.skeleton.git.CredentialProvider
@@ -21,6 +22,14 @@ object AppModule {
     @AppScope
     fun provideEnvironment(application: Application): JsonApplicationConfig {
         return application.environment.config as JsonApplicationConfig
+    }
+
+    @Provides
+    @InitCallbackUri
+    @AppScope
+    fun provideInitCallbackUri(config: JsonApplicationConfig): String {
+        return config.property("init_callback_uri")
+            .getAs(String::class.java)
     }
 
     @Provides

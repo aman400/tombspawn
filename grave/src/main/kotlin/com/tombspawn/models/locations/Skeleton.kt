@@ -14,6 +14,9 @@ class Apps {
             class Failure(val callback: Callback)
         }
 
+        @Location("/init")
+        data class Init(val app: App)
+
         @Location("/generate")
         data class CreateApp(val app: App)
 

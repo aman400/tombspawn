@@ -3,7 +3,8 @@ package com.tombspawn.utils
 class Constants {
     object Common {
         const val DEFAULT_HOST = "0.0.0.0"
-        const val DEFAULT_PORT = 55555
+        const val DEFAULT_PORT = 8662
+        const val DEFAULT_SCHEME = "http"
 
         const val APP_CONSUMER = "consumer"
 

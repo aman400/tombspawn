@@ -21,8 +21,12 @@ import io.ktor.request.receiveMultipart
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.Routing
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import org.apache.http.HttpStatus
 import org.slf4j.LoggerFactory
 import java.io.File
+import javax.xml.bind.JAXBElement
 
 val LOGGER = LoggerFactory.getLogger("com.application.slack.routing")
 
@@ -127,9 +131,17 @@ fun Routing.apkCallback(applicationService: ApplicationService) {
         call.respond("{\"message\": \"ok\"}")
     }
 
+    post<Apps.App.Init> { app ->
+        launch(Dispatchers.IO) {
+            applicationService.fetchAppData(app.app.id)
+        }
+        call.respond(HttpStatusCode.OK, "{\"message\": \"ok\"}")
+    }
+
     post<Apps.App.Callback.Failure> { callback ->
         val errorResponse = call.receive<ErrorResponse>()
         applicationService.reportFailure(callback.callback, errorResponse)
+        call.respond(HttpStatusCode.OK, "{\"message\": \"ok\"}")
     }
 
     get<Apps.App.CreateApp> { app ->

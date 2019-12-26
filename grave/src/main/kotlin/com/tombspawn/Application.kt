@@ -97,12 +97,6 @@ fun Application.module(appComponent: AppComponent) {
         appComponent.applicationService().init()
     }
 
-    launch(Dispatchers.IO) {
-        // Let containers start
-        delay(10000)
-        appComponent.applicationService().fetchAppsData()
-    }
-
     environment.monitor.subscribe(ApplicationStopping) {
         LOGGER.debug("Clearing data")
         appComponent.applicationService().clear()

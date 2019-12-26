@@ -54,10 +54,11 @@ ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["sh"]
 
 RUN mkdir /app
+RUN mkdir /app/skeleton
 
-RUN mkdir /skeleton
-COPY /skeleton/build/libs/application.jar /skeleton/build/libs/application.jar
-COPY /skeleton/Dockerfile /skeleton/Dockerfile
+COPY /skeleton/build/libs/application.jar /app/skeleton/build/libs/application.jar
+COPY /skeleton/Dockerfile /app/skeleton/Dockerfile
+COPY /skeleton/setup_android_sdk.sh /app/skeleton/setup_android_sdk.sh
 
 COPY grave/build/libs/application.jar /app/application.jar
 WORKDIR /app

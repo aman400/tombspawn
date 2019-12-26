@@ -9,6 +9,7 @@ import com.tombspawn.base.network.Common
 import com.tombspawn.di.qualifiers.Debuggable
 import com.tombspawn.di.qualifiers.DockerHttpClient
 import com.tombspawn.models.config.App
+import com.tombspawn.utils.Constants
 import dagger.Module
 import dagger.Provides
 import io.ktor.client.HttpClient
@@ -25,8 +26,8 @@ class DockerModule {
             .build()
         return DockerClientBuilder.getInstance(config).withDockerCmdExecFactory(
             NettyDockerCmdExecFactory()
-                .withConnectTimeout(60000)
-                .withReadTimeout(60000)
+                .withConnectTimeout(120000)
+                .withReadTimeout(120000)
         ).build()
     }
 
@@ -37,8 +38,8 @@ class DockerModule {
         val dockerHttpClients = mutableMapOf<String, HttpClient>()
         apps.forEach {
             dockerHttpClients[it.id] = Common.createHttpClient(
-                gsonSerializer, it.appUrl, URLProtocol.HTTP, null,
-                60000, 60000, 60000, isDebug
+                gsonSerializer, "${it.id}:${Constants.Common.DEFAULT_PORT}", URLProtocol.HTTP, null,
+                120000, 120000, 120000, isDebug
             )
         }
         return dockerHttpClients
