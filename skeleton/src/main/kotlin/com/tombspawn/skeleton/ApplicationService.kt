@@ -131,7 +131,7 @@ class ApplicationService @Inject constructor(
                 gitService.clearStash().await()?.also {
                     LOGGER.info("Cleared stash with object id ${it.name}")
                 } ?: run {
-                    LOGGER.debug("Nothing to stash")
+                    LOGGER.debug("No stash list to clear")
                 }
                 // fetch all refs from server
                 gitService.fetchRemoteBranches().await()
