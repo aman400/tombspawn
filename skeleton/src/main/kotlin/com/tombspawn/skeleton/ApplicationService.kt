@@ -133,14 +133,8 @@ class ApplicationService @Inject constructor(
                 } ?: run {
                     LOGGER.debug("No stash list to clear")
                 }
-                // fetch all refs from server
-                gitService.fetchRemoteBranches().await()
                 // Checkout to given branch before app generation
                 checkoutBranch(it)
-                when(val response = pullCode(it)) {
-                    is Success -> LOGGER.info("Code pulled successfully")
-                    is Failure -> LOGGER.error("Unable to pull latest code.\nmessage: ${response.error}", response.throwable)
-                }.exhaustive
                 true
             } ?: false
         }) {

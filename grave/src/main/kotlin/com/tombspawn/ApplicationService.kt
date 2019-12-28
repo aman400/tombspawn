@@ -530,6 +530,9 @@ class ApplicationService @Inject constructor(
     }
 
     fun clear() {
+        apps.forEach {
+            dockerService.killContainer(it)
+        }
         databaseService.clear()
         cacheMap.close()
     }

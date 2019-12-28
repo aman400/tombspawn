@@ -1,4 +1,4 @@
-FROM openjdk:8-jdk-slim
+FROM openjdk:8-jdk-slim as android-sdk
 
 ENV APPLICATION_USER skeleton
 ENV ANDROID_SDK_DIR /home/skeleton/android-sdk
@@ -18,10 +18,14 @@ COPY setup_android_sdk.sh /app/setup_android_sdk.sh
 RUN chmod +x /app/setup_android_sdk.sh
 
 USER $APPLICATION_USER
+
+WORKDIR /app
+RUN /bin/bash /app/setup_android_sdk.sh -b -a
+
+FROM android-sdk as skeleton
+
 RUN mkdir -p $HOME/.gradle
 RUN mkdir -p /app/git
 
 COPY build/libs/application.jar /app/application.jar
 COPY gradle.properties /home/skeleton/.gradle/gradle.properties
-WORKDIR /app
-RUN /bin/bash /app/setup_android_sdk.sh -b -a

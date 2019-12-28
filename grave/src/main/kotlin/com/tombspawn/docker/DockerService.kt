@@ -31,27 +31,33 @@ class DockerService @Inject constructor(
     private val debug: Boolean
 ) {
 
+    private val LOGGER = LoggerFactory.getLogger("com.tombspawn.docker.DockerService")
+
     suspend fun listContainers() = coroutineScope {
         dockerClient.listContainer()?.forEach {
-            println(it)
+            LOGGER.info(it.toString())
         }
+    }
+
+    fun killContainer(app: App) {
+        dockerClient.stopContainer(app.id)
+        dockerClient.killContainer(app.id)
     }
 
     suspend fun createContainer(app: App, port: Int, callbackUri: String) =
         coroutineScope {
-            println("${System.getProperty("user.dir")}/skeleton/Dockerfile")
+            LOGGER.debug("${System.getProperty("user.dir")}/skeleton/Dockerfile")
             dockerClient.createImage(File("${System.getProperty("user.dir")}/skeleton/Dockerfile"), "skeleton")
             val networkId = dockerClient.createNetwork("tombspawn")
 //            val gradle = dockerClient.createVolume("gradle")
             val android = dockerClient.createVolume("android")
-//            val gradleBind = Bind(gradle, Volume("/home/skeleton/.gradle/"))
-            val androidBind = Bind(android, Volume("/home/skeleton/android-sdk/"))
+//            val gradleCache = Bind(gradle, Volume("/home/skeleton/.gradle/caches/"))
+            val androidCache = Bind(android, Volume("/home/skeleton/.android/"))
             val gitApps = dockerClient.createVolume("git")
             val appVolumeBind = Bind(gitApps, Volume("/app/git/"))
 
             launch(Dispatchers.IO) {
                 dockerClient.logEvents()
-                println("Finished events")
             }
 
             val appPath = "/app/git/${app.id}/"
@@ -80,10 +86,7 @@ class DockerService @Inject constructor(
                     "application.jar",
                     request,
                     "--verbose"
-                ), null, listOf(
-//                    gradleBind,
-                    androidBind, appVolumeBind
-                ),
+                ), null, listOf(androidCache, appVolumeBind),
                 portBindings, listOf(exposedPort)
             )?.let { containerId ->
                 dockerClient.logContainerCommand(app.id, containerId)

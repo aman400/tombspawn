@@ -56,9 +56,11 @@ class DockerApiClient @Inject constructor(
                         response.data
                     }
                     is CallFailure -> {
+                        LOGGER.error(response.errorBody, response.throwable)
                         null
                     }
                     is CallError -> {
+                        LOGGER.error("Unable to fetch flavours", response.throwable)
                         null
                     }
                 }
@@ -87,7 +89,7 @@ class DockerApiClient @Inject constructor(
                         null
                     }
                     is CallError -> {
-                        LOGGER.error(response.throwable?.message, response.throwable)
+                        LOGGER.error("Unable to fetch build variants", response.throwable)
                         null
                     }
                 }
@@ -124,11 +126,11 @@ class DockerApiClient @Inject constructor(
                         response.data
                     }
                     is CallFailure -> {
-                        println(response.errorBody)
+                        LOGGER.error(response.errorBody)
                         null
                     }
                     is CallError -> {
-                        response.throwable?.printStackTrace()
+                        LOGGER.error("Unable to fetch References", response.throwable)
                         null
                     }
                 }
@@ -156,6 +158,38 @@ class DockerApiClient @Inject constructor(
         }
     }
 
+    fun stopContainer(tag: String) {
+        dockerClient.listContainersCmd().withNameFilter(listOf(tag))
+            .withShowAll(true)
+            .exec().firstOrNull()?.let {
+                when (it.state) {
+                    STATE_STARTED -> {
+                        dockerClient.stopContainerCmd(it.id).exec()
+                    }
+                    else -> {
+                        LOGGER.debug("Unable to stop ${it.state} container")
+                    }
+                }
+            }
+    }
+
+    fun killContainer(tag: String) {
+        dockerClient.listContainersCmd().withNameFilter(listOf(tag))
+            .withShowAll(true)
+            .exec().firstOrNull()?.let {
+                when (it.state) {
+                    STATE_PAUSED,
+                    STATE_EXITED,
+                        STATE_DEAD -> {
+                        dockerClient.killContainerCmd(it.id).exec()
+                    }
+                    else -> {
+                        LOGGER.debug("Unable to stop ${it.state} container")
+                    }
+                }
+            }
+    }
+
     suspend fun createImage(file: File, tag: String) {
         coroutineScope {
             dockerClient.listImagesCmd().withImageNameFilter(tag).exec().firstOrNull() ?: dockerClient.buildImageCmd(
@@ -168,10 +202,10 @@ class DockerApiClient @Inject constructor(
                         super.onNext(item)
                         item?.let {
                             it.stream?.let {
-                                println(it)
+                                LOGGER.trace(it)
                             }
                             it.errorDetail?.let {
-                                println("${it.code} : ${it.message}")
+                                LOGGER.error("${it.code} : ${it.message}")
                             }
                         }
                     }
@@ -212,7 +246,7 @@ class DockerApiClient @Inject constructor(
                 .exec(object : ResultCallbackTemplate<LogContainerResultCallback, Frame>() {
                     override fun onNext(frame: Frame?) {
                         frame?.payload?.let {
-                            println(String(it))
+                            LOGGER.trace(String(it))
                         }
                     }
                 })
@@ -223,12 +257,11 @@ class DockerApiClient @Inject constructor(
         coroutineScope {
             val callback = object : EventsResultCallback() {
                 override fun onNext(event: Event) {
-                    println("Event: $event")
+                    LOGGER.trace("Event: $event")
                     super.onNext(event)
                 }
             }
             dockerClient.eventsCmd().exec(callback)
-            println("Finished execution")
         }
     }
 
@@ -262,7 +295,7 @@ class DockerApiClient @Inject constructor(
                     )
                     .exec().let {
                         it.warnings.forEach { message ->
-                            println(message)
+                            LOGGER.warn(message)
                         }
                         it.id
                     }
@@ -283,7 +316,7 @@ class DockerApiClient @Inject constructor(
                             dockerClient.startContainerCmd(id).exec()
                         }
                         else -> {
-                            println("Container ${it.state}")
+                            LOGGER.info("Not starting ${it.state} Container")
                         }
                     }
                 }

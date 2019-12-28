@@ -23,5 +23,7 @@
     <logger name="com.tombspawn.skeleton.ApplicationService" level="DEBUG"/>
     <logger name="com.tombspawn.base.network.Common" level="DEBUG"/>
     <logger name="com.tombspawn.skeleton.gradle.GradleExecutor" level="DEBUG"/>
+    <logger name="com.tombspawn.skeleton.git.GitClient" level="DEBUG"/>
+    <logger name="com.tombspawn.skeleton.commandline.CommandLineClient" level="DEBUG"/>
 
 </configuration>

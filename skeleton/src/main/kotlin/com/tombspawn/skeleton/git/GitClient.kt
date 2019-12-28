@@ -147,7 +147,7 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
             try {
                 return@async Git(initRepository(dir)).use { git ->
                     git.stashCreate().setIncludeUntracked(true)
-                        .setWorkingDirectoryMessage("Stashing files")
+                        .setWorkingDirectoryMessage("Stash files")
                         .setIndexMessage("Stash: ${System.currentTimeMillis()}")
                         .call()
                 }
@@ -204,6 +204,6 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
     }
 
     companion object {
-        private val LOGGER = LoggerFactory.getLogger("GitClient")
+        private val LOGGER = LoggerFactory.getLogger("com.tombspawn.skeleton.git.GitClient")
     }
 }
