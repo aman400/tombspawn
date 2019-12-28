@@ -36,21 +36,34 @@ class ApplicationService @Inject constructor(
     }
 
     private fun clone() {
-        gitService.clone {
-            launch(Dispatchers.IO) {
-                appClient.initComplete(initCallbackUri, success = false)
+        launch(Dispatchers.IO) {
+            gitService.clone {
+                launch(Dispatchers.IO) {
+                    LOGGER.info("Making api call to $initCallbackUri")
+                    when(val response = appClient.initComplete(initCallbackUri, success = true)) {
+                        is CallSuccess -> {
+                            LOGGER.info(response.data.toString())
+                        }
+                        is CallFailure -> {
+                            LOGGER.info("Call failure ${response.errorBody}", response.throwable)
+                        }
+                        is CallError -> {
+                            LOGGER.info("Call Error", response.throwable)
+                        }
+                    }.exhaustive
+                }
             }
         }
     }
 
-    suspend fun fetchRemoteBranches() {
+    suspend fun getReferences(callbackUri: String, branchLimit: Int = -1, tagLimit: Int = -1) {
+        // fetch all remote references from server including branches and tags
         gitService.fetchRemoteBranches().await()
-    }
-
-    suspend fun getReferences(branchLimit: Int = -1, tagLimit: Int = -1): MutableList<Reference> {
-        return mutableListOf<Reference>().apply {
+        mutableListOf<Reference>().apply {
             addAll(getBranches(branchLimit))
             addAll(getTags(tagLimit))
+        }.let {
+            appClient.sendReferences(callbackUri, it)
         }
     }
 
@@ -82,16 +95,20 @@ class ApplicationService @Inject constructor(
         return gitService.checkout(branch).await()
     }
 
-    suspend fun fetchBranches(): List<Reference>? {
-        return gradleService.fetchBranches()
+    suspend fun fetchProductFlavours(callbackUri: String) {
+        gradleService.fetchProductFlavours()?.let {
+            appClient.sendFlavours(callbackUri, it)
+        } ?: run {
+            appClient.sendFlavours(callbackUri, listOf())
+        }
     }
 
-    suspend fun fetchProductFlavours(): List<String>? {
-        return gradleService.fetchProductFlavours()
-    }
-
-    suspend fun fetchBuildVariants(): List<String>? {
-        return gradleService.fetchBuildVariants()
+    suspend fun fetchBuildVariants(callbackUri: String) {
+        gradleService.fetchBuildVariants()?.let {
+            appClient.sendBuildVariants(callbackUri, it)
+        } ?: run {
+            appClient.sendBuildVariants(callbackUri, listOf())
+        }
     }
 
     suspend fun pullCode(selectedBranch: String): CommandResponse {
@@ -104,8 +121,27 @@ class ApplicationService @Inject constructor(
 
         when (val response = gradleService.generateApp(parameters, fileUploadDir, apkPrefix) {
             branch?.let {
+                // Stash uncommited code
+                gitService.stashCode().await()?.also {
+                    LOGGER.info("Stashed older code ${it.fullMessage}")
+                } ?: run {
+                    LOGGER.debug("Nothing to stash")
+                }
+                // Clear stash list
+                gitService.clearStash().await()?.also {
+                    LOGGER.info("Cleared stash with object id ${it.name}")
+                } ?: run {
+                    LOGGER.debug("Nothing to stash")
+                }
+                // fetch all refs from server
+                gitService.fetchRemoteBranches().await()
                 // Checkout to given branch before app generation
                 checkoutBranch(it)
+                when(val response = pullCode(it)) {
+                    is Success -> LOGGER.info("Code pulled successfully")
+                    is Failure -> LOGGER.error("Unable to pull latest code.\nmessage: ${response.error}", response.throwable)
+                }.exhaustive
+                true
             } ?: false
         }) {
             is Success -> {

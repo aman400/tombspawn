@@ -4,20 +4,17 @@ import com.github.dockerjava.api.model.Bind
 import com.github.dockerjava.api.model.ExposedPort
 import com.github.dockerjava.api.model.Ports
 import com.github.dockerjava.api.model.Volume
-import com.google.common.base.Optional
 import com.google.gson.Gson
 import com.google.gson.JsonObject
-import com.tombspawn.base.common.*
+import com.tombspawn.base.common.CommonConstants
+import com.tombspawn.base.common.Response
 import com.tombspawn.di.qualifiers.Debuggable
 import com.tombspawn.git.CredentialProvider
 import com.tombspawn.models.AppContainerRequest
-import com.tombspawn.models.Reference
 import com.tombspawn.models.config.App
 import com.tombspawn.models.config.Common
 import com.tombspawn.models.config.ServerConf
 import com.tombspawn.utils.Constants
-import io.ktor.http.URLProtocol
-import io.ktor.util.url
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -30,7 +27,6 @@ class DockerService @Inject constructor(
     private val common: Common,
     private val credentialProvider: CredentialProvider,
     private val gson: Gson,
-    private val serverConf: Optional<ServerConf>,
     @Debuggable
     private val debug: Boolean
 ) {
@@ -41,7 +37,7 @@ class DockerService @Inject constructor(
         }
     }
 
-    suspend fun createContainer(app: App, port: Int) =
+    suspend fun createContainer(app: App, port: Int, callbackUri: String) =
         coroutineScope {
             println("${System.getProperty("user.dir")}/skeleton/Dockerfile")
             dockerClient.createImage(File("${System.getProperty("user.dir")}/skeleton/Dockerfile"), "skeleton")
@@ -49,7 +45,7 @@ class DockerService @Inject constructor(
 //            val gradle = dockerClient.createVolume("gradle")
             val android = dockerClient.createVolume("android")
 //            val gradleBind = Bind(gradle, Volume("/home/skeleton/.gradle/"))
-            val androidBind = Bind(android, Volume("/home/skeleton/.android/"))
+            val androidBind = Bind(android, Volume("/home/skeleton/android-sdk/"))
             val gitApps = dockerClient.createVolume("git")
             val appVolumeBind = Bind(gitApps, Volume("/app/git/"))
 
@@ -60,14 +56,6 @@ class DockerService @Inject constructor(
 
             val appPath = "/app/git/${app.id}/"
             app.dir = appPath
-
-            val callbackUri = url {
-                this.protocol = serverConf.get()?.scheme?.let {
-                    URLProtocol.createOrDefault(it)
-                } ?: URLProtocol.HTTP
-                this.host = serverConf.get().host ?: Constants.Common.DEFAULT_HOST
-                this.path(listOf("apps", app.id, "init"))
-            }
 
             val request = gson.toJson(AppContainerRequest(ServerConf("http", "0.0.0.0", Constants.Common.DEFAULT_PORT, debug),
                     app, common, credentialProvider, callbackUri), AppContainerRequest::class.java)
@@ -106,16 +94,16 @@ class DockerService @Inject constructor(
             Unit
         }
 
-    suspend fun fetchReferences(app: App): List<Reference>? {
-        return dockerClient.fetchReferences(app)
+    suspend fun fetchReferences(app: App, callbackUri: String): JsonObject? {
+        return dockerClient.fetchReferences(app, callbackUri)
     }
 
-    suspend fun fetchBuildVariants(app: App): List<String>? {
-        return dockerClient.fetchBuildVariants(app)
+    suspend fun fetchBuildVariants(app: App, callbackUri: String): JsonObject? {
+        return dockerClient.fetchBuildVariants(app, callbackUri)
     }
 
-    suspend fun fetchFlavours(app: App): List<String>? {
-        return dockerClient.fetchFlavours(app)
+    suspend fun fetchFlavours(app: App, callbackUri: String): JsonObject? {
+        return dockerClient.fetchFlavours(app, callbackUri)
     }
 
     suspend fun generateApp(

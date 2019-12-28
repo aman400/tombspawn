@@ -8,6 +8,7 @@ import com.tombspawn.skeleton.models.*
 import com.tombspawn.skeleton.utils.Constants
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.SendChannel
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.*
 import javax.inject.Inject
@@ -20,6 +21,9 @@ class GradleExecutor @Inject constructor(
     private val requestExecutor: SendChannel<@JvmSuppressWildcards Command>,
     private val credentialProvider: CredentialProvider
 ) : CommandExecutor {
+
+    private val LOGGER = LoggerFactory.getLogger("com.tombspawn.skeleton.gradle.GradleExecutor")
+
     override suspend fun fetchAllBranches(): List<Reference>? {
         val executableCommand =
             "$gradlePath fetchRemoteBranches -P${Constants.Common.ARG_OUTPUT_SEPARATOR}=${Constants.Common.OUTPUT_SEPARATOR}"
@@ -28,6 +32,7 @@ class GradleExecutor @Inject constructor(
         requestExecutor.send(request)
         when (val response = request.listener!!.await()) {
             is Success -> {
+                LOGGER.debug("Branches fetched")
                 response.data?.let {
                     val parsedResponse = it.split(Constants.Common.OUTPUT_SEPARATOR)
                     if (parsedResponse.size >= 2) {
@@ -44,7 +49,7 @@ class GradleExecutor @Inject constructor(
                 }
             }
             is Failure -> {
-                response.throwable?.printStackTrace()
+                LOGGER.error("Unable to fetch branches", response.throwable)
             }
         }
         return null
@@ -58,6 +63,7 @@ class GradleExecutor @Inject constructor(
         requestExecutor.send(request)
         when (val response = request.listener!!.await()) {
             is Success -> {
+                LOGGER.debug("Product flavours fetched")
                 response.data?.let {
                     val parsedResponse = it.split(Constants.Common.OUTPUT_SEPARATOR)
                     if (parsedResponse.size >= 2) {
@@ -68,7 +74,7 @@ class GradleExecutor @Inject constructor(
                 }
             }
             is Failure -> {
-                response.throwable?.printStackTrace()
+                LOGGER.error("Unable to fetch product flavours", response.throwable)
             }
         }
         return null
@@ -82,6 +88,7 @@ class GradleExecutor @Inject constructor(
         requestExecutor.send(request)
         when (val response = request.listener!!.await()) {
             is Success -> {
+                LOGGER.debug("Build variants fetched")
                 response.data?.let {
                     val parsedResponse = it.split(Constants.Common.OUTPUT_SEPARATOR)
                     if (parsedResponse.size >= 2) {
@@ -92,7 +99,7 @@ class GradleExecutor @Inject constructor(
                 }
             }
             is Failure -> {
-                response.throwable?.printStackTrace()
+                LOGGER.error("Unable to fetch build variants", response.throwable)
             }
         }
         return null

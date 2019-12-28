@@ -18,7 +18,7 @@ import kotlinx.coroutines.delay
 import org.slf4j.LoggerFactory
 
 object Common {
-    val LOGGER = LoggerFactory.getLogger("com.tombspawn.base.network.Common")
+    private val LOGGER = LoggerFactory.getLogger("com.tombspawn.base.network.Common")
     @JvmStatic
     @JvmOverloads
     fun createHttpClient(gsonSerializer: GsonSerializer, hostName: String? = null,

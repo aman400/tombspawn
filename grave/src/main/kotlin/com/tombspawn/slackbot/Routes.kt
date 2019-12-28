@@ -1,9 +1,14 @@
 package com.tombspawn.slackbot
 
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.tombspawn.ApplicationService
 import com.tombspawn.base.common.ErrorResponse
+import com.tombspawn.base.common.ListBodyRequest
+import com.tombspawn.base.common.SuccessResponse
 import com.tombspawn.base.extensions.copyToSuspend
 import com.tombspawn.base.extensions.toMap
+import com.tombspawn.models.Reference
 import com.tombspawn.models.locations.Apps
 import com.tombspawn.models.locations.Slack
 import com.tombspawn.models.slack.Event
@@ -16,17 +21,14 @@ import io.ktor.http.content.forEachPart
 import io.ktor.http.content.streamProvider
 import io.ktor.locations.get
 import io.ktor.locations.post
-import io.ktor.request.receive
-import io.ktor.request.receiveMultipart
-import io.ktor.request.receiveParameters
+import io.ktor.request.*
 import io.ktor.response.respond
 import io.ktor.routing.Routing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.apache.http.HttpStatus
 import org.slf4j.LoggerFactory
 import java.io.File
-import javax.xml.bind.JAXBElement
+import kotlin.reflect.typeOf
 
 val LOGGER = LoggerFactory.getLogger("com.application.slack.routing")
 
@@ -92,6 +94,7 @@ fun Routing.buildApp(applicationService: ApplicationService) {
 }
 
 
+@ExperimentalStdlibApi
 fun Routing.apkCallback(applicationService: ApplicationService) {
     post<Apps.App.Callback.Success> { callback ->
         var title = ""
@@ -135,19 +138,44 @@ fun Routing.apkCallback(applicationService: ApplicationService) {
         launch(Dispatchers.IO) {
             applicationService.fetchAppData(app.app.id)
         }
-        call.respond(HttpStatusCode.OK, "{\"message\": \"ok\"}")
+        call.respond(HttpStatusCode.OK, SuccessResponse("ok"))
+    }
+
+    post<Apps.App.Flavours> { app ->
+        val flavours = call.receive<ListBodyRequest<String>>(typeOf<ListBodyRequest<String>>()).data
+        launch(Dispatchers.IO) {
+            applicationService.addFlavours(app.app.id, flavours)
+        }
+        call.respond(HttpStatusCode.OK, SuccessResponse("ok"))
+    }
+
+    post<Apps.App.BuildVariants> { app ->
+        val buildVariants = call.receive<ListBodyRequest<String>>(typeOf<ListBodyRequest<String>>()).data
+        launch(Dispatchers.IO) {
+            applicationService.addBuildVariants(app.app.id, buildVariants)
+        }
+        call.respond(HttpStatusCode.OK, SuccessResponse("ok"))
+    }
+
+    post<Apps.App.References> { app ->
+        val type = object: TypeToken<ListBodyRequest<Reference>>() {}.type
+        val refs = Gson().fromJson<ListBodyRequest<Reference>>(call.receiveText(), type).data
+        launch(Dispatchers.IO) {
+            applicationService.addRefs(app.app.id, refs)
+        }
+        call.respond(HttpStatusCode.OK, SuccessResponse("ok"))
     }
 
     post<Apps.App.Callback.Failure> { callback ->
         val errorResponse = call.receive<ErrorResponse>()
         applicationService.reportFailure(callback.callback, errorResponse)
-        call.respond(HttpStatusCode.OK, "{\"message\": \"ok\"}")
+        call.respond(HttpStatusCode.OK, SuccessResponse("ok"))
     }
 
     get<Apps.App.CreateApp> { app ->
 //        launch (Dispatchers.IO) {
 //            applicationService.generateAndUploadApk(app.app.id)
 //        }
-        call.respond("{\"message\": \"ok\"}")
+        call.respond(SuccessResponse("ok"))
     }
 }

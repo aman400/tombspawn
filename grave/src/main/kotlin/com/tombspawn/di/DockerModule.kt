@@ -26,8 +26,6 @@ class DockerModule {
             .build()
         return DockerClientBuilder.getInstance(config).withDockerCmdExecFactory(
             NettyDockerCmdExecFactory()
-                .withConnectTimeout(120000)
-                .withReadTimeout(120000)
         ).build()
     }
 
@@ -39,7 +37,7 @@ class DockerModule {
         apps.forEach {
             dockerHttpClients[it.id] = Common.createHttpClient(
                 gsonSerializer, "${it.id}:${Constants.Common.DEFAULT_PORT}", URLProtocol.HTTP, null,
-                120000, 120000, 120000, isDebug
+                120000, 120000, 120000, true
             )
         }
         return dockerHttpClients

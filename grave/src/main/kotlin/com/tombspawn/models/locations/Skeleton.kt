@@ -14,14 +14,17 @@ class Apps {
             class Failure(val callback: Callback)
         }
 
+        @Location("/build-variants")
+        data class BuildVariants(val app: App)
+
         @Location("/init")
         data class Init(val app: App)
 
         @Location("/generate")
         data class CreateApp(val app: App)
 
-        @Location("/branches")
-        data class Branches(val app: App, val branchLimit: Int? = -1, val tagLimit: Int? = -1)
+        @Location("/refs")
+        data class References(val app: App)
 
         @Location("/flavours")
         data class Flavours(val app: App)

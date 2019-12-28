@@ -1,10 +1,10 @@
 object Versions {
-    const val jgitVersion = "5.4.3.201909031940-r"
+    const val jgitVersion = "5.6.0.201912101111-r"
     const val junitVersion = "4.12"
-    const val kotlin = "1.3.60"
+    const val kotlin = "1.3.61"
     const val ktorVersion = "1.3.0-beta-1"
-    const val shadowJar = "5.1.0"
-    const val daggerVersion = "2.25.2"
+    const val shadowJar = "5.2.0"
+    const val daggerVersion = "2.25.3"
 }
 
 object Classpaths {
@@ -30,7 +30,7 @@ object Auth {
 }
 
 object Gson {
-    const val lib = "com.google.code.gson:gson:2.8.5"
+    const val lib = "com.google.code.gson:gson:2.8.6"
 }
 
 object Log {
@@ -38,14 +38,14 @@ object Log {
 }
 
 object Docker {
-    const val lib = "com.github.docker-java:docker-java:3.2.0-rc1"
+    const val lib = "com.github.docker-java:docker-java:3.2.0-rc2"
 }
 
 object Database {
-    const val mysql = "mysql:mysql-connector-java:8.0.12"
+    const val mysql = "mysql:mysql-connector-java:8.0.18"
     const val exposed = "org.jetbrains.exposed:exposed:0.14.1"
-    const val pool = "com.zaxxer:HikariCP:3.3.1"
-    const val redis = "redis.clients:jedis:3.1.0"
+    const val pool = "com.zaxxer:HikariCP:3.4.1"
+    const val redis = "redis.clients:jedis:3.2.0"
 }
 
 object Dagger {

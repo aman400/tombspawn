@@ -28,8 +28,7 @@ object AppModule {
     @InitCallbackUri
     @AppScope
     fun provideInitCallbackUri(config: JsonApplicationConfig): String {
-        return config.property("init_callback_uri")
-            .getAs(String::class.java)
+        return config.property("init_callback_uri").getString()
     }
 
     @Provides

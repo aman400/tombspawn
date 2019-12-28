@@ -6,18 +6,18 @@ import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.network.Common.createHttpClient
 import com.tombspawn.data.DatabaseService
 import com.tombspawn.data.StringMap
-import com.tombspawn.di.qualifiers.AppCacheMap
-import com.tombspawn.di.qualifiers.Debuggable
-import com.tombspawn.di.qualifiers.SlackHttpClient
-import com.tombspawn.di.qualifiers.UploadDirPath
+import com.tombspawn.di.qualifiers.*
 import com.tombspawn.git.CredentialProvider
 import com.tombspawn.models.config.*
+import com.tombspawn.utils.Constants
 import dagger.Module
 import dagger.Provides
 import io.ktor.application.Application
 import io.ktor.client.HttpClient
 import io.ktor.client.features.json.GsonSerializer
+import io.ktor.http.URLBuilder
 import io.ktor.http.URLProtocol
+import io.ktor.util.url
 import redis.clients.jedis.JedisPool
 import redis.clients.jedis.JedisPoolConfig
 import redis.clients.jedis.Protocol
@@ -73,7 +73,7 @@ class AppModule {
     @SlackHttpClient
     fun provideSlackHttpClient(gsonSerializer: GsonSerializer, @Debuggable isDebug: Boolean): HttpClient {
         return createHttpClient(
-            gsonSerializer, "slack.com", URLProtocol.HTTPS, null, enableLogger = isDebug
+            gsonSerializer, "slack.com", URLProtocol.HTTPS, null, enableLogger = true
         )
     }
 
@@ -89,6 +89,24 @@ class AppModule {
     @Debuggable
     fun provideIsDebug(serverConf: Optional<ServerConf>): Boolean {
         return serverConf.get()?.debug ?: false
+    }
+
+    @Provides
+    @ApplicationBaseUri
+    fun provideApplicationBaseUri(@Debuggable debug: Boolean, serverConf: Optional<ServerConf>): URLBuilder {
+        return URLBuilder().apply {
+            if (debug) {
+                this.protocol = serverConf.get()?.scheme?.let {
+                    URLProtocol.createOrDefault(it)
+                } ?: URLProtocol.HTTP
+                this.host = serverConf.get().host ?: Constants.Common.DEFAULT_HOST
+                this.port = serverConf.get().port ?: Constants.Common.DEFAULT_PORT
+            } else {
+                this.protocol = URLProtocol.HTTP
+                this.host = "application"
+                this.port = serverConf.get()?.port ?: Constants.Common.DEFAULT_PORT
+            }
+        }
     }
 
     @Provides
@@ -108,7 +126,7 @@ class AppModule {
     @Provides
     @AppScope
     fun applicationJedis(redis: Redis): JedisPool {
-        return JedisPool(JedisPoolConfig(), redis.host, redis.port?: Protocol.DEFAULT_PORT)
+        return JedisPool(JedisPoolConfig(), redis.host, redis.port?: Protocol.DEFAULT_PORT, 90000)
     }
 
     @Provides

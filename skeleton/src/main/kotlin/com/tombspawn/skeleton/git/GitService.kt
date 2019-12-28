@@ -2,12 +2,14 @@ package com.tombspawn.skeleton.git
 
 import com.tombspawn.skeleton.models.App
 import kotlinx.coroutines.Deferred
+import org.eclipse.jgit.lib.ObjectId
+import org.eclipse.jgit.revwalk.RevCommit
 import org.eclipse.jgit.transport.FetchResult
 import javax.inject.Inject
 
 class GitService @Inject constructor(private val app: App, private val gitClient: GitClient) {
 
-    fun clone(onComplete: ((success: Boolean) -> Unit)? = null) {
+    suspend fun clone(onComplete: ((success: Boolean) -> Unit)? = null) {
         gitClient.clone(app.dir!!, app.uri!!, onComplete)
     }
 
@@ -25,5 +27,13 @@ class GitService @Inject constructor(private val app: App, private val gitClient
 
     suspend fun checkout(branch: String): Deferred<Boolean> {
         return gitClient.checkoutAsync(branch, app.dir!!)
+    }
+
+    suspend fun stashCode(): Deferred<RevCommit?> {
+        return gitClient.stashCode(app.dir!!)
+    }
+
+    suspend fun clearStash(): Deferred<ObjectId?> {
+        return gitClient.clearStash(app.dir!!)
     }
 }

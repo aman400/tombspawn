@@ -20,7 +20,7 @@ class JsonApplicationConfigValue(private val gson: Gson, private val config: Jso
 
     override fun getString(): String {
         return when {
-            config.isJsonPrimitive -> config.toString()
+            config.isJsonPrimitive -> config.asString
             config.isJsonObject -> gson.toJson(config, JsonObject::class.java)
             config.isJsonArray -> gson.toJson(config, JsonArray::class.java)
             else -> ""

@@ -1,12 +1,15 @@
 package com.tombspawn.skeleton
 
 import com.tombspawn.base.common.CommonConstants
+import com.tombspawn.base.common.Success
+import com.tombspawn.base.common.SuccessResponse
 import com.tombspawn.base.config.JsonApplicationConfig
 import com.tombspawn.base.di.DaggerCoreComponent
 import com.tombspawn.skeleton.di.AppComponent
 import com.tombspawn.skeleton.di.DaggerAppComponent
+import com.tombspawn.skeleton.locations.BuildVariants
+import com.tombspawn.skeleton.locations.Flavours
 import com.tombspawn.skeleton.locations.References
-import com.tombspawn.skeleton.models.config.CommonConfig
 import com.tombspawn.skeleton.models.config.ServerConf
 import io.ktor.application.*
 import io.ktor.features.*
@@ -27,7 +30,6 @@ import io.ktor.util.error
 import io.ktor.util.toMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import java.util.concurrent.TimeUnit
@@ -162,10 +164,6 @@ fun Application.module(appComponent: AppComponent) {
 
     val applicationService = appComponent.applicationService()
 
-    runBlocking {
-        applicationService.init()
-    }
-
     routing {
         get("/app/generate") {
             val params = this.call.request.queryParameters.toMap().mapValues { values ->
@@ -183,26 +181,32 @@ fun Application.module(appComponent: AppComponent) {
             launch(Dispatchers.IO) {
                 applicationService.generateApp(params, successCallbackUri, failureCallbackUri, userAppPrefix)
             }
-            call.respond("{\"message\": \"ok\"}")
+            call.respond(SuccessResponse("ok"))
         }
 
-        get("/build-variants") {
-            applicationService.fetchBuildVariants()?.let {
-                call.respond(it)
-            } ?: call.respond("[]")
+        this@routing.get<BuildVariants> { variants ->
+            launch(Dispatchers.IO) {
+                applicationService.fetchBuildVariants(variants.callbackUri)
+            }
+            call.respond(SuccessResponse("ok"))
         }
 
         this@routing.get<References> { reference ->
             val branchLimit = reference.branchLimit
             val tagLimit = reference.tagLimit
-            applicationService.fetchRemoteBranches()
-            call.respond(applicationService.getReferences(branchLimit, tagLimit))
+            launch(Dispatchers.IO) {
+                applicationService.getReferences(reference.callbackUri, branchLimit, tagLimit)
+            }
+            call.respond(SuccessResponse("ok"))
         }
 
-        get("/flavours") {
-            applicationService.fetchProductFlavours()?.let {
-                call.respond(it)
-            } ?: call.respond("[]")
+        this@routing.get<Flavours> { flavour ->
+            call.respond(SuccessResponse("ok"))
+            launch(Dispatchers.IO) {
+                applicationService.fetchProductFlavours(flavour.callbackUri)
+            }
         }
     }
+
+    applicationService.init()
 }

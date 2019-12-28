@@ -39,16 +39,17 @@ class DockerApiClient @Inject constructor(
         const val STATE_DEAD = "dead"
     }
 
-    suspend fun fetchFlavours(app: App): List<String>? = coroutineScope {
+    suspend fun fetchFlavours(app: App, callbackUri: String): JsonObject? = coroutineScope {
         dockerHttpClients[app.id]?.let { client ->
-            withRetry(20, 10000, -1) {
+            withRetry(3, 10000, -1) {
                 val call = client.call {
                     method = HttpMethod.Get
                     url {
                         encodedPath = "/flavours"
+                        parameters.append(CommonConstants.CALLBACK_URI, callbackUri)
                     }
                 }
-                call.await<List<String>>()
+                call.await<JsonObject>()
             }.let { response ->
                 when (response) {
                     is CallSuccess -> {
@@ -65,16 +66,17 @@ class DockerApiClient @Inject constructor(
         }
     }
 
-    suspend fun fetchBuildVariants(app: App): List<String>? = coroutineScope {
+    suspend fun fetchBuildVariants(app: App, callbackUri: String): JsonObject? = coroutineScope {
         return@coroutineScope withContext(Dispatchers.IO) {
             dockerHttpClients[app.id]?.let { client ->
                 val call = client.call {
                     method = HttpMethod.Get
                     url {
                         encodedPath = "/build-variants"
+                        parameters.append(CommonConstants.CALLBACK_URI, callbackUri)
                     }
                 }
-                return@withContext when (val response = call.await<List<String>>()) {
+                return@withContext when (val response = call.await<JsonObject>()) {
                     is CallSuccess -> {
                         response.data?.let {
                             it
@@ -105,16 +107,17 @@ class DockerApiClient @Inject constructor(
         } ?: CallFailure("Http Client not found")
     }
 
-    suspend fun fetchReferences(app: App): List<Reference>? = coroutineScope {
+    suspend fun fetchReferences(app: App, callbackUri: String): JsonObject? = coroutineScope {
         dockerHttpClients[app.id]?.let { client ->
             withRetry(20, 10000, -1) {
                 val call = client.call {
                     method = HttpMethod.Get
                     url {
                         encodedPath = "/references"
+                        parameters.append(CommonConstants.CALLBACK_URI, callbackUri)
                     }
                 }
-                call.await<List<Reference>>()
+                call.await<JsonObject>()
             }.let { response ->
                 when (response) {
                     is CallSuccess -> {

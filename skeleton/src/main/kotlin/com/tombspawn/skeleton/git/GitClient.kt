@@ -7,8 +7,10 @@ import org.eclipse.jgit.api.CloneCommand
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.api.ListBranchCommand
 import org.eclipse.jgit.lib.AnyObjectId
+import org.eclipse.jgit.lib.ObjectId
 import org.eclipse.jgit.lib.ProgressMonitor
 import org.eclipse.jgit.lib.Repository
+import org.eclipse.jgit.revwalk.RevCommit
 import org.eclipse.jgit.revwalk.RevWalk
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
 import org.eclipse.jgit.transport.FetchResult
@@ -19,36 +21,35 @@ import java.io.IOException
 import javax.inject.Inject
 
 class GitClient @Inject constructor(private val provider: CredentialProvider) {
-    private val logger = LoggerFactory.getLogger("GitClient")
-    fun clone(dir: String, gitUri: String, onComplete: ((success: Boolean) -> Unit)? = null) {
+    suspend fun clone(dir: String, gitUri: String, onComplete: ((success: Boolean) -> Unit)? = null) = suspendCancellableCoroutine<Unit> {
         if (!try {
-                println("Generating app")
+                LOGGER.debug("Generating app")
                 initRepository(dir).use {
                     it.objectDatabase.exists()
                 }
             } catch (exception: Exception) {
-                logger.error("Repository not found", exception)
+                LOGGER.error("Repository not found", exception)
                 false
             }
         ) {
             val directory = File(dir).apply {
                 if (!this.exists()) {
                     if (this.mkdirs()) {
-                        println("${this.absolutePath} created")
+                        LOGGER.info("${this.absolutePath} created")
                     } else {
-                        println("unable to create ${this.absolutePath}")
+                        LOGGER.error("unable to create ${this.absolutePath}")
                     }
                 } else {
-                    println("$dir already exists")
+                    LOGGER.info("$dir already exists")
                 }
             }
-            println("Cloning app")
+            LOGGER.debug("Cloning app")
             Git.cloneRepository()
                 .setURI(gitUri)
                 .setDirectory(directory)
                 .setProgressMonitor(object : ProgressMonitor {
                     override fun update(completed: Int) {
-                        LOGGER.debug("Progress $completed%")
+                        LOGGER.trace("Progress $completed%")
                     }
 
                     override fun start(totalTasks: Int) {
@@ -60,7 +61,6 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
                     }
 
                     override fun endTask() {
-                        onComplete?.invoke(true)
                         LOGGER.debug("End task")
                     }
 
@@ -71,20 +71,24 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
                 .setCloneAllBranches(true)
                 .setCallback(object : CloneCommand.Callback {
                     override fun checkingOut(commit: AnyObjectId?, path: String?) {
-                        println("Checking out $path $commit")
+                        LOGGER.info("Checking out $path $commit")
                     }
 
                     override fun initializedSubmodules(submodules: MutableCollection<String>?) {
-                        println("Initialized Submodules")
+                        LOGGER.info("Initialized Submodules")
                     }
 
                     override fun cloningSubmodule(path: String?) {
-                        println("Cloning Submodules")
+                        LOGGER.info("Cloning Submodules")
                     }
 
                 })
                 .authenticate(provider)
                 .call()
+            LOGGER.debug("Clone completed")
+            onComplete?.invoke(true)
+        } else {
+            onComplete?.invoke(true)
         }
     }
 
@@ -138,6 +142,35 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
         }
     }
 
+    suspend fun stashCode(dir: String): Deferred<RevCommit?> = coroutineScope {
+        async(Dispatchers.IO) {
+            try {
+                return@async Git(initRepository(dir)).use { git ->
+                    git.stashCreate().setIncludeUntracked(true)
+                        .setWorkingDirectoryMessage("Stashing files")
+                        .setIndexMessage("Stash: ${System.currentTimeMillis()}")
+                        .call()
+                }
+            } catch (exception: Exception) {
+                LOGGER.error("Unable to stash code", exception)
+                return@async null
+            }
+        }
+    }
+
+    suspend fun clearStash(dir: String): Deferred<ObjectId?> = coroutineScope {
+        async(Dispatchers.IO) {
+            try {
+                return@async Git(initRepository(dir)).use { git ->
+                    git.stashDrop().setAll(true).call()
+                }
+            } catch (exception: Exception) {
+                LOGGER.error("Unable to clear stash", exception)
+                return@async null
+            }
+        }
+    }
+
     suspend fun checkoutAsync(branch: String, dir: String): Deferred<Boolean> = coroutineScope {
         async(Dispatchers.IO) {
             return@async Git(initRepository(dir)).use { git ->
@@ -159,7 +192,6 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
         }
     }
 
-    @Throws(IOException::class)
     private fun initRepository(dir: String): Repository {
         LOGGER.debug("Verifying Directory $dir")
 

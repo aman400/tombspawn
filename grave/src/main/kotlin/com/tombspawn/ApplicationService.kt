@@ -8,6 +8,7 @@ import com.tombspawn.base.common.*
 import com.tombspawn.base.extensions.toMap
 import com.tombspawn.data.*
 import com.tombspawn.di.qualifiers.AppCacheMap
+import com.tombspawn.di.qualifiers.ApplicationBaseUri
 import com.tombspawn.di.qualifiers.Debuggable
 import com.tombspawn.di.qualifiers.UploadDirPath
 import com.tombspawn.docker.DockerService
@@ -26,12 +27,14 @@ import com.tombspawn.models.slack.GenerateCallback
 import com.tombspawn.models.slack.SlackEvent
 import com.tombspawn.slackbot.SlackService
 import com.tombspawn.utils.Constants
+import io.ktor.http.URLBuilder
 import kotlinx.coroutines.*
 import org.apache.http.client.utils.URIBuilder
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.*
 import javax.inject.Inject
+import javax.inject.Provider
 
 class ApplicationService @Inject constructor(
     private val slack: Slack,
@@ -47,7 +50,9 @@ class ApplicationService @Inject constructor(
     val cacheMap: StringMap,
     @Debuggable
     val debug: Boolean,
-    val config: Optional<ServerConf>
+    val config: Optional<ServerConf>,
+    @ApplicationBaseUri
+    val baseUri: Provider<URLBuilder>
 ) {
 
     private val randomWaitingMessages = listOf(
@@ -72,7 +77,8 @@ class ApplicationService @Inject constructor(
         addApps()
         fetchBotInfo()
         apps.forEachIndexed { index, app ->
-            dockerService.createContainer(app, common.basePort + index)
+            val callbackUri = baseUri.get().path("apps", app.id, "init").build().toString()
+            dockerService.createContainer(app, common.basePort + index, callbackUri)
         }
         addVerbs()
         updateUserData()
@@ -101,24 +107,33 @@ class ApplicationService @Inject constructor(
     }
 
     private suspend fun fetchReferences(app: App) {
-        dockerService.fetchReferences(app)?.let {
-            databaseService.addRefs(it, app.id)
-            cacheMap.setData(StringMap.getReferencesCacheKey(app.id), gson.toJson(it, object: TypeToken<List<Reference>>() {}.type))
-        }
+        val callbackUri = baseUri.get().path("apps", app.id, "refs").build().toString()
+        dockerService.fetchReferences(app, callbackUri)
     }
 
     private suspend fun fetchFlavours(app: App) {
-        dockerService.fetchFlavours(app)?.let {
-            databaseService.addFlavours(it, app.id)
-            cacheMap.setData(StringMap.getFlavoursCacheKey(app.id), gson.toJson(it, object: TypeToken<List<String>>() {}.type))
-        }
+        val callbackUri = baseUri.get().path("apps", app.id, "flavours").build().toString()
+        dockerService.fetchFlavours(app, callbackUri)
+    }
+
+    suspend fun addRefs(appId: String, refs: List<Reference>) {
+        databaseService.addRefs(refs, appId)
+        cacheMap.setData(StringMap.getReferencesCacheKey(appId), gson.toJson(refs, object: TypeToken<List<Reference>>() {}.type))
+    }
+
+    suspend fun addBuildVariants(appId: String, buildVariants: List<String>) {
+        databaseService.addBuildVariants(buildVariants, appId)
+        cacheMap.setData(StringMap.getBuildVariantCacheKey(appId), gson.toJson(buildVariants, object: TypeToken<List<String>>() {}.type))
+    }
+
+    suspend fun addFlavours(appId: String, flavours: List<String>) {
+        databaseService.addFlavours(flavours, appId)
+        cacheMap.setData(StringMap.getFlavoursCacheKey(appId), gson.toJson(flavours, object: TypeToken<List<String>>() {}.type))
     }
 
     private suspend fun fetchBuildVariants(app: App) {
-        dockerService.fetchBuildVariants(app)?.let {
-            databaseService.addBuildVariants(it, app.id)
-            cacheMap.setData(StringMap.getBuildVariantCacheKey(app.id), gson.toJson(it, object: TypeToken<List<String>>() {}.type))
-        }
+        val callbackUri = baseUri.get().path(listOf("apps", app.id, "build-variants")).build().toString()
+        dockerService.fetchBuildVariants(app, callbackUri)
     }
 
     private suspend fun addVerbs() {

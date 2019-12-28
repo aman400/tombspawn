@@ -11,6 +11,7 @@ import com.tombspawn.network.status
 import com.tombspawn.slackbot.*
 import com.tombspawn.utils.Constants
 import io.ktor.application.*
+import io.ktor.client.features.json.GsonSerializer
 import io.ktor.features.*
 import io.ktor.gson.gson
 import io.ktor.http.HttpStatusCode
@@ -34,6 +35,7 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 class Grave(val args: Array<String>) {
+    @ExperimentalStdlibApi
     fun startServer() {
         val coreComponent = DaggerCoreComponent.create()
         val env = applicationEngineEnvironment {
@@ -80,6 +82,7 @@ class Grave(val args: Array<String>) {
     }
 
     companion object {
+        @ExperimentalStdlibApi
         @JvmStatic
         fun main(args: Array<String>) {
             DaggerCoreComponent.create()
@@ -88,6 +91,7 @@ class Grave(val args: Array<String>) {
     }
 }
 
+@ExperimentalStdlibApi
 @KtorExperimentalLocationsAPI
 @Suppress("unused") // Referenced in application.conf
 fun Application.module(appComponent: AppComponent) {

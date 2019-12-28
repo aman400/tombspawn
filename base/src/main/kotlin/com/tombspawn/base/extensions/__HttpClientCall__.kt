@@ -19,7 +19,8 @@ suspend inline fun <reified T> HttpClientCall.await(): Response<T> = suspendCanc
         try {
             when {
                 response.status.isSuccess() -> {
-                    continuation.resume(CallSuccess(Gson().fromJson(response.readText(Charsets.UTF_8), object: TypeToken<T>() {}.type)))
+                    continuation.resume(CallSuccess(Gson().fromJson(response.readText(Charsets.UTF_8),
+                        object: TypeToken<T>() {}.type)))
                 }
 
                 response.status.value in 400..599 -> {
@@ -35,6 +36,4 @@ suspend inline fun <reified T> HttpClientCall.await(): Response<T> = suspendCanc
             close()
         }
     }
-
-
 }

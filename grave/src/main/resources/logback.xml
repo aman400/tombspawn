@@ -18,6 +18,7 @@
     <logger name="io.ktor.client" level="ERROR"/>
     <logger name="io.ktor.auth.jwt" level="ERROR"/>
     <logger name="Exposed" level="ERROR"/>
+    <logger name="com.tombspawn.base.network.Common" level="DEBUG"/>
 
 
 </configuration>
