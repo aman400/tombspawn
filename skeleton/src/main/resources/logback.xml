@@ -18,7 +18,6 @@
     <logger name="io.ktor.client" level="DEBUG"/>
     <logger name="io.ktor.auth.jwt" level="DEBUG"/>
     <logger name="Exposed" level="ERROR"/>
-    <logger name="GitClient" level="DEBUG"/>
     <logger name="o.e.j.i.storage.file.FileSnapshot" level="ERROR"/>
     <logger name="com.tombspawn.skeleton.ApplicationService" level="DEBUG"/>
     <logger name="com.tombspawn.base.network.Common" level="DEBUG"/>

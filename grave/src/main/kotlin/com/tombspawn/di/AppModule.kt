@@ -17,10 +17,10 @@ import io.ktor.client.HttpClient
 import io.ktor.client.features.json.GsonSerializer
 import io.ktor.http.URLBuilder
 import io.ktor.http.URLProtocol
-import io.ktor.util.url
 import redis.clients.jedis.JedisPool
 import redis.clients.jedis.JedisPoolConfig
 import redis.clients.jedis.Protocol
+import javax.inject.Provider
 
 
 @Module
@@ -132,7 +132,7 @@ class AppModule {
     @Provides
     @AppScope
     @AppCacheMap
-    fun provideAppCacheMap(jedis: JedisPool): StringMap {
-        return StringMap(jedis.resource)
+    fun provideAppCacheMap(jedis: Provider<JedisPool>): StringMap {
+        return StringMap(jedis)
     }
 }

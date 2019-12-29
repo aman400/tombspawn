@@ -58,6 +58,7 @@ RUN mkdir /app/skeleton
 
 COPY /skeleton/build/libs/application.jar /app/skeleton/build/libs/application.jar
 COPY /skeleton/Dockerfile /app/skeleton/Dockerfile
+COPY /skeleton/AndroidDockerfile /app/skeleton/AndroidDockerfile
 COPY /skeleton/setup_android_sdk.sh /app/skeleton/setup_android_sdk.sh
 COPY /scripts/local/gradle.properties /app/skeleton/gradle.properties
 

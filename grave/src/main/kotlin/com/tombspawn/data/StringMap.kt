@@ -2,13 +2,21 @@ package com.tombspawn.data
 
 import org.slf4j.LoggerFactory
 import redis.clients.jedis.Jedis
+import redis.clients.jedis.JedisPool
+import redis.clients.jedis.exceptions.JedisConnectionException
 import java.util.concurrent.TimeUnit
+import javax.inject.Provider
 
-class StringMap constructor(jedis: Jedis): Redis<String>(jedis) {
+class StringMap constructor(jedis: Provider<JedisPool>): Redis<String>(jedis) {
+
     private val LOGGER = LoggerFactory.getLogger("com.tombspawn.data.StringMap")
+
     override fun getData(key: String): String? {
         return try {
             jedis.get(key)
+        } catch (exception: JedisConnectionException) {
+            recreateInstance()
+            getData(key)
         } catch (exception: Exception) {
             LOGGER.error("Jedis not connecting", exception)
             null
@@ -23,6 +31,9 @@ class StringMap constructor(jedis: Jedis): Redis<String>(jedis) {
             } else {
                 jedis.set(key, value)
             }
+        } catch (exception: JedisConnectionException) {
+            recreateInstance()
+            setData(key, value, ttl, timeUnit)
         } catch (exception: Exception) {
             LOGGER.error("Unable to set key: $key \nvalue: $value", exception)
         }
