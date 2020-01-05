@@ -3,12 +3,14 @@ package com.tombspawn.skeleton.di
 import com.tombspawn.base.config.JsonApplicationConfig
 import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.network.Common
-import com.tombspawn.skeleton.di.qualifiers.InitCallbackUri
+import com.tombspawn.skeleton.di.qualifiers.Debuggable
 import com.tombspawn.skeleton.di.qualifiers.FileUploadDir
+import com.tombspawn.skeleton.di.qualifiers.InitCallbackUri
 import com.tombspawn.skeleton.di.qualifiers.UploadAppClient
 import com.tombspawn.skeleton.git.CredentialProvider
 import com.tombspawn.skeleton.models.App
 import com.tombspawn.skeleton.models.config.CommonConfig
+import com.tombspawn.skeleton.models.config.ServerConf
 import dagger.Module
 import dagger.Provides
 import io.ktor.application.Application
@@ -40,6 +42,14 @@ object AppModule {
 
     @Provides
     @AppScope
+    @Debuggable
+    fun isDebuggable(config: JsonApplicationConfig): Boolean {
+        return config.propertyOrNull("server")
+            ?.getAs(ServerConf::class.java)?.debug == true
+    }
+
+    @Provides
+    @AppScope
     fun provideCredentialProvider(config: JsonApplicationConfig): CredentialProvider {
         return config.property("git")
             .getAs(CredentialProvider::class.java)
@@ -54,8 +64,8 @@ object AppModule {
     @Provides
     @AppScope
     @UploadAppClient
-    fun provideAppUploadClient(gsonSerializer: GsonSerializer): HttpClient {
-        return Common.createHttpClient(gsonSerializer, null, null, null)
+    fun provideAppUploadClient(gsonSerializer: GsonSerializer, @Debuggable debuggable: Boolean): HttpClient {
+        return Common.createHttpClient(gsonSerializer, null, null, null, enableLogger = debuggable)
     }
 
     @Provides

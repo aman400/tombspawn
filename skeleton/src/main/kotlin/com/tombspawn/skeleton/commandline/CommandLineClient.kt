@@ -24,6 +24,7 @@ fun CoroutineScope.getCommandExecutor(): SendChannel<Command> {
                             command.onPreProcess()
                             LOGGER.trace("Pre-processing complete")
                         }
+                        LOGGER.debug("Executing: ${command.command}")
                         val strings = command.command.split(Regex("\\s+"))
                         val builder = ProcessBuilder(strings)
                             .directory(command.workingDir)

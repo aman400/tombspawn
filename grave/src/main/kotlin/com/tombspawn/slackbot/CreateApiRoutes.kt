@@ -1,3 +1,5 @@
+@file:JvmName("ApiRoutes")
+
 package com.tombspawn.slackbot
 
 import com.tombspawn.ApplicationService
@@ -14,6 +16,9 @@ import io.ktor.response.respondText
 import io.ktor.routing.Routing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.slf4j.LoggerFactory
+
+private val LOGGER = LoggerFactory.getLogger("com.tombspawn.slackbot.ApiRoutes")
 
 fun Routing.mockApi(applicationService: ApplicationService) {
     get<ApiMock.GeneratedApi> {

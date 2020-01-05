@@ -1,4 +1,4 @@
-version: '3.7'
+version: '2.4'
 
 networks:
   tombspawn:
@@ -12,6 +12,10 @@ volumes:
 
 services:
   db:
+    cpu_shares: 1024
+    mem_limit: 1500000000
+    memswap_limit: 2000000000
+    mem_reservation: 512m
     container_name: mysqldb
     build: docker/mysql/.
     image: mysqldb
@@ -25,6 +29,10 @@ services:
     ports:
       - "3306:3306"
   redis:
+    cpu_shares: 1024
+    mem_limit: 1000000000
+    memswap_limit: 2000000000
+    mem_reservation: 512m
     container_name: redisdb
     build: docker/redis/.
     image: redisdb
@@ -36,6 +44,10 @@ services:
     ports:
       - "6379:6379"
   application:
+    cpu_shares: 1024
+    mem_limit: 1000000000
+    memswap_limit: 2000000000
+    mem_reservation: 512m
     container_name: application
     depends_on:
       - db
@@ -55,16 +67,3 @@ services:
       - tombspawn
     ports:
       - "8080:8080"
-    deploy:
-      resources:
-        limits:
-          cpus: '0.80'
-          memory: 3G
-        reservations:
-          cpus: '0.50'
-          memory: 1G
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 120s

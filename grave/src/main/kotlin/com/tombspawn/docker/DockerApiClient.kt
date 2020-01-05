@@ -7,11 +7,14 @@ import com.github.dockerjava.core.command.BuildImageResultCallback
 import com.github.dockerjava.core.command.EventsResultCallback
 import com.github.dockerjava.core.command.LogContainerResultCallback
 import com.google.gson.JsonObject
-import com.tombspawn.base.common.*
+import com.tombspawn.base.common.CallError
+import com.tombspawn.base.common.CallFailure
+import com.tombspawn.base.common.CallSuccess
+import com.tombspawn.base.common.CommonConstants
+import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.extensions.await
 import com.tombspawn.base.network.withRetry
 import com.tombspawn.di.qualifiers.DockerHttpClient
-import com.tombspawn.models.Reference
 import com.tombspawn.models.config.App
 import io.ktor.client.HttpClient
 import io.ktor.client.call.call
@@ -25,18 +28,13 @@ import java.io.File
 import javax.inject.Inject
 import kotlin.coroutines.suspendCoroutine
 
+@AppScope
 class DockerApiClient @Inject constructor(
     private val dockerClient: DockerClient,
     @DockerHttpClient private val dockerHttpClients: MutableMap<String, HttpClient>
 ) {
     companion object {
         private val LOGGER = LoggerFactory.getLogger("com.tombspawn.docker.DockerApiClient")
-        const val STATE_STARTED = "running"
-        const val STATE_CREATED = "created"
-        const val STATE_RESTARTING = "restarting"
-        const val STATE_PAUSED = "paused"
-        const val STATE_EXITED = "exited"
-        const val STATE_DEAD = "dead"
     }
 
     suspend fun fetchFlavours(app: App, callbackUri: String): JsonObject? = coroutineScope {
@@ -69,7 +67,7 @@ class DockerApiClient @Inject constructor(
     }
 
     suspend fun fetchBuildVariants(app: App, callbackUri: String): JsonObject? = coroutineScope {
-        return@coroutineScope withContext(Dispatchers.IO) {
+        withContext(Dispatchers.IO) {
             dockerHttpClients[app.id]?.let { client ->
                 val call = client.call {
                     method = HttpMethod.Get
@@ -97,16 +95,30 @@ class DockerApiClient @Inject constructor(
         }
     }
 
-    suspend fun generateApp(appId: String, vararg params: Pair<String, List<String>>): Response<JsonObject> = coroutineScope {
+    suspend fun generateApp(appId: String, vararg params: Pair<String, List<String>>): JsonObject? = coroutineScope {
         dockerHttpClients[appId]?.let { client ->
-            return@coroutineScope client.call {
+            client.call {
                 method = HttpMethod.Get
                 url {
                     encodedPath = "/app/generate"
                     parameters.appendAll(parametersOf(*params))
                 }
-            }.await<JsonObject>()
-        } ?: CallFailure("Http Client not found")
+            }.await<JsonObject>().let { response ->
+                when (response) {
+                    is CallSuccess -> {
+                        response.data
+                    }
+                    is CallFailure -> {
+                        LOGGER.error(response.errorBody)
+                        null
+                    }
+                    is CallError -> {
+                        LOGGER.error("Unable to fetch References", response.throwable)
+                        null
+                    }
+                }
+            }
+        }
     }
 
     suspend fun fetchReferences(app: App, callbackUri: String): JsonObject? = coroutineScope {
@@ -162,9 +174,24 @@ class DockerApiClient @Inject constructor(
         dockerClient.listContainersCmd().withNameFilter(listOf(tag))
             .withShowAll(true)
             .exec().firstOrNull()?.let {
-                when (it.state) {
-                    STATE_STARTED -> {
+                when (ContainerState.from(it.state)) {
+                    ContainerState.STARTED -> {
                         dockerClient.stopContainerCmd(it.id).exec()
+                    }
+                    else -> {
+                        LOGGER.debug("Unable to stop ${it.state} container")
+                    }
+                }
+            }
+    }
+
+    fun restartContainer(tag: String) {
+        dockerClient.listContainersCmd().withNameFilter(listOf(tag))
+            .withShowAll(true)
+            .exec().firstOrNull()?.let {
+                when (ContainerState.from(it.state)) {
+                    ContainerState.STARTED -> {
+                        dockerClient.restartContainerCmd(it.id).exec()
                     }
                     else -> {
                         LOGGER.debug("Unable to stop ${it.state} container")
@@ -177,10 +204,10 @@ class DockerApiClient @Inject constructor(
         dockerClient.listContainersCmd().withNameFilter(listOf(tag))
             .withShowAll(true)
             .exec().firstOrNull()?.let {
-                when (it.state) {
-                    STATE_PAUSED,
-                    STATE_EXITED,
-                        STATE_DEAD -> {
+                when (ContainerState.from(it.state)) {
+                    ContainerState.PAUSED,
+                    ContainerState.EXITED,
+                    ContainerState.DEAD -> {
                         dockerClient.killContainerCmd(it.id).exec()
                     }
                     else -> {
@@ -253,11 +280,11 @@ class DockerApiClient @Inject constructor(
         }
     }
 
-    suspend fun logEvents() {
+    suspend fun logEvents(onEvent : ((event: Event) -> Unit)? = null) {
         coroutineScope {
             val callback = object : EventsResultCallback() {
                 override fun onNext(event: Event) {
-                    LOGGER.trace("Event: $event")
+                    onEvent?.invoke(event) ?: LOGGER.trace("Event: $event")
                     super.onNext(event)
                 }
             }
@@ -267,7 +294,7 @@ class DockerApiClient @Inject constructor(
 
     suspend fun createContainer(
         image: String, name: String, commands: List<String>?, volumes: List<Volume>?, volumeBinds: List<Bind>?,
-        portBindings: Ports, exposedPorts: List<ExposedPort>?
+        portBindings: Ports, exposedPorts: List<ExposedPort>?, memory: Long?, swapMemory: Long?, cpuShares: Int? = null
     ): String? {
         return coroutineScope<String?> {
             return@coroutineScope dockerClient.listContainersCmd().withShowAll(true)
@@ -290,6 +317,17 @@ class DockerApiClient @Inject constructor(
                     .withExposedPorts(exposedPorts)
                     .withHostConfig(
                         HostConfig.newHostConfig()
+                            .withMemory(memory)
+                            .withMemorySwap(swapMemory)
+                            .withRestartPolicy(RestartPolicy.noRestart())
+                            .apply {
+                                if(cpuShares != null) {
+                                    withCpuShares(cpuShares)
+                                }
+                                if (memory != null) {
+                                    withMemoryReservation(memory / 2)
+                                }
+                            }
                             .withPortBindings(portBindings)
                             .withBinds(volumeBinds)
                     )
@@ -308,11 +346,11 @@ class DockerApiClient @Inject constructor(
             dockerClient.listContainersCmd().withIdFilter(listOf(id))
                 .withShowAll(true)
                 .exec().firstOrNull()?.let {
-                    when (it.state) {
-                        STATE_PAUSED,
-                        STATE_EXITED,
-                        STATE_DEAD,
-                        STATE_CREATED -> {
+                    when (ContainerState.from(it.state)) {
+                        ContainerState.PAUSED,
+                        ContainerState.EXITED,
+                        ContainerState.DEAD,
+                        ContainerState.CREATED -> {
                             dockerClient.startContainerCmd(id).exec()
                         }
                         else -> {

@@ -138,7 +138,6 @@ class GradleExecutor @Inject constructor(
         val buildId = UUID.randomUUID().toString()
         val request = GenerateAppCommand(executableCommand, executionDirectory,
             id = buildId, listener = CompletableDeferred(), preProcess = onPreProcess)
-        requestExecutor.onSend
         requestExecutor.send(request)
         return request.listener!!.await()
     }

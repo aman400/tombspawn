@@ -5,6 +5,7 @@ import com.google.gson.Gson
 import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
 import com.tombspawn.base.common.*
+import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.extensions.toMap
 import com.tombspawn.data.*
 import com.tombspawn.di.qualifiers.AppCacheMap
@@ -29,13 +30,13 @@ import com.tombspawn.slackbot.SlackService
 import com.tombspawn.utils.Constants
 import io.ktor.http.URLBuilder
 import kotlinx.coroutines.*
-import org.apache.http.client.utils.URIBuilder
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.*
 import javax.inject.Inject
 import javax.inject.Provider
 
+@AppScope
 class ApplicationService @Inject constructor(
     private val slack: Slack,
     private val common: Common,
@@ -73,13 +74,27 @@ class ApplicationService @Inject constructor(
         "Preparing to Spin You Around Rapidly"
     )
 
+    fun onTaskCompleted(id: String) {
+        dockerService.onTaskCompleted(id)
+    }
+
     suspend fun init() = coroutineScope {
         addApps()
         fetchBotInfo()
+        launch(Dispatchers.Default) {
+            dockerService.logEvents()
+        }
+        launch(Dispatchers.Default) {
+            dockerService.startChannels()
+        }
+        launch(Dispatchers.Default) {
+            dockerService.startQueueExecution()
+        }
         apps.forEachIndexed { index, app ->
             val callbackUri = baseUri.get().path("apps", app.id, "init").build().toString()
             dockerService.createContainer(app, common.basePort + index, callbackUri)
         }
+
         addVerbs()
         updateUserData()
     }
@@ -99,6 +114,9 @@ class ApplicationService @Inject constructor(
             appId == it.id
         }?.let {
             withContext(Dispatchers.IO) {
+                runBlocking {
+                    dockerService.appInitialized(it)
+                }
                 fetchReferences(it)
                 fetchFlavours(it)
                 fetchBuildVariants(it)
@@ -203,53 +221,26 @@ class ApplicationService @Inject constructor(
             it.id == appID
         }?.let { app ->
             // Unique callback id
-            val callbackId = System.nanoTime()
+            val callbackId = System.nanoTime().toString()
             // Base url for callback
-            val uriBuilder = if(debug) {
-                config.get()?.let {
-                    URIBuilder().setScheme(it.scheme ?: "http")
-//                    .setHost("docker.for.mac.localhost")
-                        .setHost(it.host ?: Constants.Common.DEFAULT_HOST)
-                        .setPort(it.port ?: Constants.Common.DEFAULT_PORT)
-                } ?: URIBuilder().setScheme("http")
-//                .setHost("docker.for.mac.localhost")
-                    .setHost(Constants.Common.DEFAULT_HOST)
-                    .setPort(Constants.Common.DEFAULT_PORT)
-            } else {
-                URIBuilder().setScheme("http")
-                    .setHost("application")
-                    .setPort(config.get()?.port ?: Constants.Common.DEFAULT_PORT)
-            }
-            uriBuilder.path = "apps/${app.id}/callback/$callbackId"
+            val callbackUri = baseUri.get().path("apps", app.id, "callback", callbackId).build().toString()
             // Save the application generation cache.
             cacheMap.setData(
-                callbackId.toString(), gson.toJson(
-                    ApkCallbackCache(callbackId.toString(), responseUrl, channelId),
+                callbackId, gson.toJson(
+                    ApkCallbackCache(callbackId, responseUrl, channelId),
                     ApkCallbackCache::class.java
                 ).toString()
             )
-            val callbackUri = uriBuilder.build().toASCIIString()
-            println(callbackUri)
+            LOGGER.debug("CallbackUri: %s", callbackUri)
             // Generate the application
-            when (val response = dockerService.generateApp(
+            dockerService.generateApp(
                 app.id,
                 "$callbackUri/success",
                 "$callbackUri/failure",
                 apkPrefix,
                 buildData
-            )) {
-                is CallSuccess -> {
-                    slackService.sendMessage(randomWaitingMessages.shuffled().first(), channelId, null)
-                }
-                is CallFailure -> {
-                    response.throwable?.printStackTrace()
-                    slackService.sendMessage(response.errorBody ?: "Unable to generate app.", channelId, null)
-                }
-                is CallError -> {
-                    response.throwable?.printStackTrace()
-                    slackService.sendMessage("Unable to generate app.", channelId, null)
-                }
-            }.exhaustive
+            )
+            slackService.sendMessage(randomWaitingMessages.shuffled().first(), channelId, null)
         }
     }
 
@@ -323,7 +314,7 @@ class ApplicationService @Inject constructor(
 
     suspend fun handleSlackEvent(payload: String) = coroutineScope {
         val slackEvent = gson.fromJson(payload, SlackEvent::class.java)
-        println(slackEvent.toString())
+        LOGGER.debug(slackEvent.toString())
 
         when (slackEvent.type) {
             Event.EventType.INTERACTIVE_MESSAGE -> {
@@ -410,7 +401,7 @@ class ApplicationService @Inject constructor(
 
         launch(Dispatchers.IO) {
             try {
-                JsonParser().parse(response).asJsonObject
+                JsonParser.parseString(response).asJsonObject
                 databaseService.addApi(id, verb!!, response!!)
 
                 slackService.sendMessage(
@@ -541,7 +532,7 @@ class ApplicationService @Inject constructor(
         val callback = gson.fromJson<ApkCallbackCache>(cacheMap.getData(apkCallback.callbackId), ApkCallbackCache::class.java)
         cacheMap.delete(apkCallback.callbackId)
         if (receivedFile.exists()) {
-            println(params)
+            LOGGER.debug("Params: %s", params)
             slackService.uploadFile(receivedFile, callback.channelId!!) {
                 // Delete the file and parent directories after upload
                 receivedFile.parentFile.deleteRecursively()

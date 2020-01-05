@@ -1,3 +1,5 @@
+@file:JvmName("SlackRoutes")
+
 package com.tombspawn.slackbot
 
 import com.google.gson.Gson
@@ -30,19 +32,17 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import kotlin.reflect.typeOf
 
-val LOGGER = LoggerFactory.getLogger("com.application.slack.routing")
-
+private val LOGGER = LoggerFactory.getLogger("com.tombspawn.slackbot.SlackRoutes")
 
 fun Routing.slackEvent(applicationService: ApplicationService) {
     post<Slack.Event> {
         val slackEvent = call.receive<SlackEvent>()
-        println(slackEvent.toString())
+        LOGGER.debug("SlackEvent: $slackEvent")
         when (slackEvent.type) {
             Event.EventType.URL_VERIFICATION -> call.respond(slackEvent)
             Event.EventType.RATE_LIMIT -> {
                 call.respond(HttpStatusCode.OK)
                 LOGGER.error("Slack Api Rate Limit")
-                println("Api rate limit")
             }
             Event.EventType.EVENT_CALLBACK -> {
                 call.respond(HttpStatusCode.OK)
@@ -61,7 +61,7 @@ fun Routing.slackAction(
     post<Slack.Action> {
         val params = call.receive<Parameters>()
         val payload = params["payload"]
-        println(payload)
+        LOGGER.debug("SlackAction payload: $payload")
         payload?.let {
             applicationService.handleSlackEvent(it)
         }
@@ -131,6 +131,7 @@ fun Routing.apkCallback(applicationService: ApplicationService) {
                 applicationService.uploadApk(callback.callback, it, otherData)
             }
         }
+        applicationService.onTaskCompleted(callback.callback.app.id)
         call.respond("{\"message\": \"ok\"}")
     }
 
@@ -145,6 +146,7 @@ fun Routing.apkCallback(applicationService: ApplicationService) {
         val flavours = call.receive<ListBodyRequest<String>>(typeOf<ListBodyRequest<String>>()).data
         launch(Dispatchers.IO) {
             applicationService.addFlavours(app.app.id, flavours)
+            applicationService.onTaskCompleted(app.app.id)
         }
         call.respond(HttpStatusCode.OK, SuccessResponse("ok"))
     }
@@ -153,6 +155,7 @@ fun Routing.apkCallback(applicationService: ApplicationService) {
         val buildVariants = call.receive<ListBodyRequest<String>>(typeOf<ListBodyRequest<String>>()).data
         launch(Dispatchers.IO) {
             applicationService.addBuildVariants(app.app.id, buildVariants)
+            applicationService.onTaskCompleted(app.app.id)
         }
         call.respond(HttpStatusCode.OK, SuccessResponse("ok"))
     }
@@ -162,6 +165,7 @@ fun Routing.apkCallback(applicationService: ApplicationService) {
         val refs = Gson().fromJson<ListBodyRequest<Reference>>(call.receiveText(), type).data
         launch(Dispatchers.IO) {
             applicationService.addRefs(app.app.id, refs)
+            applicationService.onTaskCompleted(app.app.id)
         }
         call.respond(HttpStatusCode.OK, SuccessResponse("ok"))
     }
@@ -169,6 +173,7 @@ fun Routing.apkCallback(applicationService: ApplicationService) {
     post<Apps.App.Callback.Failure> { callback ->
         val errorResponse = call.receive<ErrorResponse>()
         applicationService.reportFailure(callback.callback, errorResponse)
+        applicationService.onTaskCompleted(callback.callback.app.id)
         call.respond(HttpStatusCode.OK, SuccessResponse("ok"))
     }
 

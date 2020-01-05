@@ -37,21 +37,19 @@ class ApplicationService @Inject constructor(
 
     private fun clone() {
         launch(Dispatchers.IO) {
-            gitService.clone {
-                launch(Dispatchers.IO) {
-                    LOGGER.info("Making api call to $initCallbackUri")
-                    when(val response = appClient.initComplete(initCallbackUri, success = true)) {
-                        is CallSuccess -> {
-                            LOGGER.info(response.data.toString())
-                        }
-                        is CallFailure -> {
-                            LOGGER.info("Call failure ${response.errorBody}", response.throwable)
-                        }
-                        is CallError -> {
-                            LOGGER.info("Call Error", response.throwable)
-                        }
-                    }.exhaustive
-                }
+            if(gitService.clone()) {
+                LOGGER.info("Making api call to $initCallbackUri")
+                when(val response = appClient.initComplete(initCallbackUri, success = true)) {
+                    is CallSuccess -> {
+                        LOGGER.info(response.data.toString())
+                    }
+                    is CallFailure -> {
+                        LOGGER.info("Call failure ${response.errorBody}", response.throwable)
+                    }
+                    is CallError -> {
+                        LOGGER.info("Call Error", response.throwable)
+                    }
+                }.exhaustive
             }
         }
     }

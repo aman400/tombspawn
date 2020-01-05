@@ -35,6 +35,8 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 class Grave(val args: Array<String>) {
+    private val LOGGER = LoggerFactory.getLogger("com.tombspawn.Grave")
+
     @ExperimentalStdlibApi
     fun startServer() {
         val coreComponent = DaggerCoreComponent.create()
@@ -95,9 +97,9 @@ class Grave(val args: Array<String>) {
 @KtorExperimentalLocationsAPI
 @Suppress("unused") // Referenced in application.conf
 fun Application.module(appComponent: AppComponent) {
-    val LOGGER = LoggerFactory.getLogger("com.application")
+    val LOGGER = LoggerFactory.getLogger("com.tombspawn.grave.Application")
 
-    runBlocking {
+    launch(Dispatchers.IO) {
         appComponent.applicationService().init()
     }
 
@@ -150,23 +152,23 @@ fun Application.module(appComponent: AppComponent) {
     intercept(ApplicationCallPipeline.Monitoring) {
 
         if (!call.parameters.isEmpty()) {
-            println("Parameters: ")
+            LOGGER.debug("Parameters: ")
             call.parameters.forEach { key, valuesList ->
-                println("$key: ${valuesList.joinToString(",")}")
+                LOGGER.debug("$key: ${valuesList.joinToString(",")}")
             }
         }
 
         if (!call.request.headers.isEmpty()) {
-            println("Headers:")
+            LOGGER.debug("Headers: ")
             call.request.headers.forEach { key, valuesList ->
-                println("$key: ${valuesList.joinToString(",")}")
+                LOGGER.debug("$key: ${valuesList.joinToString(",")}")
             }
         }
 
         if (!call.request.queryParameters.isEmpty()) {
-            println("Query Params: ")
+            LOGGER.debug("Query Params: ")
             call.request.queryParameters.forEach { key, valuesList ->
-                println("$key: ${valuesList.joinToString(",")}")
+                LOGGER.debug("$key: ${valuesList.joinToString(",")}")
             }
         }
     }

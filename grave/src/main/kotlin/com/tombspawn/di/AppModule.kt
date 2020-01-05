@@ -73,7 +73,7 @@ class AppModule {
     @SlackHttpClient
     fun provideSlackHttpClient(gsonSerializer: GsonSerializer, @Debuggable isDebug: Boolean): HttpClient {
         return createHttpClient(
-            gsonSerializer, "slack.com", URLProtocol.HTTPS, null, enableLogger = true
+            gsonSerializer, "slack.com", URLProtocol.HTTPS, null, enableLogger = isDebug
         )
     }
 
@@ -99,11 +99,11 @@ class AppModule {
                 this.protocol = serverConf.get()?.scheme?.let {
                     URLProtocol.createOrDefault(it)
                 } ?: URLProtocol.HTTP
-                this.host = serverConf.get().host ?: Constants.Common.DEFAULT_HOST
+                this.host = serverConf.get().hostName ?: Constants.Common.DEFAULT_HOST
                 this.port = serverConf.get().port ?: Constants.Common.DEFAULT_PORT
             } else {
                 this.protocol = URLProtocol.HTTP
-                this.host = "application"
+                this.host = serverConf.get().hostName ?: "application"
                 this.port = serverConf.get()?.port ?: Constants.Common.DEFAULT_PORT
             }
         }
@@ -113,6 +113,7 @@ class AppModule {
     @AppScope
     fun provideAppList(config: JsonApplicationConfig): List<App> {
         return config.configList("apps").map {
+
             it.getAs(App::class.java)
         }
     }

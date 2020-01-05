@@ -19,9 +19,10 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.IOException
 import javax.inject.Inject
+import kotlin.coroutines.resume
 
 class GitClient @Inject constructor(private val provider: CredentialProvider) {
-    suspend fun clone(dir: String, gitUri: String, onComplete: ((success: Boolean) -> Unit)? = null) = suspendCancellableCoroutine<Unit> {
+    suspend fun clone(dir: String, gitUri: String) = suspendCancellableCoroutine<Boolean> { continuation ->
         if (!try {
                 LOGGER.debug("Generating app")
                 initRepository(dir).use {
@@ -86,9 +87,12 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
                 .authenticate(provider)
                 .call()
             LOGGER.debug("Clone completed")
-            onComplete?.invoke(true)
+            continuation.resume(true)
         } else {
-            onComplete?.invoke(true)
+            runBlocking {
+                delay(5000)
+                continuation.resume(true)
+            }
         }
     }
 

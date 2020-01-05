@@ -25,12 +25,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.FileInputStream
 import javax.inject.Inject
 
 class SlackService @Inject constructor(private val slackClient: SlackClient, val slack: Slack,
                                        val gson: Gson, private val databaseService: DatabaseService) {
+    private val LOGGER = LoggerFactory.getLogger("com.tombspawn.slackbot.SlackService")
 
     suspend fun sendMessage(message: String, channelId: String, attachments: List<Attachment>?) {
         slackClient.sendMessage(message, channelId, attachments)
@@ -350,7 +352,7 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
                 }
                 slackClient.updateMessage(updatedMessage, slackEvent.channel?.id!!)
             }
-            println("Not generating the APK")
+            LOGGER.error("Not generating the APK")
         }
     }
 
@@ -401,7 +403,7 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
             }
         }
         slackEvent.dialogResponse?.forEach { map ->
-            println("${map.key}, ${map.value}")
+            LOGGER.debug("${map.key}, ${map.value}")
         }
     }
 
@@ -459,21 +461,21 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
                                     databaseService.getRefs(Constants.Common.APP_CONSUMER)?.filter {
                                         it.type == RefType.BRANCH
                                     }?.forEach {
-                                        println(it.name)
+                                        LOGGER.debug(it.name)
                                     }
                                 }
                                 Constants.Slack.TYPE_SUBSCRIBE_FLEET -> {
-                                    println("Valid Event Fleet")
+                                    LOGGER.debug("Valid Event Fleet")
                                 }
                                 else -> {
-                                    println("Invalid Event")
+                                    LOGGER.error("Invalid Event")
                                 }
                             }
                         }
                     }
                 }
                 else -> {
-                    println("Unknown event type")
+                    LOGGER.error("Unknown event type")
                 }
             }
         }

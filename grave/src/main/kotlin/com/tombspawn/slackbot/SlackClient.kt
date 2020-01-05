@@ -64,11 +64,11 @@ class SlackClient @Inject constructor(
                 }
             }
             is CallFailure -> {
-                println(response.errorBody)
+                LOGGER.error(response.errorBody, response.throwable)
                 null
             }
             is CallError -> {
-                response.throwable?.printStackTrace()
+                LOGGER.error("Unable to fetch bot data", response.throwable)
                 null
             }
         }
@@ -314,7 +314,7 @@ class SlackClient @Inject constructor(
             is CallSuccess -> {
                 response.data?.let {
                     if (it.successful == true) {
-                        println(it.toString())
+                        LOGGER.trace(it.toString())
                         it
                     } else {
                         null
@@ -350,7 +350,7 @@ class SlackClient @Inject constructor(
             is CallSuccess -> {
                 response.data?.let {
                     if (it.ok == true) {
-                        println(it.toString())
+                        LOGGER.trace(it.toString())
                         it
                     } else {
                         null

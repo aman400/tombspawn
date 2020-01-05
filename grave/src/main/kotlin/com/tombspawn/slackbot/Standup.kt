@@ -1,3 +1,5 @@
+@file:JvmName("StandupRoutes")
+
 package com.tombspawn.slackbot
 
 import com.tombspawn.models.locations.Slack
@@ -15,6 +17,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import com.tombspawn.models.slack.Action
 import com.tombspawn.models.slack.action
+import org.slf4j.LoggerFactory
+
+private val LOGGER = LoggerFactory.getLogger("com.tombspawn.slackbot.StandupRoutes")
 
 fun Routing.standup(slackClient: SlackClient) {
     post<Slack.Standup> {
