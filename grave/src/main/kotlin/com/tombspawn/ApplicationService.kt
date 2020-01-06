@@ -533,7 +533,10 @@ class ApplicationService @Inject constructor(
         cacheMap.delete(apkCallback.callbackId)
         if (receivedFile.exists()) {
             LOGGER.debug("Params: %s", params)
-            slackService.uploadFile(receivedFile, callback.channelId!!) {
+            val data = params.map {
+                "${it.key} = ${it.value}"
+            }.joinToString("\n")
+            slackService.uploadFile(receivedFile, callback.channelId!!, data) {
                 // Delete the file and parent directories after upload
                 receivedFile.parentFile.deleteRecursively()
 //                params.remove(SlackConstants.TYPE_SELECT_APP_PREFIX)

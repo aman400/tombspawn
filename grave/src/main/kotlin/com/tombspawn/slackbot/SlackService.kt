@@ -46,7 +46,7 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
         return slackClient.updateMessage(gson.fromJson(echoed, SlackMessage::class.java), channelId)
     }
 
-    suspend fun uploadFile(file: File, channelId: String, onFinish: (() -> Unit)? = null) {
+    suspend fun uploadFile(file: File, channelId: String, initialComment: String, onFinish: (() -> Unit)? = null) {
         withContext(Dispatchers.IO) {
             val buf = ByteArray(file.length().toInt())
             FileInputStream(file).use {
@@ -58,6 +58,7 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
                 append("filename", file.name)
                 append("filetype", "auto")
                 append("channels", channelId)
+                append("initial_comment", initialComment)
                 append(
                     "file",
                     buf,

@@ -81,7 +81,6 @@ class DockerService @Inject constructor(
                     }
                 }
             }.exhaustive
-
         }
     }
 
@@ -104,13 +103,14 @@ class DockerService @Inject constructor(
                             }
                         }
                     }
-                    Status.RESTART,
-                    Status.START -> {
-
-                    }
                     Status.EXEC_DIE -> {
-//                        dockerClient.restartContainer(g)
-                        event.id
+                        containerMapping.filter { entry ->
+                            entry.value.containerId == event.id
+                        }.forEach { entry ->
+                            GlobalScope.launch(Dispatchers.Default) {
+                                dockerClient.restartContainer(entry.key)
+                            }
+                        }
                     }
                     else -> {
                         LOGGER.trace(event.toString())
