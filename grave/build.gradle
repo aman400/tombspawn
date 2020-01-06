@@ -33,6 +33,12 @@ shadowJar {
     archiveName = "application.jar"
 }
 
+task generateApplication(type: Copy) {
+    dependsOn assemble
+    from "$buildDir/libs/application.jar"
+    into "$rootDir/output/grave/build/libs"
+}
+
 dependencies {
     testImplementation Ktor.test
 

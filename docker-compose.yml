@@ -54,9 +54,6 @@ services:
       - redis
     build:
       context: .
-      args:
-        USER_ID: ${USER_ID:-0}
-        GROUP_ID: ${GROUP_ID:-0}
       dockerfile: Dockerfile
     image: application
     restart: always
@@ -66,4 +63,4 @@ services:
     networks:
       - tombspawn
     ports:
-      - "8080:8080"
+      - "8080:63648"

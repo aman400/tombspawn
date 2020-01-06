@@ -1,8 +1,5 @@
 FROM openjdk:8-jdk-slim
 
-ARG USER_ID
-ARG GROUP_ID
-
 RUN apt-get update \
      && apt-get clean \
      && echo y | apt-get install unzip \

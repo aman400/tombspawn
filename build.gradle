@@ -13,6 +13,41 @@ buildscript {
     }
 }
 
+
+task copyDockerFiles(type: Copy) {
+    from "$rootDir/docker-compose.yml", "$rootDir/Dockerfile", "$rootDir/.env"
+    into "$rootDir/output"
+}
+
+task copyDockerConfig(type: Copy) {
+    from "$rootDir/docker"
+    into "$rootDir/output/docker"
+}
+
+task copyScripts(type: Copy) {
+    from "$rootDir/scripts"
+    into "$rootDir/output/scripts"
+}
+
+task generateDistribution() {
+    dependsOn copyScripts
+    dependsOn copyDockerConfig
+    dependsOn copyDockerFiles
+    dependsOn ':skeleton:generateApplication'
+    dependsOn ':grave:generateApplication'
+    doLast {
+        logger.info('Done copying files')
+    }
+}
+
+task packageDistribution(type: Zip) {
+    dependsOn generateDistribution
+    archiveFileName = "tombspawn.zip"
+    destinationDirectory = file("$rootDir/out")
+
+    from "$rootDir/output"
+}
+
 allprojects {
     repositories {
         jcenter()
@@ -20,6 +55,5 @@ allprojects {
         maven { url 'https://dl.bintray.com/kotlin/kotlin-eap' }
         maven { url 'https://dl.bintray.com/kotlin/kotlinx' }
         maven { url 'https://dl.bintray.com/kotlin/ktor' }
-
     }
 }

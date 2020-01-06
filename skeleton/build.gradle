@@ -82,6 +82,19 @@ dependencies {
     testImplementation Ktor.test
 }
 
+task copyConfigFiles(type: Copy) {
+    from "$projectDir/Dockerfile", "$projectDir/gradle.properties",
+            "$projectDir/AndroidDockerfile", "$projectDir/setup_android_sdk.sh"
+    into "$rootDir/output/skeleton/"
+}
+
+task generateApplication(type: Copy) {
+    dependsOn assemble
+    dependsOn copyConfigFiles
+    from "$buildDir/libs/application.jar"
+    into "$rootDir/output/skeleton/build/libs/"
+}
+
 application {
     // Define the main class for the application
     mainClassName = 'com.tombspawn.skeleton.Skeleton'
