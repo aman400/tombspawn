@@ -119,17 +119,13 @@ class ApplicationService @Inject constructor(
 
         when (val response = gradleService.generateApp(parameters, fileUploadDir, apkPrefix) {
             branch?.let {
-                // Stash uncommited code
-                gitService.stashCode().await()?.also {
-                    LOGGER.info("Stashed older code ${it.fullMessage}")
-                } ?: run {
-                    LOGGER.debug("Nothing to stash")
+                // Clean git repo to remove untracked files/folders
+                gitService.clean().await().let {
+                    LOGGER.info(it.joinToString(", "))
                 }
-                // Clear stash list
-                gitService.clearStash().await()?.also {
-                    LOGGER.info("Cleared stash with object id ${it.name}")
-                } ?: run {
-                    LOGGER.debug("No stash list to clear")
+                // Reset branch to point to head of tracked branch
+                gitService.resetBranch().await().let { ref ->
+                    LOGGER.info("Stashing code for ${ref.name} ${ref.objectId}")
                 }
                 // Checkout to given branch before app generation
                 checkoutBranch(it)

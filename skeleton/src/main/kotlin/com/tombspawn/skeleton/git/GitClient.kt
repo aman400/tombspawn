@@ -6,10 +6,8 @@ import kotlinx.coroutines.*
 import org.eclipse.jgit.api.CloneCommand
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.api.ListBranchCommand
-import org.eclipse.jgit.lib.AnyObjectId
-import org.eclipse.jgit.lib.ObjectId
-import org.eclipse.jgit.lib.ProgressMonitor
-import org.eclipse.jgit.lib.Repository
+import org.eclipse.jgit.api.ResetCommand
+import org.eclipse.jgit.lib.*
 import org.eclipse.jgit.revwalk.RevCommit
 import org.eclipse.jgit.revwalk.RevWalk
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
@@ -142,6 +140,25 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
                 tags.map {
                     it.name.substringAfter("refs/tags/")
                 }
+            }
+        }
+    }
+
+    suspend fun clean(dir: String): Deferred<MutableSet<String>> = coroutineScope {
+        async {
+            return@async Git(initRepository(dir)).use { git ->
+                git.clean().setCleanDirectories(true)
+                    .setForce(true).call()
+            }
+        }
+    }
+
+    suspend fun resetBranch(dir: String): Deferred<Ref> = coroutineScope {
+        async {
+            return@async Git(initRepository(dir)).use { git ->
+                git.reset().setMode(ResetCommand.ResetType.HARD)
+                    .setRef(Constants.HEAD)
+                    .call()
             }
         }
     }
