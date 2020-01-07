@@ -48,6 +48,20 @@ task packageDistribution(type: Zip) {
     from "$rootDir/output"
 }
 
+
+task cleanup(type: Delete) {
+    delete "output"
+    delete "out"
+}
+
+task clean {
+    dependsOn cleanup
+}
+
+cleanup.doFirst {
+    clean()
+}
+
 allprojects {
     repositories {
         jcenter()
