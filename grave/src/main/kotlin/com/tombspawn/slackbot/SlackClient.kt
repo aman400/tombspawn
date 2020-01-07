@@ -8,6 +8,7 @@ import com.tombspawn.base.extensions.await
 import com.tombspawn.base.extensions.random
 import com.tombspawn.base.extensions.toMap
 import com.tombspawn.di.qualifiers.SlackHttpClient
+import com.tombspawn.docker.DockerApiClient
 import com.tombspawn.models.*
 import com.tombspawn.models.config.App
 import com.tombspawn.models.config.Slack
@@ -67,6 +68,10 @@ class SlackClient @Inject constructor(
                 LOGGER.error(response.errorBody, response.throwable)
                 null
             }
+            is ServerFailure -> {
+                LOGGER.error(response.errorBody, response.throwable)
+                null
+            }
             is CallError -> {
                 LOGGER.error("Unable to fetch bot data", response.throwable)
                 null
@@ -92,16 +97,17 @@ class SlackClient @Inject constructor(
             }
             when (val response = call.await<JsonObject>()) {
                 is CallSuccess -> {
-                    LOGGER.info("Posted dialog successfully")
-                    LOGGER.info(response.data.toString())
+                    LOGGER.info("Posted dialog successfully ${response.data}")
                 }
                 is CallFailure -> {
-                    LOGGER.info("Dialog posting failed")
-                    LOGGER.error(response.errorBody)
+                    LOGGER.error("Dialog posting failed", response.errorBody)
+                }
+                is ServerFailure -> {
+                    LOGGER.error("Dialog posting failed", response.throwable)
+                    null
                 }
                 is CallError -> {
-                    LOGGER.info("Dialog posting failed")
-                    LOGGER.error("Unable to post dialog", response.throwable)
+                    LOGGER.error("Dialog posting failed", response.throwable)
                 }
             }.exhaustive
         }
@@ -122,7 +128,10 @@ class SlackClient @Inject constructor(
                 LOGGER.info(response.data.toString())
             }
             is CallFailure -> {
-                LOGGER.error(response.errorBody)
+                LOGGER.error("Unable to send message ${response.errorBody}", response.throwable)
+            }
+            is ServerFailure -> {
+                LOGGER.error("Unable to send message", response.throwable)
             }
             is CallError -> {
                 LOGGER.error("Unable to send message", response.throwable)
@@ -159,12 +168,14 @@ class SlackClient @Inject constructor(
                         user
                     }
                 }
-
                 is CallFailure -> {
-                    LOGGER.error(response.errorBody, response.throwable)
+                    LOGGER.error("Unable to fetch user profile", response.throwable)
                     null
                 }
-
+                is ServerFailure -> {
+                    LOGGER.error("Unable to fetch user profile", response.throwable)
+                    null
+                }
                 is CallError -> {
                     LOGGER.error(response.throwable?.message, response.throwable)
                     null
@@ -230,6 +241,9 @@ class SlackClient @Inject constructor(
                 is CallFailure -> {
                     LOGGER.error(response.errorBody)
                 }
+                is ServerFailure -> {
+                    LOGGER.error("Unable to postEphemeral message", response.throwable)
+                }
                 is CallError -> {
                     LOGGER.info(response.throwable?.message)
                 }
@@ -256,10 +270,13 @@ class SlackClient @Inject constructor(
                 LOGGER.info(response.data.toString())
             }
             is CallFailure -> {
-                LOGGER.info(response.errorBody.toString())
+                LOGGER.error("Unable to open dialog", response.errorBody.toString())
+            }
+            is ServerFailure -> {
+                LOGGER.error("Unable to open dialog", response.throwable)
             }
             is CallError -> {
-                LOGGER.info(response.throwable?.message)
+                LOGGER.error("Unable to open dialog", response.throwable?.message)
             }
         }
     }
@@ -284,12 +301,13 @@ class SlackClient @Inject constructor(
                     LOGGER.info(response.data.toString())
                 }
                 is CallFailure -> {
-                    LOGGER.info("Dialog posting failed")
-                    LOGGER.error(response.errorBody)
+                    LOGGER.error("Dialog posting failed", response.throwable)
+                }
+                is ServerFailure -> {
+                    LOGGER.error("Dialog posting failed", response.throwable)
                 }
                 is CallError -> {
-                    LOGGER.info("Dialog posting failed")
-                    LOGGER.error("Unable to post dialog", response.throwable)
+                    LOGGER.error("Dialog posting failed", response.throwable)
                 }
             }.exhaustive
         }
@@ -325,6 +343,10 @@ class SlackClient @Inject constructor(
                 LOGGER.error(response.throwable?.message, response.throwable)
                 null
             }
+            is ServerFailure -> {
+                LOGGER.error("Unable to fetch user list", response.throwable)
+                null
+            }
             is CallError -> {
                 LOGGER.error(response.throwable?.message, response.throwable)
                 null
@@ -358,9 +380,15 @@ class SlackClient @Inject constructor(
                 }
             }
             is CallFailure -> {
+                LOGGER.error("Unable to fetch im list", response.throwable)
+                null
+            }
+            is ServerFailure -> {
+                LOGGER.error("Unable to fetch im list", response.throwable)
                 null
             }
             is CallError -> {
+                LOGGER.error("Unable to fetch im list", response.throwable)
                 null
             }
         }

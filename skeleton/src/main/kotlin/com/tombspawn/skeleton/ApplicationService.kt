@@ -44,10 +44,13 @@ class ApplicationService @Inject constructor(
                         LOGGER.info(response.data.toString())
                     }
                     is CallFailure -> {
-                        LOGGER.info("Call failure ${response.errorBody}", response.throwable)
+                        LOGGER.info("Call failure $initCallbackUri", response.throwable)
+                    }
+                    is ServerFailure -> {
+                        LOGGER.info("Call failure $initCallbackUri", response.throwable)
                     }
                     is CallError -> {
-                        LOGGER.info("Call Error", response.throwable)
+                        LOGGER.info("Call Error $initCallbackUri", response.throwable)
                     }
                 }.exhaustive
             }
@@ -125,7 +128,7 @@ class ApplicationService @Inject constructor(
                 }
                 // Reset branch to point to head of tracked branch
                 gitService.resetBranch().await().let { ref ->
-                    LOGGER.info("Stashing code for ${ref.name} ${ref.objectId}")
+                    LOGGER.info("Reset head to ${ref.name} ${ref.objectId}")
                 }
                 // Checkout to given branch before app generation
                 checkoutBranch(it)
@@ -147,19 +150,24 @@ class ApplicationService @Inject constructor(
                                     }
                                     is CallFailure -> {
                                         file.delete()
-                                        responseData.throwable?.let {
-                                            LOGGER.error(it)
-                                        }
+                                        LOGGER.error("Unable to upload file", responseData.throwable)
                                         failureCallbackUri?.let { errorUrl ->
                                             appClient.reportFailure(errorUrl, ErrorResponse(responseData.errorBody ?:
                                             "Something went wrong. Unable to upload file"))
                                         }
                                     }
+                                    is ServerFailure -> {
+                                        file.delete()
+                                        LOGGER.error("Unable to upload file", responseData.throwable)
+                                        failureCallbackUri?.let { errorUrl ->
+                                            appClient.reportFailure(errorUrl, ErrorResponse(
+                                                responseData.throwable?.message
+                                                    ?: "Something went wrong. Unable to upload file"))
+                                        }
+                                    }
                                     is CallError -> {
                                         file.delete()
-                                        responseData.throwable?.let {
-                                            LOGGER.error(it)
-                                        }
+                                        LOGGER.error("Unable to upload file", responseData.throwable)
                                         failureCallbackUri?.let { errorUrl ->
                                             appClient.reportFailure(errorUrl, ErrorResponse(
                                                 responseData.throwable?.message

@@ -1,10 +1,7 @@
 package com.tombspawn.slackbot
 
 import com.google.gson.Gson
-import com.tombspawn.base.common.CallError
-import com.tombspawn.base.common.CallFailure
-import com.tombspawn.base.common.CallSuccess
-import com.tombspawn.base.common.SlackConstants
+import com.tombspawn.base.common.*
 import com.tombspawn.base.extensions.await
 import com.tombspawn.data.DatabaseService
 import com.tombspawn.data.Ref
@@ -80,16 +77,18 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
                                 channelId,
                                 null
                             )
-                            LOGGER.error("Not delivered")
+                            LOGGER.error("File Not delivered")
                         }
                     }
                     is CallFailure -> {
-                        LOGGER.error("Not delivered")
+                        LOGGER.error("File Not delivered")
                         LOGGER.error(response.errorBody, response.throwable)
                     }
+                    is ServerFailure -> {
+                        LOGGER.error("Call failed, unable to deliver APK ${response.errorBody}", response.throwable)
+                    }
                     is CallError -> {
-                        LOGGER.error("Call failed unable to deliver APK")
-                        LOGGER.error(response.throwable?.message, response.throwable)
+                        LOGGER.error("File not delivered", response.throwable)
                     }
                 }
                 onFinish?.invoke()

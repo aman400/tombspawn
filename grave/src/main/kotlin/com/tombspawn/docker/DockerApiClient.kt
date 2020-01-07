@@ -7,10 +7,7 @@ import com.github.dockerjava.core.command.BuildImageResultCallback
 import com.github.dockerjava.core.command.EventsResultCallback
 import com.github.dockerjava.core.command.LogContainerResultCallback
 import com.google.gson.JsonObject
-import com.tombspawn.base.common.CallError
-import com.tombspawn.base.common.CallFailure
-import com.tombspawn.base.common.CallSuccess
-import com.tombspawn.base.common.CommonConstants
+import com.tombspawn.base.common.*
 import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.extensions.await
 import com.tombspawn.base.network.withRetry
@@ -57,6 +54,10 @@ class DockerApiClient @Inject constructor(
                         LOGGER.error(response.errorBody, response.throwable)
                         null
                     }
+                    is ServerFailure -> {
+                        LOGGER.error(response.errorBody, response.throwable)
+                        null
+                    }
                     is CallError -> {
                         LOGGER.error("Unable to fetch flavours", response.throwable)
                         null
@@ -86,6 +87,10 @@ class DockerApiClient @Inject constructor(
                         LOGGER.error(response.errorBody)
                         null
                     }
+                    is ServerFailure -> {
+                        LOGGER.error(response.errorBody, response.throwable)
+                        null
+                    }
                     is CallError -> {
                         LOGGER.error("Unable to fetch build variants", response.throwable)
                         null
@@ -112,6 +117,10 @@ class DockerApiClient @Inject constructor(
                         LOGGER.error(response.errorBody)
                         null
                     }
+                    is ServerFailure -> {
+                        LOGGER.error(response.errorBody, response.throwable)
+                        null
+                    }
                     is CallError -> {
                         LOGGER.error("Unable to fetch References", response.throwable)
                         null
@@ -129,6 +138,7 @@ class DockerApiClient @Inject constructor(
                     url {
                         encodedPath = "/references"
                         parameters.append(CommonConstants.CALLBACK_URI, callbackUri)
+                        parameters.append(CommonConstants.TAG_LIMIT, "5")
                     }
                 }
                 call.await<JsonObject>()
@@ -139,6 +149,10 @@ class DockerApiClient @Inject constructor(
                     }
                     is CallFailure -> {
                         LOGGER.error(response.errorBody)
+                        null
+                    }
+                    is ServerFailure -> {
+                        LOGGER.error(response.errorBody, response.throwable)
                         null
                     }
                     is CallError -> {

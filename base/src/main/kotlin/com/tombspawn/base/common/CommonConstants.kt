@@ -5,6 +5,8 @@ object CommonConstants {
     const val FAILURE_CALLBACK_URI = "failure_callback_uri"
     const val APP_PREFIX = "app_prefix"
     const val CALLBACK_URI = "callbackUri"
+    const val TAG_LIMIT = "tagLimit"
+    const val BRANCH_LIMIT = "branchLimit"
 }
 
 object SlackConstants {

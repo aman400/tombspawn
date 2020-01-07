@@ -1,9 +1,8 @@
+@file:JvmName("CommonUtils")
+
 package com.tombspawn.base.network
 
-import com.tombspawn.base.common.CallError
-import com.tombspawn.base.common.CallFailure
-import com.tombspawn.base.common.CallSuccess
-import com.tombspawn.base.common.Response
+import com.tombspawn.base.common.*
 import com.tombspawn.base.di.Constants
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.apache.Apache
@@ -17,8 +16,9 @@ import io.ktor.http.URLProtocol
 import kotlinx.coroutines.delay
 import org.slf4j.LoggerFactory
 
+private val LOGGER = LoggerFactory.getLogger("com.tombspawn.base.network.CommonUtils")
+
 object Common {
-    private val LOGGER = LoggerFactory.getLogger("com.tombspawn.base.network.Common")
     @JvmStatic
     @JvmOverloads
     fun createHttpClient(gsonSerializer: GsonSerializer, hostName: String? = null,
@@ -78,10 +78,13 @@ suspend fun <T> withRetry(
                 return data
             }
             is CallFailure -> {
-                data.throwable?.printStackTrace()
+                LOGGER.error("Call not completed ${data.errorCode}", data.throwable)
+            }
+            is ServerFailure -> {
+                LOGGER.error("Call not completed ${data.errorCode}", data.throwable)
             }
             is CallError -> {
-                data.throwable?.printStackTrace()
+                LOGGER.error("Call not completed", data.throwable)
             }
         }
         delay(currentDelay)
