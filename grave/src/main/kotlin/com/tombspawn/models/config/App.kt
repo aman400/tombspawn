@@ -12,5 +12,6 @@ data class App constructor(
     @SerializedName("memory") val memory: Long? = null,
     @SerializedName("swap") val swap: Long? = null,
     @SerializedName("cpu_shares") val cpuShares: Int? = null,
+    @SerializedName("container_uri") val containerUri: String? = null,
     @SerializedName("environment_variables") val env: List<String>? = null
 )

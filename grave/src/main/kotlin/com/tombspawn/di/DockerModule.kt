@@ -34,9 +34,11 @@ class DockerModule {
     @DockerHttpClient
     fun provideDockerHttpClients(gsonSerializer: GsonSerializer, apps: List<App>, @Debuggable isDebug: Boolean): MutableMap<String, HttpClient> {
         val dockerHttpClients = mutableMapOf<String, HttpClient>()
-        apps.forEach {
-            dockerHttpClients[it.id] = Common.createHttpClient(
-                gsonSerializer, "${it.id}:${Constants.Common.DEFAULT_PORT}", URLProtocol.HTTP, null,
+        apps.forEach { app ->
+            dockerHttpClients[app.id] = Common.createHttpClient(
+                gsonSerializer, app.containerUri ?: let {
+                    "${app.id}:${Constants.Common.DEFAULT_PORT}"
+                }, URLProtocol.HTTP, null,
                 120000, 120000, 120000, isDebug
             )
         }
