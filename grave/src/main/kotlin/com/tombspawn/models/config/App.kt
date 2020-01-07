@@ -11,5 +11,6 @@ data class App constructor(
     @SerializedName("remote_uri") val uri: String? = null,
     @SerializedName("memory") val memory: Long? = null,
     @SerializedName("swap") val swap: Long? = null,
-    @SerializedName("cpu_shares") val cpuShares: Int? = null
+    @SerializedName("cpu_shares") val cpuShares: Int? = null,
+    @SerializedName("environment_variables") val env: List<String>? = null
 )

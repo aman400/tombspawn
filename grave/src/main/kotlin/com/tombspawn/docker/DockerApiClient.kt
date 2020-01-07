@@ -294,7 +294,8 @@ class DockerApiClient @Inject constructor(
 
     suspend fun createContainer(
         image: String, name: String, commands: List<String>?, volumes: List<Volume>?, volumeBinds: List<Bind>?,
-        portBindings: Ports, exposedPorts: List<ExposedPort>?, memory: Long?, swapMemory: Long?, cpuShares: Int? = null
+        portBindings: Ports, exposedPorts: List<ExposedPort>?, memory: Long?, swapMemory: Long?, cpuShares: Int? = null,
+        env: List<String>? = null
     ): String? {
         return coroutineScope<String?> {
             return@coroutineScope dockerClient.listContainersCmd().withShowAll(true)
@@ -310,15 +311,26 @@ class DockerApiClient @Inject constructor(
                         if (!commands.isNullOrEmpty()) {
                             withCmd(commands)
                         }
+                        if(!env.isNullOrEmpty()) {
+                            withEnv(env)
+                        }
+                        if(!exposedPorts.isNullOrEmpty()) {
+                            withExposedPorts(exposedPorts)
+                        }
                     }
                     .withAttachStdout(true)
                     .withAttachStderr(true)
                     .withAttachStdin(false)
-                    .withExposedPorts(exposedPorts)
                     .withHostConfig(
                         HostConfig.newHostConfig()
-                            .withMemory(memory)
-                            .withMemorySwap(swapMemory)
+                            .apply {
+                                if(memory != null) {
+                                    withMemory(memory)
+                                }
+                                if(swapMemory != null) {
+                                    withMemorySwap(swapMemory)
+                                }
+                            }
                             .withRestartPolicy(RestartPolicy.noRestart())
                             .apply {
                                 if(cpuShares != null) {
@@ -327,9 +339,11 @@ class DockerApiClient @Inject constructor(
                                 if (memory != null) {
                                     withMemoryReservation(memory / 2)
                                 }
+                                if(!volumeBinds.isNullOrEmpty()) {
+                                    withBinds(volumeBinds)
+                                }
                             }
                             .withPortBindings(portBindings)
-                            .withBinds(volumeBinds)
                     )
                     .exec().let {
                         it.warnings.forEach { message ->

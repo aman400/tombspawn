@@ -63,4 +63,4 @@ services:
     networks:
       - tombspawn
     ports:
-      - "8080:63648"
+      - "63648:8080"

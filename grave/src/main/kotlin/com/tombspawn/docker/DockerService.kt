@@ -67,7 +67,7 @@ class DockerService @Inject constructor(
                     containerMapping[msg.id]?.onTaskCompleted()
                 }
                 is QueueVerifyAndRunAction -> {
-                    if (getRunningTasks() < 2) {
+                    if (getRunningTasks() < common.parallelThreads) {
                         val nextEntry = getNextTask()
                         LOGGER.trace("NextEntry $nextEntry")
                         val next = nextEntry?.value?.getNextTask()
@@ -169,7 +169,7 @@ class DockerService @Inject constructor(
                     request,
                     "--verbose"
                 ), null, listOf(androidCache, appVolumeBind),
-                portBindings, listOf(exposedPort), app.memory, app.swap, app.cpuShares
+                portBindings, listOf(exposedPort), app.memory, app.swap, app.cpuShares, app.env
             )?.let { containerId ->
                 if(containerMapping[app.id] == null) {
                     containerMapping[app.id] = ContainerInfo(app.id, containerId, ContainerState.CREATED)
