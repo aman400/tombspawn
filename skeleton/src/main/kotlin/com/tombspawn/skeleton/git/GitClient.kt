@@ -206,14 +206,24 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
                     it.name.substringAfter("refs/remotes/$remote/")
                 }.firstOrNull()?.let { localBranch: String ->
                     git.checkout(localBranch, "$remote/$localBranch")
-                    if (git.pull().setRemoteBranchName(localBranch)
-                            .authenticate(provider).call().isSuccessful) {
-                        LOGGER.info("Pulled latest code")
-                    } else {
-                        LOGGER.warn("Unable to pull code")
-                    }
                     true
                 } ?: false
+            }
+        }
+    }
+
+    suspend fun pullLatestCode(branch: String, dir: String): Deferred<Boolean> = coroutineScope {
+        async {
+            return@async Git(initRepository(dir)).use {git ->
+                if (git.pull().setRemoteBranchName(branch)
+                        .authenticate(provider).call().isSuccessful
+                ) {
+                    LOGGER.info("Pulled latest code")
+                    true
+                } else {
+                    LOGGER.warn("Unable to pull code")
+                    false
+                }
             }
         }
     }

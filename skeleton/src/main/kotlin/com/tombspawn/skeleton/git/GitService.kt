@@ -31,6 +31,10 @@ class GitService @Inject constructor(private val app: App, private val gitClient
         return gitClient.checkoutAsync(branch, app.dir!!)
     }
 
+    suspend fun pullCode(branch: String): Deferred<Boolean> {
+        return gitClient.pullLatestCode(branch, app.dir!!)
+    }
+
     suspend fun resetBranch(): Deferred<Ref> {
         return gitClient.resetBranch(app.dir!!)
     }

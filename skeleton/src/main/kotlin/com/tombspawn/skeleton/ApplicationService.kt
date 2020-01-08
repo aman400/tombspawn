@@ -112,8 +112,8 @@ class ApplicationService @Inject constructor(
         }
     }
 
-    suspend fun pullCode(selectedBranch: String): CommandResponse {
-        return gradleService.pullCode(selectedBranch)
+    suspend fun pullCode(selectedBranch: String): Deferred<Boolean> {
+        return gitService.pullCode(selectedBranch)
     }
 
     suspend fun generateApp(parameters: MutableMap<String, String>?, successCallbackUri: String?,
@@ -133,6 +133,7 @@ class ApplicationService @Inject constructor(
                 gitService.fetchRemoteBranches().await()
                 // Checkout to given branch before app generation
                 checkoutBranch(it).await()
+                pullCode(it).await()
             } ?: false
         }) {
             is Success -> {
