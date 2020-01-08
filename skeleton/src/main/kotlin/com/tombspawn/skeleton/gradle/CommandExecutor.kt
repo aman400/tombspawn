@@ -9,6 +9,7 @@ interface CommandExecutor {
     suspend fun fetchProductFlavours(): List<String>?
     suspend fun fetchBuildVariants(): List<String>?
     suspend fun pullCode(selectedBranch: String): CommandResponse
+    suspend fun cleanCode(): CommandResponse
     suspend fun generateApp(parameters: MutableMap<String, String>?,
                             uploadDirPath: String, APKPrefix: String,
                             onPreProcess: (suspend () -> Boolean)): CommandResponse

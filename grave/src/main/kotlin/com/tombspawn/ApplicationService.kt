@@ -126,6 +126,11 @@ class ApplicationService @Inject constructor(
         dockerService.fetchReferences(app, callbackUri)
     }
 
+    private suspend fun cleanApp(app: App) {
+        val callbackUri = baseUri.get().path("apps", app.id, "clean").build().toString()
+        dockerService.cleanApp(app, callbackUri)
+    }
+
     private suspend fun fetchFlavours(app: App) {
         val callbackUri = baseUri.get().path("apps", app.id, "flavours").build().toString()
         dockerService.fetchFlavours(app, callbackUri)
@@ -546,7 +551,6 @@ class ApplicationService @Inject constructor(
 //                } ?: receivedFile.parentFile.deleteRecursively()
         } else {
             LOGGER.error("APK Generated but file not found in the folder")
-            LOGGER.error("Something went wrong")
             if (callback?.responseUrl != null) {
                 slackService.sendMessage(
                     callback.responseUrl,
@@ -567,6 +571,13 @@ class ApplicationService @Inject constructor(
         cachingService.clearAppCallback(apkCallback.callbackId)
         callback?.channelId?.let {channelId ->
             slackService.sendMessage(errorResponse.details ?: "Something went wrong", channelId, null)
+        }
+        GlobalScope.launch {
+            apps.firstOrNull {
+                apkCallback.app.id == it.id
+            }?.let {
+                cleanApp(it)
+            }
         }
     }
 

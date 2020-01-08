@@ -21,6 +21,10 @@ class GradleService @Inject constructor(private val gradleExecutor: GradleExecut
         return gradleExecutor.pullCode(selectedBranch)
     }
 
+    suspend fun cleanCode(): CommandResponse {
+        return gradleExecutor.cleanCode()
+    }
+
     suspend fun generateApp(parameters: MutableMap<String, String>?,
                             uploadDirPath: String, APKPrefix: String, onPreProcess: (suspend () -> Boolean)): CommandResponse {
         return gradleExecutor.generateApp(parameters, uploadDirPath, APKPrefix, onPreProcess)

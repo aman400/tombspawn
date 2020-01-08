@@ -1,6 +1,7 @@
 package com.tombspawn.skeleton
 
 import com.tombspawn.base.common.*
+import com.tombspawn.base.extensions.asString
 import com.tombspawn.skeleton.app.AppClient
 import com.tombspawn.skeleton.di.qualifiers.FileUploadDir
 import com.tombspawn.skeleton.di.qualifiers.InitCallbackUri
@@ -8,7 +9,6 @@ import com.tombspawn.skeleton.git.GitService
 import com.tombspawn.skeleton.gradle.GradleService
 import com.tombspawn.skeleton.models.RefType
 import com.tombspawn.skeleton.models.Reference
-import io.ktor.util.error
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -110,6 +110,18 @@ class ApplicationService @Inject constructor(
         } ?: run {
             appClient.sendBuildVariants(callbackUri, listOf())
         }
+    }
+
+    suspend fun cleanCode(callbackUri: String) {
+        when(val response = gradleService.cleanCode()) {
+            is Success -> {
+                appClient.sendCleanCommandResponse(callbackUri, SuccessResponse("Cleaned code"))
+            }
+            is Failure -> {
+                appClient.sendCleanCommandResponse(callbackUri, ErrorResponse(response.error ?: response.throwable.asString(),
+                    ErrorResponse.ERR_CLEAN_FAILURE))
+            }
+        }.exhaustive
     }
 
     suspend fun pullCode(selectedBranch: String): Deferred<Boolean> {

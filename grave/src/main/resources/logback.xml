@@ -22,6 +22,8 @@
     <logger name="com.tombspawn.docker.DockerApiClient" level="TRACE"/>
     <logger name="com.tombspawn.docker.DockerService" level="TRACE"/>
     <logger name="com.tombspawn.data.CachingService" level="TRACE"/>
+    <logger name="com.tombspawn.Grave" level="TRACE"/>
+    <logger name="com.tombspawn.grave.Application" level="TRACE"/>
 
 
 </configuration>
