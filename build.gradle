@@ -42,7 +42,7 @@ task generateDistribution() {
 
 task packageDistribution(type: Zip) {
     dependsOn generateDistribution
-    archiveFileName = "tombspawn.zip"
+    archiveFileName = "tombspawn-${VERSION_NAME}.zip"
     destinationDirectory = file("$rootDir/out")
 
     from "$rootDir/output"
