@@ -2,7 +2,6 @@ package com.tombspawn.skeleton.git
 
 import com.tombspawn.skeleton.extensions.authenticate
 import com.tombspawn.skeleton.extensions.checkout
-import com.tombspawn.skeleton.models.App
 import kotlinx.coroutines.*
 import org.eclipse.jgit.api.CloneCommand
 import org.eclipse.jgit.api.Git
@@ -16,7 +15,6 @@ import org.eclipse.jgit.transport.FetchResult
 import org.eclipse.jgit.transport.TagOpt
 import org.slf4j.LoggerFactory
 import java.io.File
-import java.io.IOException
 import javax.inject.Inject
 import kotlin.coroutines.resume
 
@@ -201,23 +199,64 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
         }
     }
 
-    suspend fun checkoutAsync(branch: String, dir: String): Deferred<Boolean> = coroutineScope {
+    suspend fun checkoutAsync(ref: String, dir: String): Deferred<Boolean> = coroutineScope {
         async {
             var config: StoredConfig
             return@async Git(initRepository(dir).also {
                 config = it.config
             }).use { git ->
                 val remote = config.getSubsections("remote").firstOrNull() ?: "origin"
-                git.branchList().setListMode(ListBranchCommand.ListMode.REMOTE).call().filter {
-                    it.name.substringAfter("refs/remotes/$remote/") == branch
+                val localBranch = git.branchList().call().filter {
+                    it.name.substringAfter("refs/heads/") == ref
                 }.map {
-                    it.name.substringAfter("refs/remotes/$remote/")
-                }.firstOrNull()?.let { localBranch: String ->
-                    git.checkout(localBranch, "$remote/$localBranch")
-                    true
-                } ?: false
+                    it.name.substringAfter("refs/heads/")
+                }.firstOrNull()
+                if (localBranch != null) {
+                    git.checkout().setName(localBranch).call()
+                    LOGGER.info("Checked out to branch $ref")
+                    pullLatestCode(ref, dir).await()
+                } else {
+                    val localTag = git.tagList().call().firstOrNull { tag ->
+                        tag.name.endsWith(ref, true)
+                    }
+                    if(localTag != null) {
+                        try {
+                            git.checkout().setCreateBranch(false).setName(ref)
+                                .setStartPoint(localTag.name).call()
+                            LOGGER.info("Checked out to tag $ref")
+                            true
+                        } catch (exception: Exception) {
+                            LOGGER.error("Unable to checkout to tag $ref", exception)
+                            false
+                        }
+                    } else {
+                        val remoteBranch =
+                            git.branchList().setListMode(ListBranchCommand.ListMode.REMOTE).call().filter {
+                                it.name.substringAfter("refs/remotes/$remote/") == ref
+                            }.map {
+                                it.name.substringAfter("refs/remotes/$remote/")
+                            }.firstOrNull()
+                        if (remoteBranch != null) {
+                            LOGGER.info("Checking out to remote branch $ref")
+                            fetchAndCheckoutRemoteBranch(git, remote, ref)
+                        } else {
+                            false
+                        }
+                    }
+                }
             }
         }
+    }
+
+    private fun fetchAndCheckoutRemoteBranch(git: Git, remote: String, branch: String): Boolean {
+        return git.branchList().setListMode(ListBranchCommand.ListMode.REMOTE).call().filter {
+            it.name.substringAfter("refs/remotes/$remote/") == branch
+        }.map {
+            it.name.substringAfter("refs/remotes/$remote/")
+        }.firstOrNull()?.let { localBranch: String ->
+            git.checkout(localBranch, "$remote/$localBranch")
+            true
+        } ?: false
     }
 
     suspend fun pullLatestCode(branch: String, dir: String): Deferred<Boolean> = coroutineScope {

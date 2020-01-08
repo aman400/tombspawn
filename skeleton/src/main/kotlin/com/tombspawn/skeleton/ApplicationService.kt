@@ -160,7 +160,6 @@ class ApplicationService @Inject constructor(
                 gitService.fetchRemoteBranches().await()
                 // Checkout to given branch before app generation
                 checkoutBranch(it).await()
-                pullCode(it).await()
             } ?: false
         }) {
             is Success -> {
@@ -170,14 +169,14 @@ class ApplicationService @Inject constructor(
                         name.contains(apkPrefix, true)
                     }?.firstOrNull()?.let { file ->
                         if (file.exists()) {
-                            gitService.fetchLogs().await()?.let {
-                                parameters["COMMIT_MESSAGE"] = it.shortMessage
-                                parameters["COMMIT_ID"] = it.id.name
-                                it.authorIdent?.let { author ->
-                                    parameters["COMMIT_AUTHOR"] =
-                                        "${author.name}<${author.emailAddress}> ${HUMAN_DATE_FORMAT.format(author.getWhen())}"
-                                }
-                            }
+//                            gitService.fetchLogs().await()?.let {
+//                                parameters["COMMIT_MESSAGE"] = it.shortMessage
+//                                parameters["COMMIT_ID"] = it.id.name
+//                                it.authorIdent?.let { author ->
+//                                    parameters["COMMIT_AUTHOR"] =
+//                                        "${author.name}<${author.emailAddress}> ${HUMAN_DATE_FORMAT.format(author.getWhen())}"
+//                                }
+//                            }
                             successCallbackUri?.let { url ->
                                 when (val responseData = appClient.uploadFile(url, apkPrefix, file, parameters)) {
                                     is CallSuccess -> {
