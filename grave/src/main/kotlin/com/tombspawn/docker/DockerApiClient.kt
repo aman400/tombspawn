@@ -164,6 +164,39 @@ class DockerApiClient @Inject constructor(
         }
     }
 
+    suspend fun cleanApp(app: App, callbackUri: String): JsonObject? = coroutineScope {
+        dockerHttpClients[app.id]?.let { client ->
+            withRetry(20, 10000, -1) {
+                val call = client.call {
+                    method = HttpMethod.Post
+                    url {
+                        encodedPath = "/app/clean"
+                        parameters.append(CommonConstants.CALLBACK_URI, callbackUri)
+                    }
+                }
+                call.await<JsonObject>()
+            }.let { response ->
+                when (response) {
+                    is CallSuccess -> {
+                        response.data
+                    }
+                    is CallFailure -> {
+                        LOGGER.error(response.errorBody)
+                        null
+                    }
+                    is ServerFailure -> {
+                        LOGGER.error(response.errorBody, response.throwable)
+                        null
+                    }
+                    is CallError -> {
+                        LOGGER.error("Unable to clean app", response.throwable)
+                        null
+                    }
+                }
+            }
+        }
+    }
+
     suspend fun listContainer(): MutableList<Container>? {
         return suspendCoroutine {
             dockerClient.listContainersCmd()

@@ -26,6 +26,9 @@ class Apps {
         @Location("/refs")
         data class References(val app: App)
 
+        @Location("/clean")
+        data class Clean(val app: App)
+
         @Location("/flavours")
         data class Flavours(val app: App)
 

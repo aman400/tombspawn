@@ -170,6 +170,14 @@ fun Routing.apkCallback(applicationService: ApplicationService) {
         call.respond(HttpStatusCode.OK, SuccessResponse("ok"))
     }
 
+    post<Apps.App.Clean> { app ->
+        LOGGER.info(call.receiveText())
+        launch(Dispatchers.IO) {
+            applicationService.onTaskCompleted(app.app.id)
+        }
+        call.respond(HttpStatusCode.OK, SuccessResponse("ok"))
+    }
+
     post<Apps.App.Callback.Failure> { callback ->
         val errorResponse = call.receive<ErrorResponse>()
         applicationService.reportFailure(callback.callback, errorResponse)
