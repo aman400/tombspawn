@@ -1,10 +1,7 @@
 package com.tombspawn.skeleton.app
 
 import com.google.gson.JsonObject
-import com.tombspawn.base.common.ErrorResponse
-import com.tombspawn.base.common.ListBodyRequest
-import com.tombspawn.base.common.Response
-import com.tombspawn.base.common.SuccessResponse
+import com.tombspawn.base.common.*
 import com.tombspawn.base.extensions.await
 import com.tombspawn.base.network.MultiPartContent
 import com.tombspawn.base.network.withRetry
@@ -72,6 +69,16 @@ class AppClient @Inject constructor(@UploadAppClient private val uploadHttpClien
             uploadHttpClient.call(url) {
                 method = HttpMethod.Post
                 body = ListBodyRequest(buildVariants)
+                headers.append(HttpHeaders.ContentType, ContentType.Application.Json)
+            }.await<JsonObject>()
+        }
+    }
+
+    suspend fun sendCleanCommandResponse(url: String, responseMessage: CallResponse): Response<JsonObject> {
+        return withRetry(3, 10000, 20000, 1.5) {
+            uploadHttpClient.call(url) {
+                method = HttpMethod.Post
+                body = responseMessage
                 headers.append(HttpHeaders.ContentType, ContentType.Application.Json)
             }.await<JsonObject>()
         }

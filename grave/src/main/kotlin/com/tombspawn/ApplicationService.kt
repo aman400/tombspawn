@@ -3,7 +3,6 @@ package com.tombspawn
 import com.google.common.base.Optional
 import com.google.gson.Gson
 import com.google.gson.JsonParser
-import com.google.gson.reflect.TypeToken
 import com.tombspawn.base.common.*
 import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.extensions.toMap
@@ -22,7 +21,6 @@ import com.tombspawn.models.config.Slack
 import com.tombspawn.models.github.Payload
 import com.tombspawn.models.github.RefType
 import com.tombspawn.models.locations.Apps
-import com.tombspawn.models.redis.ApkCallbackCache
 import com.tombspawn.models.slack.Event
 import com.tombspawn.models.slack.GenerateCallback
 import com.tombspawn.models.slack.SlackEvent
@@ -47,8 +45,7 @@ class ApplicationService @Inject constructor(
     private val slackService: SlackService,
     @UploadDirPath
     val uploadDirPath: String,
-    @AppCacheMap
-    val cacheMap: StringMap,
+    private val cachingService: CachingService,
     @Debuggable
     val debug: Boolean,
     val config: Optional<ServerConf>,
@@ -58,10 +55,8 @@ class ApplicationService @Inject constructor(
 
     private val randomWaitingMessages = listOf(
         "Utha le re Baghwan..",
-        "Jai Maharashtra!!",
         "Try Holding your Breath!!",
         "Hold your horses!!",
-        "Checking Anti-Camp Radius",
         "Creating Randomly Generated Feature",
         "Doing Something You Don't Wanna Know About",
         "Doing The Impossible",
@@ -69,9 +64,14 @@ class ApplicationService @Inject constructor(
         "Ensuring Everything Works Perfektly",
         "Generating Plans for Faster-Than-Light Travel",
         "Hitting Your Keyboard Won't Make This Faster",
-        "In The Grey, No One Can Hear You Scream",
         "Loading, Don't Wait If You Don't Want To",
-        "Preparing to Spin You Around Rapidly"
+        "You usually have to wait for that which is worth waiting for",
+        "The waiting time, my brothers, Is the hardest time of all",
+        "Waiting is a trap. There will always be reasons to wait",
+        "Don't Wait! Start on your dreams",
+        "How much of human life is lost in waiting.",
+        "If you wait for App, App comes. If you don't wait for App, App still comes.",
+        "All things come to him who waits - provided he knows what he is waiting for."
     )
 
     fun onTaskCompleted(id: String) {
@@ -129,6 +129,11 @@ class ApplicationService @Inject constructor(
         dockerService.fetchReferences(app, callbackUri)
     }
 
+    private suspend fun cleanApp(app: App) {
+        val callbackUri = baseUri.get().path("apps", app.id, "clean").build().toString()
+        dockerService.cleanApp(app, callbackUri)
+    }
+
     private suspend fun fetchFlavours(app: App) {
         val callbackUri = baseUri.get().path("apps", app.id, "flavours").build().toString()
         dockerService.fetchFlavours(app, callbackUri)
@@ -136,17 +141,17 @@ class ApplicationService @Inject constructor(
 
     suspend fun addRefs(appId: String, refs: List<Reference>) {
         databaseService.addRefs(refs, appId)
-        cacheMap.setData(StringMap.getReferencesCacheKey(appId), gson.toJson(refs, object: TypeToken<List<Reference>>() {}.type))
+        cachingService.cacheAppReferences(appId, refs)
     }
 
     suspend fun addBuildVariants(appId: String, buildVariants: List<String>) {
         databaseService.addBuildVariants(buildVariants, appId)
-        cacheMap.setData(StringMap.getBuildVariantCacheKey(appId), gson.toJson(buildVariants, object: TypeToken<List<String>>() {}.type))
+        cachingService.cacheBuildVariants(appId, buildVariants)
     }
 
     suspend fun addFlavours(appId: String, flavours: List<String>) {
         databaseService.addFlavours(flavours, appId)
-        cacheMap.setData(StringMap.getFlavoursCacheKey(appId), gson.toJson(flavours, object: TypeToken<List<String>>() {}.type))
+        cachingService.cacheAppFlavours(appId, flavours)
     }
 
     private suspend fun fetchBuildVariants(app: App) {
@@ -225,12 +230,7 @@ class ApplicationService @Inject constructor(
             // Base url for callback
             val callbackUri = baseUri.get().path("apps", app.id, "callback", callbackId).build().toString()
             // Save the application generation cache.
-            cacheMap.setData(
-                callbackId, gson.toJson(
-                    ApkCallbackCache(callbackId, responseUrl, channelId),
-                    ApkCallbackCache::class.java
-                ).toString()
-            )
+            cachingService.saveAppCallbackCache(callbackId, responseUrl, channelId)
             LOGGER.debug("CallbackUri: %s", callbackUri)
             // Generate the application
             dockerService.generateApp(
@@ -265,38 +265,35 @@ class ApplicationService @Inject constructor(
     }
 
     private suspend fun getFlavours(appId: String): List<String>? {
-        return cacheMap.getData(StringMap.getFlavoursCacheKey(appId)).takeIf {
-            !it.isNullOrEmpty()
-        }?.let {
-            LOGGER.debug("Flavours: Cache hit")
-            gson.fromJson<List<String>>(it, object: TypeToken<List<String>>() {}.type)
-        } ?: databaseService.getFlavours(appId)?.map {
+        return cachingService.getCachedFlavours(appId) ?: databaseService.getFlavours(appId)?.map {
             LOGGER.debug("Flavours: Cache miss")
             it.name
+        }.also { flavours ->
+            if (flavours != null) {
+                cachingService.cacheAppFlavours(appId, flavours)
+            }
         }
     }
 
     private suspend fun getReferences(appId: String): List<Reference>? {
-        return cacheMap.getData(StringMap.getReferencesCacheKey(appId)).takeIf {
-            !it.isNullOrEmpty()
-        }?.let {
-            LOGGER.debug("References: Cache hit")
-            gson.fromJson<List<Reference>>(it, object: TypeToken<List<Reference>>() {}.type)
-        } ?: databaseService.getRefs(appId)?.map {
+        return cachingService.getCachedReferences(appId) ?: databaseService.getRefs(appId)?.map {
             LOGGER.debug("References: Cache miss")
             Reference(it.name, it.type)
+        }.also { references ->
+            if (references != null) {
+                cachingService.cacheAppReferences(appId, references)
+            }
         }
     }
 
     private suspend fun getBuildVariants(appId: String): List<String>? {
-        return cacheMap.getData(StringMap.getBuildVariantCacheKey(appId)).takeIf {
-            !it.isNullOrEmpty()
-        }?.let {
-            LOGGER.debug("Build Variants: Cache hit")
-            gson.fromJson<List<String>>(it, object: TypeToken<List<String>>() {}.type)
-        } ?: databaseService.getBuildTypes(appId)?.map {
+        return cachingService.getBuildVariants(appId) ?: databaseService.getBuildTypes(appId)?.map {
             LOGGER.debug("Build Variants: Cache miss")
             it.name
+        }.also { buildVariants ->
+            if (buildVariants != null) {
+                cachingService.cacheBuildVariants(appId, buildVariants)
+            }
         }
     }
 
@@ -435,18 +432,20 @@ class ApplicationService @Inject constructor(
                 }?.mapValues { map -> map.value as String }?.toMutableMap()
 
                 launch(Dispatchers.IO) {
-                    generateApk(buildData ?: mutableMapOf(), slackEvent.channel?.id ?: "general",
-                        app.id, slackEvent.responseUrl ?: "")
+                    generateApk(
+                        buildData ?: mutableMapOf(), slackEvent.channel?.id ?: "general",
+                        app.id, slackEvent.responseUrl ?: ""
+                    )
                 }
             }
         }
     }
 
-    suspend fun updatedCachedRefs(app: App) {
+    private suspend fun updateCachedRefs(app: App) {
         databaseService.getRefs(app.id)?.map {
             Reference(it.name, it.type)
         }?.let {
-            cacheMap.setData("${app.id}_references", gson.toJson(it, object: TypeToken<List<Reference>>() {}.type))
+            cachingService.cacheAppReferences(app.id, it)
         }
 
     }
@@ -474,12 +473,12 @@ class ApplicationService @Inject constructor(
                         if (payload.refType == RefType.BRANCH) {
                             payload.ref?.let { ref ->
                                 databaseService.addRef(app.id, Reference(ref, RefType.BRANCH))
-                                updatedCachedRefs(app)
+                                updateCachedRefs(app)
                             }
                         } else if (payload.refType == RefType.TAG) {
                             payload.ref?.let { ref ->
                                 databaseService.addRef(app.id, Reference(ref, RefType.TAG))
-                                updatedCachedRefs(app)
+                                updateCachedRefs(app)
                             }
                         }
                     }
@@ -489,12 +488,12 @@ class ApplicationService @Inject constructor(
                         if (payload.refType == RefType.BRANCH) {
                             payload.ref?.let { ref ->
                                 databaseService.deleteRef(app.id, Reference(ref, RefType.BRANCH))
-                                updatedCachedRefs(app)
+                                updateCachedRefs(app)
                             }
                         } else if (payload.refType == RefType.TAG) {
                             payload.ref?.let { ref ->
                                 databaseService.deleteRef(app.id, Reference(ref, RefType.TAG))
-                                updatedCachedRefs(app)
+                                updateCachedRefs(app)
                             }
                         }
                     }
@@ -525,23 +524,26 @@ class ApplicationService @Inject constructor(
             dockerService.killContainer(it)
         }
         databaseService.clear()
-        cacheMap.close()
+        cachingService.close()
     }
 
     suspend fun uploadApk(apkCallback: Apps.App.Callback, receivedFile: File, params: MutableMap<String, String>) {
-        val callback = gson.fromJson<ApkCallbackCache>(cacheMap.getData(apkCallback.callbackId), ApkCallbackCache::class.java)
-        cacheMap.delete(apkCallback.callbackId)
+        val callback = cachingService.getAppCallbackCache(apkCallback.callbackId)
+        cachingService.clearAppCallback(apkCallback.callbackId)
         if (receivedFile.exists()) {
             LOGGER.debug("Params: %s", params)
             val data = params.map {
                 "${it.key} = ${it.value}"
             }.joinToString("\n")
-            slackService.uploadFile(receivedFile, callback.channelId!!, data) {
-                // Delete the file and parent directories after upload
-                receivedFile.parentFile.deleteRecursively()
-//                params.remove(SlackConstants.TYPE_SELECT_APP_PREFIX)
+            callback?.channelId?.let { channelId ->
+                slackService.uploadFile(receivedFile, channelId, data) {
+                    // Delete the file and parent directories after upload
+                    receivedFile.parentFile.deleteRecursively()
+                }
+            } ?: receivedFile.parentFile.deleteRecursively()
 //                params[SlackConstants.TYPE_SELECT_BRANCH]?.let { branch ->
 //                    val key = StringMap.getAppCacheMapKey(apkCallback.app.id, branch)
+//                }
 //                    val data = cacheMap.getData(key)?.let {
 //                        gson.fromJson<MutableList<Map<String, String>>>(it, apkCacheTypeToken)
 //                    } ?: mutableListOf()
@@ -549,12 +551,10 @@ class ApplicationService @Inject constructor(
 //                        it.add(params)
 //                        gson.toJson(it, apkCacheTypeToken)
 //                    })
-//                } ?:
-            }
+//                } ?: receivedFile.parentFile.deleteRecursively()
         } else {
             LOGGER.error("APK Generated but file not found in the folder")
-            LOGGER.error("Something went wrong")
-            if (callback.responseUrl != null) {
+            if (callback?.responseUrl != null) {
                 slackService.sendMessage(
                     callback.responseUrl,
                     RequestData(
@@ -562,19 +562,26 @@ class ApplicationService @Inject constructor(
                     )
                 )
             } else {
-                slackService.sendMessage(
-                    "Something went wrong. Unable to generate the APK",
-                    callback.channelId!!,
-                    null
-                )
+                callback?.channelId?.let { channelId ->
+                    slackService.sendMessage("Something went wrong. Unable to generate the APK", channelId, null)
+                }
             }
         }
     }
 
     suspend fun reportFailure(apkCallback: Apps.App.Callback, errorResponse: ErrorResponse) {
-        val callback = gson.fromJson<ApkCallbackCache>(cacheMap.getData(apkCallback.callbackId), ApkCallbackCache::class.java)
-        cacheMap.delete(apkCallback.callbackId)
-        slackService.sendMessage(errorResponse.details ?: "Something went wrong", callback.channelId!!, null)
+        val callback = cachingService.getAppCallbackCache(apkCallback.callbackId)
+        cachingService.clearAppCallback(apkCallback.callbackId)
+        callback?.channelId?.let {channelId ->
+            slackService.sendMessage(errorResponse.details ?: "Something went wrong", channelId, null)
+        }
+        GlobalScope.launch {
+            apps.firstOrNull {
+                apkCallback.app.id == it.id
+            }?.let {
+                cleanApp(it)
+            }
+        }
     }
 
     companion object {

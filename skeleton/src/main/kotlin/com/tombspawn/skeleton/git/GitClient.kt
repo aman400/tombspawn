@@ -1,6 +1,7 @@
 package com.tombspawn.skeleton.git
 
 import com.tombspawn.skeleton.extensions.authenticate
+import com.tombspawn.skeleton.extensions.checkout
 import com.tombspawn.skeleton.models.App
 import kotlinx.coroutines.*
 import org.eclipse.jgit.api.CloneCommand
@@ -94,12 +95,20 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
         }
     }
 
+    suspend fun fetchLogs(dir: String): Deferred<RevCommit?> = coroutineScope {
+        async(Dispatchers.IO) {
+            return@async Git(initRepository(dir)).use {git ->
+                git.log().all().call().firstOrNull()
+            }
+        }
+    }
+
     suspend fun fetchRemoteAsync(dir: String): Deferred<FetchResult> = coroutineScope {
         async(Dispatchers.IO) {
             var origin: String
             return@async Git(initRepository(dir).also {
                 val storedConfig = it.config
-                origin = storedConfig.getSubsections("remote").first()
+                origin = storedConfig.getSubsections("remote").firstOrNull() ?: "origin"
             }).use { git ->
                 git.fetch().setRemote(origin)
                     .setRemoveDeletedRefs(true)
@@ -114,7 +123,7 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
             var origin: String
             return@async Git(initRepository(dir).also {
                 val storedConfig = it.config
-                origin = storedConfig.getSubsections("remote").first()
+                origin = storedConfig.getSubsections("remote").firstOrNull() ?: "origin"
             }).use { git ->
                 return@use git.branchList().setListMode(ListBranchCommand.ListMode.REMOTE)
                     .call()
@@ -145,7 +154,7 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
     }
 
     suspend fun clean(dir: String): Deferred<MutableSet<String>> = coroutineScope {
-        async {
+        async(Dispatchers.IO) {
             return@async Git(initRepository(dir)).use { git ->
                 git.clean().setCleanDirectories(true)
                     .setForce(true).call()
@@ -154,7 +163,7 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
     }
 
     suspend fun resetBranch(dir: String): Deferred<Ref> = coroutineScope {
-        async {
+        async(Dispatchers.IO) {
             return@async Git(initRepository(dir)).use { git ->
                 git.reset().setMode(ResetCommand.ResetType.HARD)
                     .setRef(Constants.HEAD)
@@ -193,22 +202,36 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
     }
 
     suspend fun checkoutAsync(branch: String, dir: String): Deferred<Boolean> = coroutineScope {
-        async(Dispatchers.IO) {
-            return@async Git(initRepository(dir)).use { git ->
-                git.branchList().call().filter {
-                    it.name.substringAfter("refs/heads/") == branch
+        async {
+            var config: StoredConfig
+            return@async Git(initRepository(dir).also {
+                config = it.config
+            }).use { git ->
+                val remote = config.getSubsections("remote").firstOrNull() ?: "origin"
+                git.branchList().setListMode(ListBranchCommand.ListMode.REMOTE).call().filter {
+                    it.name.substringAfter("refs/remotes/$remote/") == branch
                 }.map {
-                    it.name.substringAfter("refs/heads/")
+                    it.name.substringAfter("refs/remotes/$remote/")
                 }.firstOrNull()?.let { localBranch: String ->
-                    git.checkout().setName(localBranch).call()
-                    if (git.pull().setRemoteBranchName(localBranch)
-                            .authenticate(provider).call().isSuccessful) {
-                        LOGGER.info("Pulled latest code")
-                    } else {
-                        LOGGER.warn("Unable to pull code")
-                    }
+                    git.checkout(localBranch, "$remote/$localBranch")
                     true
                 } ?: false
+            }
+        }
+    }
+
+    suspend fun pullLatestCode(branch: String, dir: String): Deferred<Boolean> = coroutineScope {
+        async {
+            return@async Git(initRepository(dir)).use {git ->
+                if (git.pull().setRemoteBranchName(branch)
+                        .authenticate(provider).call().isSuccessful
+                ) {
+                    LOGGER.info("Pulled latest code")
+                    true
+                } else {
+                    LOGGER.warn("Unable to pull code")
+                    false
+                }
             }
         }
     }

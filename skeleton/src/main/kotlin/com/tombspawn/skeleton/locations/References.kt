@@ -10,3 +10,9 @@ data class Flavours(val callbackUri: String)
 
 @Location("/build-variants")
 data class BuildVariants(val callbackUri: String)
+
+@Location("/app")
+class App {
+    @Location("/clean")
+    data class CleanTask(val callbackUri: String)
+}

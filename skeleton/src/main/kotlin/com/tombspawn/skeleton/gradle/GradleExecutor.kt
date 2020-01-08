@@ -105,6 +105,15 @@ class GradleExecutor @Inject constructor(
         return null
     }
 
+    override suspend fun cleanCode(): CommandResponse {
+        val cleanCommand = "$gradlePath clean"
+        val executionDirectory = File(appDir)
+        val id = UUID.randomUUID().toString()
+        val request = Request(cleanCommand, executionDirectory, id = id, listener = CompletableDeferred())
+        requestExecutor.send(request)
+        return request.listener!!.await()
+    }
+
     override suspend fun pullCode(selectedBranch: String): CommandResponse {
         val pullCodeCommand =
             "$gradlePath pullCode ${selectedBranch.let { "-P${SlackConstants.TYPE_SELECT_BRANCH}=$it" }}"

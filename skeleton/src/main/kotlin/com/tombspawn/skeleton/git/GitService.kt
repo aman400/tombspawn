@@ -2,6 +2,7 @@ package com.tombspawn.skeleton.git
 
 import com.tombspawn.skeleton.models.App
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Job
 import org.eclipse.jgit.lib.ObjectId
 import org.eclipse.jgit.lib.Ref
 import org.eclipse.jgit.revwalk.RevCommit
@@ -12,6 +13,10 @@ class GitService @Inject constructor(private val app: App, private val gitClient
 
     suspend fun clone(): Boolean {
         return gitClient.clone(app.dir!!, app.uri!!)
+    }
+
+    suspend fun fetchLogs(): Deferred<RevCommit?> {
+        return gitClient.fetchLogs(app.dir!!)
     }
 
     suspend fun fetchRemoteBranches(): Deferred<FetchResult> {
@@ -28,6 +33,10 @@ class GitService @Inject constructor(private val app: App, private val gitClient
 
     suspend fun checkout(branch: String): Deferred<Boolean> {
         return gitClient.checkoutAsync(branch, app.dir!!)
+    }
+
+    suspend fun pullCode(branch: String): Deferred<Boolean> {
+        return gitClient.pullLatestCode(branch, app.dir!!)
     }
 
     suspend fun resetBranch(): Deferred<Ref> {

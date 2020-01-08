@@ -8,6 +8,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.channels.actor
 import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import java.io.IOException
 
@@ -21,7 +22,9 @@ fun CoroutineScope.getCommandExecutor(): SendChannel<Command> {
                     try {
                         if(command is Processable) {
                             LOGGER.trace("Pre-processing command")
-                            command.onPreProcess()
+                            runBlocking {
+                                command.onPreProcess()
+                            }
                             LOGGER.trace("Pre-processing complete")
                         }
                         LOGGER.debug("Executing: ${command.command}")

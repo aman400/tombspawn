@@ -10,6 +10,7 @@ import com.tombspawn.base.extensions.toMap
 import com.tombspawn.di.qualifiers.SlackHttpClient
 import com.tombspawn.docker.DockerApiClient
 import com.tombspawn.models.*
+import com.tombspawn.models.CallResponse
 import com.tombspawn.models.config.App
 import com.tombspawn.models.config.Slack
 import com.tombspawn.models.github.RefType

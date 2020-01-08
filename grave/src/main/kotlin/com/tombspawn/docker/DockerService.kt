@@ -198,6 +198,12 @@ class DockerService @Inject constructor(
         })
     }
 
+    suspend fun cleanApp(app: App, callbackUri: String) {
+        sendChannel.offer(QueueAddAction(app.id) {
+            dockerClient.cleanApp(app, callbackUri)
+        })
+    }
+
     suspend fun fetchBuildVariants(app: App, callbackUri: String) {
         sendChannel.offer(QueueAddAction(app.id) {
             dockerClient.fetchBuildVariants(app, callbackUri)
