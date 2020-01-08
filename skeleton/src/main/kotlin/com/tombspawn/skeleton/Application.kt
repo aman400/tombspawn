@@ -1,7 +1,6 @@
 package com.tombspawn.skeleton
 
 import com.tombspawn.base.common.CommonConstants
-import com.tombspawn.base.common.Success
 import com.tombspawn.base.common.SuccessResponse
 import com.tombspawn.base.config.JsonApplicationConfig
 import com.tombspawn.base.di.DaggerCoreComponent
