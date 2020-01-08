@@ -92,8 +92,8 @@ class ApplicationService @Inject constructor(
         }
     }
 
-    suspend fun checkoutBranch(branch: String): Boolean {
-        return gitService.checkout(branch).await()
+    suspend fun checkoutBranch(branch: String): Deferred<Boolean> {
+        return gitService.checkout(branch)
     }
 
     suspend fun fetchProductFlavours(callbackUri: String) {
@@ -121,7 +121,7 @@ class ApplicationService @Inject constructor(
         val branch = parameters?.get(SlackConstants.TYPE_SELECT_BRANCH)
 
         when (val response = gradleService.generateApp(parameters, fileUploadDir, apkPrefix) {
-            branch?.let {
+            branch?.trim()?.let {
                 // Clean git repo to remove untracked files/folders
                 gitService.clean().await().let {
                     LOGGER.info(it.joinToString(", "))
@@ -130,9 +130,9 @@ class ApplicationService @Inject constructor(
                 gitService.resetBranch().await().let { ref ->
                     LOGGER.info("Reset head to ${ref.name} ${ref.objectId}")
                 }
+                gitService.fetchRemoteBranches().await()
                 // Checkout to given branch before app generation
-                checkoutBranch(it)
-                true
+                checkoutBranch(it).await()
             } ?: false
         }) {
             is Success -> {

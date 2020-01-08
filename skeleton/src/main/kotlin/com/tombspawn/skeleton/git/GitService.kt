@@ -2,6 +2,7 @@ package com.tombspawn.skeleton.git
 
 import com.tombspawn.skeleton.models.App
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Job
 import org.eclipse.jgit.lib.ObjectId
 import org.eclipse.jgit.lib.Ref
 import org.eclipse.jgit.revwalk.RevCommit

@@ -18,10 +18,10 @@
     <logger name="io.ktor.client" level="ERROR"/>
     <logger name="io.ktor.auth.jwt" level="ERROR"/>
     <logger name="Exposed" level="ERROR"/>
-    <logger name="com.tombspawn.base.network.Common" level="INFO"/>
-    <logger name="com.tombspawn.docker.DockerApiClient" level="INFO"/>
-    <logger name="com.tombspawn.docker.DockerService" level="INFO"/>
-    <logger name="com.tombspawn.data.CachingService" level="INFO"/>
+    <logger name="com.tombspawn.base.network.Common" level="TRACE"/>
+    <logger name="com.tombspawn.docker.DockerApiClient" level="TRACE"/>
+    <logger name="com.tombspawn.docker.DockerService" level="TRACE"/>
+    <logger name="com.tombspawn.data.CachingService" level="TRACE"/>
 
 
 </configuration>

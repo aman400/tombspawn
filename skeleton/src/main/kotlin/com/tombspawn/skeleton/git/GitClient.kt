@@ -1,6 +1,7 @@
 package com.tombspawn.skeleton.git
 
 import com.tombspawn.skeleton.extensions.authenticate
+import com.tombspawn.skeleton.extensions.checkout
 import com.tombspawn.skeleton.models.App
 import kotlinx.coroutines.*
 import org.eclipse.jgit.api.CloneCommand
@@ -193,14 +194,18 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
     }
 
     suspend fun checkoutAsync(branch: String, dir: String): Deferred<Boolean> = coroutineScope {
-        async(Dispatchers.IO) {
-            return@async Git(initRepository(dir)).use { git ->
-                git.branchList().call().filter {
-                    it.name.substringAfter("refs/heads/") == branch
+        async {
+            var config: StoredConfig
+            return@async Git(initRepository(dir).also {
+                config = it.config
+            }).use { git ->
+                val remote = config.getSubsections("remote").firstOrNull() ?: "origin"
+                git.branchList().setListMode(ListBranchCommand.ListMode.REMOTE).call().filter {
+                    it.name.substringAfter("refs/remotes/$remote/") == branch
                 }.map {
-                    it.name.substringAfter("refs/heads/")
+                    it.name.substringAfter("refs/remotes/$remote/")
                 }.firstOrNull()?.let { localBranch: String ->
-                    git.checkout().setName(localBranch).call()
+                    git.checkout(localBranch, "$remote/$localBranch")
                     if (git.pull().setRemoteBranchName(localBranch)
                             .authenticate(provider).call().isSuccessful) {
                         LOGGER.info("Pulled latest code")

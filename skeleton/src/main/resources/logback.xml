@@ -19,10 +19,11 @@
     <logger name="io.ktor.auth.jwt" level="DEBUG"/>
     <logger name="Exposed" level="ERROR"/>
     <logger name="o.e.j.i.storage.file.FileSnapshot" level="ERROR"/>
-    <logger name="com.tombspawn.skeleton.ApplicationService" level="DEBUG"/>
-    <logger name="com.tombspawn.base.network.Common" level="DEBUG"/>
-    <logger name="com.tombspawn.skeleton.gradle.GradleExecutor" level="DEBUG"/>
-    <logger name="com.tombspawn.skeleton.git.GitClient" level="DEBUG"/>
-    <logger name="com.tombspawn.skeleton.commandline.CommandLineClient" level="DEBUG"/>
+    <logger name="com.tombspawn.skeleton.ApplicationService" level="TRACE"/>
+    <logger name="com.tombspawn.base.network.Common" level="TRACE"/>
+    <logger name="com.tombspawn.skeleton.gradle.GradleExecutor" level="TRACE"/>
+    <logger name="com.tombspawn.skeleton.git.GitClient" level="TRACE"/>
+    <logger name="com.tombspawn.skeleton.commandline.CommandLineClient" level="TRACE"/>
+    <logger name="com.tombspawn.skeleton.extensions.GitUtils" level="TRACE"/>
 
 </configuration>
