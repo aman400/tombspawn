@@ -6,9 +6,7 @@ import com.tombspawn.base.config.JsonApplicationConfig
 import com.tombspawn.base.di.DaggerCoreComponent
 import com.tombspawn.skeleton.di.AppComponent
 import com.tombspawn.skeleton.di.DaggerAppComponent
-import com.tombspawn.skeleton.locations.BuildVariants
-import com.tombspawn.skeleton.locations.Flavours
-import com.tombspawn.skeleton.locations.References
+import com.tombspawn.skeleton.locations.*
 import com.tombspawn.skeleton.models.config.ServerConf
 import io.ktor.application.*
 import io.ktor.features.*
@@ -17,9 +15,11 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.locations.KtorExperimentalLocationsAPI
 import io.ktor.locations.Locations
 import io.ktor.locations.get
+import io.ktor.locations.post
 import io.ktor.request.path
 import io.ktor.response.respond
 import io.ktor.routing.get
+import io.ktor.routing.post
 import io.ktor.routing.routing
 import io.ktor.server.engine.applicationEngineEnvironment
 import io.ktor.server.engine.connector
@@ -186,6 +186,13 @@ fun Application.module(appComponent: AppComponent) {
         this@routing.get<BuildVariants> { variants ->
             launch(Dispatchers.IO) {
                 applicationService.fetchBuildVariants(variants.callbackUri)
+            }
+            call.respond(SuccessResponse("ok"))
+        }
+
+        this@routing.post<App.CleanTask> { task ->
+            launch(Dispatchers.IO) {
+                applicationService.cleanCode(task.callbackUri)
             }
             call.respond(SuccessResponse("ok"))
         }
