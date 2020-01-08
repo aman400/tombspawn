@@ -27,3 +27,11 @@
 *.zip
 *.tar.gz
 *.rar
+scripts/local
+.gradle
+build/
+.env
+.DS_Store
+out/
+/skeleton/gradle.properties
+output/

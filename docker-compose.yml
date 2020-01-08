@@ -1,0 +1,66 @@
+version: '2.4'
+
+networks:
+  tombspawn:
+    name: tombspawn
+
+volumes:
+  mysqldb:
+    name: mysqldb
+  redisdb:
+    name: redisdb
+
+services:
+  db:
+    cpu_shares: 1024
+    mem_limit: 1500000000
+    memswap_limit: 2000000000
+    mem_reservation: 512m
+    container_name: mysqldb
+    build: docker/mysql/.
+    image: mysqldb
+    volumes:
+      - mysqldb:/var/lib/mysql
+    restart: always
+    env_file:
+      - scripts/local/mysql.env
+    networks:
+      - tombspawn
+    ports:
+      - "3306:3306"
+  redis:
+    cpu_shares: 1024
+    mem_limit: 1000000000
+    memswap_limit: 2000000000
+    mem_reservation: 512m
+    container_name: redisdb
+    build: docker/redis/.
+    image: redisdb
+    volumes:
+      - redisdb:/data
+    restart: always
+    networks:
+      - tombspawn
+    ports:
+      - "6379:6379"
+  application:
+    cpu_shares: 1024
+    mem_limit: 1000000000
+    memswap_limit: 2000000000
+    mem_reservation: 512m
+    container_name: application
+    depends_on:
+      - db
+      - redis
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: application
+    restart: always
+    volumes:
+      - ${CONF_PATH}:/app/application.json
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - tombspawn
+    ports:
+      - "63648:8080"

@@ -1,6 +1,4 @@
 buildscript {
-    ext.kotlin_version = '1.3.31'
-
     repositories {
         jcenter()
         maven { url 'https://dl.bintray.com/kotlin/kotlin-eap' }
@@ -10,58 +8,66 @@ buildscript {
     }
 
     dependencies {
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath "com.github.jengelman.gradle.plugins:shadow:5.0.0"
+        classpath Classpaths.kotlin
+        classpath Classpaths.shadowJar
     }
 }
 
-apply plugin: 'com.github.johnrengelman.shadow'
-apply plugin: 'kotlin'
-apply plugin: 'application'
 
-group 'app'
-version '0.6'
-mainClassName = "io.ktor.server.netty.EngineMain"
-
-sourceSets {
-    main.kotlin.srcDirs = main.java.srcDirs = ['src']
-    test.kotlin.srcDirs = test.java.srcDirs = ['test']
-    main.resources.srcDirs = ['resources']
-    test.resources.srcDirs = ['testresources']
+task copyDockerFiles(type: Copy) {
+    from "$rootDir/docker-compose.yml", "$rootDir/Dockerfile", "$rootDir/.env"
+    into "$rootDir/output"
 }
 
-sourceCompatibility = 1.8
-compileKotlin {
-    kotlinOptions.jvmTarget = "1.8"
+task copyDockerConfig(type: Copy) {
+    from "$rootDir/docker"
+    into "$rootDir/output/docker"
 }
 
-repositories {
-    jcenter()
-    mavenCentral()
-    maven { url 'https://dl.bintray.com/kotlin/kotlin-eap' }
-    maven { url 'https://dl.bintray.com/kotlin/kotlinx' }
-    maven { url 'https://dl.bintray.com/kotlin/ktor' }
-
+task copyScripts(type: Copy) {
+    from "$rootDir/scripts"
+    into "$rootDir/output/scripts"
 }
 
-dependencies {
-    testImplementation "io.ktor:ktor-server-tests:$ktor_version"
-    
-    implementation group: 'io.ktor', name: 'ktor-client-logging-jvm', version: "$ktor_version"
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
-    implementation "ch.qos.logback:logback-classic:$logback_version"
-    implementation 'com.google.code.gson:gson:2.8.5'
-    implementation 'org.jetbrains.exposed:exposed:0.13.7'
-    implementation 'mysql:mysql-connector-java:8.0.12'
-    implementation 'org.koin:koin-ktor:2.0.0-rc-2'
-    implementation "io.ktor:ktor-client-json:$ktor_version"
-    implementation "io.ktor:ktor-client-gson:$ktor_version"
-    implementation "io.ktor:ktor-client-apache:$ktor_version"
-    implementation "io.ktor:ktor-server-core:$ktor_version"
-    implementation "io.ktor:ktor-locations:$ktor_version"
-    implementation "io.ktor:ktor-gson:$ktor_version"
-    implementation "io.ktor:ktor-server-netty:$ktor_version"
-    implementation group: 'com.zaxxer', name: 'HikariCP', version: '3.3.1'
-    implementation 'org.redisson:redisson:3.10.7'
+task generateDistribution() {
+    dependsOn copyScripts
+    dependsOn copyDockerConfig
+    dependsOn copyDockerFiles
+    dependsOn ':skeleton:generateApplication'
+    dependsOn ':grave:generateApplication'
+    doLast {
+        logger.info('Done copying files')
+    }
+}
 
+task packageDistribution(type: Zip) {
+    dependsOn generateDistribution
+    archiveFileName = "tombspawn.zip"
+    destinationDirectory = file("$rootDir/out")
+
+    from "$rootDir/output"
+}
+
+
+task cleanup(type: Delete) {
+    delete "output"
+    delete "out"
+}
+
+task clean {
+    dependsOn cleanup
+}
+
+cleanup.doFirst {
+    clean()
+}
+
+allprojects {
+    repositories {
+        jcenter()
+        mavenCentral()
+        maven { url 'https://dl.bintray.com/kotlin/kotlin-eap' }
+        maven { url 'https://dl.bintray.com/kotlin/kotlinx' }
+        maven { url 'https://dl.bintray.com/kotlin/ktor' }
+    }
 }
