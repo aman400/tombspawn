@@ -55,10 +55,8 @@ class ApplicationService @Inject constructor(
 
     private val randomWaitingMessages = listOf(
         "Utha le re Baghwan..",
-        "Jai Maharashtra!!",
         "Try Holding your Breath!!",
         "Hold your horses!!",
-        "Checking Anti-Camp Radius",
         "Creating Randomly Generated Feature",
         "Doing Something You Don't Wanna Know About",
         "Doing The Impossible",
@@ -66,9 +64,14 @@ class ApplicationService @Inject constructor(
         "Ensuring Everything Works Perfektly",
         "Generating Plans for Faster-Than-Light Travel",
         "Hitting Your Keyboard Won't Make This Faster",
-        "In The Grey, No One Can Hear You Scream",
         "Loading, Don't Wait If You Don't Want To",
-        "Preparing to Spin You Around Rapidly"
+        "You usually have to wait for that which is worth waiting for",
+        "The waiting time, my brothers, Is the hardest time of all",
+        "Waiting is a trap. There will always be reasons to wait",
+        "Don't Wait! Start on your dreams",
+        "How much of human life is lost in waiting.",
+        "If you wait for App, App comes. If you don't wait for App, App still comes.",
+        "All things come to him who waits - provided he knows what he is waiting for."
     )
 
     fun onTaskCompleted(id: String) {
