@@ -15,6 +15,10 @@ class GitService @Inject constructor(private val app: App, private val gitClient
         return gitClient.clone(app.dir!!, app.uri!!)
     }
 
+    suspend fun fetchLogs(): Deferred<RevCommit?> {
+        return gitClient.fetchLogs(app.dir!!)
+    }
+
     suspend fun fetchRemoteBranches(): Deferred<FetchResult> {
         return gitClient.fetchRemoteAsync(app.dir!!)
     }
