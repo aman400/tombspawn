@@ -12,8 +12,11 @@ import com.tombspawn.skeleton.models.Reference
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
 import javax.inject.Inject
 import kotlin.coroutines.CoroutineContext
+
 
 class ApplicationService @Inject constructor(
     private val gitService: GitService,
@@ -23,7 +26,13 @@ class ApplicationService @Inject constructor(
     private val fileUploadDir: String,
     @InitCallbackUri
     private val initCallbackUri: String
-): CoroutineScope {
+) : CoroutineScope {
+
+    private val HUMAN_DATE_FORMAT by lazy {
+        SimpleDateFormat("h:mm a, EEE, MMM d, ''yy").apply {
+            timeZone = TimeZone.getTimeZone("GMT+5:30")
+        }
+    }
 
     private val job = Job()
 
@@ -37,9 +46,9 @@ class ApplicationService @Inject constructor(
 
     private fun clone() {
         launch(Dispatchers.IO) {
-            if(gitService.clone()) {
+            if (gitService.clone()) {
                 LOGGER.info("Making api call to $initCallbackUri")
-                when(val response = appClient.initComplete(initCallbackUri, success = true)) {
+                when (val response = appClient.initComplete(initCallbackUri, success = true)) {
                     is CallSuccess -> {
                         LOGGER.info(response.data.toString())
                     }
@@ -70,7 +79,7 @@ class ApplicationService @Inject constructor(
 
     suspend fun getBranches(branchLimit: Int): List<Reference> {
         return gitService.getBranches().await().let {
-            if(branchLimit >= 0) {
+            if (branchLimit >= 0) {
                 it.take(branchLimit)
             } else {
                 it
@@ -113,13 +122,17 @@ class ApplicationService @Inject constructor(
     }
 
     suspend fun cleanCode(callbackUri: String) {
-        when(val response = gradleService.cleanCode()) {
+        when (val response = gradleService.cleanCode()) {
             is Success -> {
                 appClient.sendCleanCommandResponse(callbackUri, SuccessResponse("Cleaned code"))
             }
             is Failure -> {
-                appClient.sendCleanCommandResponse(callbackUri, ErrorResponse(response.error ?: response.throwable.asString(),
-                    ErrorResponse.ERR_CLEAN_FAILURE))
+                appClient.sendCleanCommandResponse(
+                    callbackUri, ErrorResponse(
+                        response.error ?: response.throwable.asString(),
+                        ErrorResponse.ERR_CLEAN_FAILURE
+                    )
+                )
             }
         }.exhaustive
     }
@@ -128,9 +141,11 @@ class ApplicationService @Inject constructor(
         return gitService.pullCode(selectedBranch)
     }
 
-    suspend fun generateApp(parameters: MutableMap<String, String>?, successCallbackUri: String?,
-                            failureCallbackUri: String?, apkPrefix: String) = coroutineScope {
-        val branch = parameters?.get(SlackConstants.TYPE_SELECT_BRANCH)
+    suspend fun generateApp(
+        parameters: MutableMap<String, String> = mutableMapOf(), successCallbackUri: String?,
+        failureCallbackUri: String?, apkPrefix: String
+    ) = coroutineScope {
+        val branch = parameters.get(SlackConstants.TYPE_SELECT_BRANCH)
 
         when (val response = gradleService.generateApp(parameters, fileUploadDir, apkPrefix) {
             branch?.trim()?.let {
@@ -155,6 +170,14 @@ class ApplicationService @Inject constructor(
                         name.contains(apkPrefix, true)
                     }?.firstOrNull()?.let { file ->
                         if (file.exists()) {
+                            gitService.fetchLogs().await()?.let {
+                                parameters["COMMIT_MESSAGE"] = it.shortMessage
+                                parameters["COMMIT_ID"] = it.id.name
+                                it.authorIdent?.let { author ->
+                                    parameters["COMMIT_AUTHOR"] =
+                                        "${author.name}<${author.emailAddress}> ${HUMAN_DATE_FORMAT.format(author.getWhen())}"
+                                }
+                            }
                             successCallbackUri?.let { url ->
                                 when (val responseData = appClient.uploadFile(url, apkPrefix, file, parameters)) {
                                     is CallSuccess -> {
@@ -165,26 +188,36 @@ class ApplicationService @Inject constructor(
                                         file.delete()
                                         LOGGER.error("Unable to upload file", responseData.throwable)
                                         failureCallbackUri?.let { errorUrl ->
-                                            appClient.reportFailure(errorUrl, ErrorResponse(responseData.errorBody ?:
-                                            "Something went wrong. Unable to upload file"))
+                                            appClient.reportFailure(
+                                                errorUrl, ErrorResponse(
+                                                    responseData.errorBody
+                                                        ?: "Something went wrong. Unable to upload file"
+                                                )
+                                            )
                                         }
                                     }
                                     is ServerFailure -> {
                                         file.delete()
                                         LOGGER.error("Unable to upload file", responseData.throwable)
                                         failureCallbackUri?.let { errorUrl ->
-                                            appClient.reportFailure(errorUrl, ErrorResponse(
-                                                responseData.throwable?.message
-                                                    ?: "Something went wrong. Unable to upload file"))
+                                            appClient.reportFailure(
+                                                errorUrl, ErrorResponse(
+                                                    responseData.throwable?.message
+                                                        ?: "Something went wrong. Unable to upload file"
+                                                )
+                                            )
                                         }
                                     }
                                     is CallError -> {
                                         file.delete()
                                         LOGGER.error("Unable to upload file", responseData.throwable)
                                         failureCallbackUri?.let { errorUrl ->
-                                            appClient.reportFailure(errorUrl, ErrorResponse(
-                                                responseData.throwable?.message
-                                                ?: "Something went wrong. Unable to upload file"))
+                                            appClient.reportFailure(
+                                                errorUrl, ErrorResponse(
+                                                    responseData.throwable?.message
+                                                        ?: "Something went wrong. Unable to upload file"
+                                                )
+                                            )
                                         }
                                     }
                                 }
@@ -193,16 +226,22 @@ class ApplicationService @Inject constructor(
                     }
                 } else {
                     failureCallbackUri?.let { errorUrl ->
-                        appClient.reportFailure(errorUrl, ErrorResponse(
-                            "File not found"))
+                        appClient.reportFailure(
+                            errorUrl, ErrorResponse(
+                                "File not found"
+                            )
+                        )
                     }
                 }
             }
             is Failure -> {
                 failureCallbackUri?.let { errorUrl ->
                     LOGGER.error(response.error)
-                    appClient.reportFailure(errorUrl, ErrorResponse(
-                        response.error ?: "File not found"))
+                    appClient.reportFailure(
+                        errorUrl, ErrorResponse(
+                            response.error ?: "File not found"
+                        )
+                    )
                 }
             }
         }

@@ -95,12 +95,20 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
         }
     }
 
+    suspend fun fetchLogs(dir: String): Deferred<RevCommit?> = coroutineScope {
+        async(Dispatchers.IO) {
+            return@async Git(initRepository(dir)).use {git ->
+                git.log().all().call().firstOrNull()
+            }
+        }
+    }
+
     suspend fun fetchRemoteAsync(dir: String): Deferred<FetchResult> = coroutineScope {
         async(Dispatchers.IO) {
             var origin: String
             return@async Git(initRepository(dir).also {
                 val storedConfig = it.config
-                origin = storedConfig.getSubsections("remote").first()
+                origin = storedConfig.getSubsections("remote").firstOrNull() ?: "origin"
             }).use { git ->
                 git.fetch().setRemote(origin)
                     .setRemoveDeletedRefs(true)
@@ -115,7 +123,7 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
             var origin: String
             return@async Git(initRepository(dir).also {
                 val storedConfig = it.config
-                origin = storedConfig.getSubsections("remote").first()
+                origin = storedConfig.getSubsections("remote").firstOrNull() ?: "origin"
             }).use { git ->
                 return@use git.branchList().setListMode(ListBranchCommand.ListMode.REMOTE)
                     .call()
@@ -146,7 +154,7 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
     }
 
     suspend fun clean(dir: String): Deferred<MutableSet<String>> = coroutineScope {
-        async {
+        async(Dispatchers.IO) {
             return@async Git(initRepository(dir)).use { git ->
                 git.clean().setCleanDirectories(true)
                     .setForce(true).call()
@@ -155,7 +163,7 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
     }
 
     suspend fun resetBranch(dir: String): Deferred<Ref> = coroutineScope {
-        async {
+        async(Dispatchers.IO) {
             return@async Git(initRepository(dir)).use { git ->
                 git.reset().setMode(ResetCommand.ResetType.HARD)
                     .setRef(Constants.HEAD)
