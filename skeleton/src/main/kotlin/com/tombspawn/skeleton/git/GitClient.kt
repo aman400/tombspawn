@@ -96,7 +96,7 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
     suspend fun fetchLogs(dir: String): Deferred<RevCommit?> = coroutineScope {
         async(Dispatchers.IO) {
             return@async Git(initRepository(dir)).use {git ->
-                git.log().all().call().firstOrNull()
+                git.log().setMaxCount(1).call().firstOrNull()
             }
         }
     }

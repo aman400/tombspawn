@@ -77,7 +77,7 @@ class CachingService @Inject constructor(@AppCacheMap val cacheMap: StringMap,
     }
 
     fun clearAppCallback(callbackId: String) {
-        cacheMap.delete(callbackId)
+        cacheMap.deleteKey(callbackId)
     }
 
     fun close() {

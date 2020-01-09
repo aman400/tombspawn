@@ -45,7 +45,7 @@ object Database {
     const val mysql = "mysql:mysql-connector-java:8.0.18"
     const val exposed = "org.jetbrains.exposed:exposed:0.14.1"
     const val pool = "com.zaxxer:HikariCP:3.4.1"
-    const val redis = "redis.clients:jedis:3.2.0"
+    const val redis = "org.redisson:redisson:3.12.0"
 }
 
 object Dagger {
