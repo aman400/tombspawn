@@ -12,10 +12,6 @@ volumes:
 
 services:
   db:
-    cpu_shares: 1024
-    mem_limit: 1500000000
-    memswap_limit: 2000000000
-    mem_reservation: 512m
     container_name: mysqldb
     build: docker/mysql/.
     image: mysqldb
@@ -29,10 +25,6 @@ services:
     ports:
       - "3306:3306"
   redis:
-    cpu_shares: 1024
-    mem_limit: 1000000000
-    memswap_limit: 2000000000
-    mem_reservation: 512m
     container_name: redisdb
     build: docker/redis/.
     image: redisdb
@@ -44,10 +36,6 @@ services:
     ports:
       - "6379:6379"
   application:
-    cpu_shares: 1024
-    mem_limit: 1000000000
-    memswap_limit: 2000000000
-    mem_reservation: 512m
     container_name: application
     depends_on:
       - db
