@@ -1,42 +1,25 @@
 package com.tombspawn.data
 
+import org.redisson.api.RMap
+import org.redisson.api.RedissonClient
 import org.slf4j.LoggerFactory
-import redis.clients.jedis.Jedis
-import redis.clients.jedis.JedisPool
-import redis.clients.jedis.exceptions.JedisConnectionException
 import java.util.concurrent.TimeUnit
-import javax.inject.Provider
 
-class StringMap constructor(jedis: Provider<JedisPool>): Redis<String>(jedis) {
-
+class StringMap constructor(val key: String, redisClient: RedissonClient): Redis<String>(redisClient) {
     private val LOGGER = LoggerFactory.getLogger("com.tombspawn.data.StringMap")
 
+    private val stringMap: RMap<String, String> = redisClient.getMap<String, String>(key)
+
     override fun getData(key: String): String? {
-        return try {
-            jedis.get(key)
-        } catch (exception: JedisConnectionException) {
-            recreateInstance()
-            getData(key)
-        } catch (exception: Exception) {
-            LOGGER.error("Jedis not connecting", exception)
-            null
-        }
+        return stringMap[key]
+    }
+
+    override fun deleteKey(key: String) {
+        stringMap.remove(key)
     }
 
     override fun setData(key: String, value: String, ttl: Long?, timeUnit: TimeUnit?) {
-        try {
-            if (ttl != null && timeUnit != null) {
-                val seconds = TimeUnit.SECONDS.convert(ttl, timeUnit)
-                jedis.setex(key, seconds.toInt(), value)
-            } else {
-                jedis.set(key, value)
-            }
-        } catch (exception: JedisConnectionException) {
-            recreateInstance()
-            setData(key, value, ttl, timeUnit)
-        } catch (exception: Exception) {
-            LOGGER.error("Unable to set key: $key \nvalue: $value", exception)
-        }
+        stringMap[key] = value
     }
 
     companion object {

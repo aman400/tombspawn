@@ -6,6 +6,10 @@ class Constants {
         const val DEFAULT_PORT = 8662
         const val DEFAULT_SCHEME = "http"
 
+        // Redis default config
+        const val DEFAULT_REDIS_PORT = 6379
+        const val DEFAULT_REDIS_HOST = "redis://127.0.0.1"
+
         const val APP_CONSUMER = "consumer"
 
         const val GET = "GET"

@@ -17,10 +17,9 @@ import io.ktor.client.HttpClient
 import io.ktor.client.features.json.GsonSerializer
 import io.ktor.http.URLBuilder
 import io.ktor.http.URLProtocol
-import redis.clients.jedis.JedisPool
-import redis.clients.jedis.JedisPoolConfig
-import redis.clients.jedis.Protocol
-import javax.inject.Provider
+import org.redisson.Redisson
+import org.redisson.api.RedissonClient
+import org.redisson.config.Config
 
 
 @Module
@@ -126,14 +125,19 @@ class AppModule {
 
     @Provides
     @AppScope
-    fun applicationJedis(redis: Redis): JedisPool {
-        return JedisPool(JedisPoolConfig(), redis.host, redis.port?: Protocol.DEFAULT_PORT, 90000)
+    fun provideRedisClient(redis: Redis): RedissonClient {
+        val config = Config()
+        config.useSingleServer().apply {
+            timeout = 1000000
+            address = "${redis.host ?: Constants.Common.DEFAULT_REDIS_HOST}:${redis.port?: Constants.Common.DEFAULT_REDIS_PORT}"
+        }
+        return Redisson.create(config)
     }
 
     @Provides
     @AppScope
     @AppCacheMap
-    fun provideAppCacheMap(jedis: Provider<JedisPool>): StringMap {
-        return StringMap(jedis)
+    fun provideRedisAppCacheMap(redissonClient: RedissonClient): StringMap {
+        return StringMap("AppCache", redissonClient)
     }
 }
