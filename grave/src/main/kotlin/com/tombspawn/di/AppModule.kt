@@ -20,6 +20,7 @@ import io.ktor.http.URLProtocol
 import org.redisson.Redisson
 import org.redisson.api.RedissonClient
 import org.redisson.config.Config
+import org.redisson.config.TransportMode
 
 
 @Module
@@ -127,7 +128,7 @@ class AppModule {
     @AppScope
     fun provideRedisClient(redis: Redis): RedissonClient {
         val config = Config()
-        config.useSingleServer().apply {
+        config.setTransportMode(TransportMode.EPOLL).useSingleServer().apply {
             timeout = 1000000
             address = "${redis.host ?: Constants.Common.DEFAULT_REDIS_HOST}:${redis.port?: Constants.Common.DEFAULT_REDIS_PORT}"
         }

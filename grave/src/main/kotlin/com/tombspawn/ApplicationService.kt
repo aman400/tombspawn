@@ -28,6 +28,7 @@ import com.tombspawn.models.slack.SlackEvent
 import com.tombspawn.slackbot.SlackService
 import com.tombspawn.utils.Constants
 import io.ktor.http.URLBuilder
+import javafx.application.Application.launch
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -91,6 +92,9 @@ class ApplicationService @Inject constructor(
         launch(Dispatchers.Default) {
             dockerService.startQueueExecution()
         }
+        launch {
+            cleanAppCacheFiles()
+        }
         apps.forEachIndexed { index, app ->
             val callbackUri = baseUri.get().path("apps", app.id, "init").build().toString()
             dockerService.createContainer(app, common.basePort + index, callbackUri)
@@ -125,21 +129,59 @@ class ApplicationService @Inject constructor(
         }
     }
 
+    /**
+     * Clean the files cache directory
+     */
+    private suspend fun cleanAppCacheFiles() = coroutineScope {
+        launch(Dispatchers.IO) {
+            try {
+                File(uploadDirPath).let {
+                    if(it.exists()) {
+                        it.deleteRecursively()
+                    }
+                }
+            } catch (exception: Exception) {
+                LOGGER.error("Unable to clean cache directory", exception)
+            }
+        }
+    }
+
+    /**
+     * Fetch references for the given application
+     *
+     * @param app is the app for which references need to be fetched
+     */
     private suspend fun fetchReferences(app: App) {
         val callbackUri = baseUri.get().path("apps", app.id, "refs").build().toString()
         dockerService.fetchReferences(app, callbackUri)
     }
 
+    /**
+     * Run clean command from given application
+     *
+     * @param app is app container to clean.
+     */
     private suspend fun cleanApp(app: App) {
         val callbackUri = baseUri.get().path("apps", app.id, "clean").build().toString()
         dockerService.cleanApp(app, callbackUri)
     }
 
+    /**
+     * Function to fetch app flavours.
+     *
+     * @param app is the application for which the flavours needs to be fetched
+     */
     private suspend fun fetchFlavours(app: App) {
         val callbackUri = baseUri.get().path("apps", app.id, "flavours").build().toString()
         dockerService.fetchFlavours(app, callbackUri)
     }
 
+    /**
+     * Function to add reference(branches/tags) to redis and database
+     *
+     * @param appId is app to be cached
+     * @param refs is the list of references to be cached to redis and database
+     */
     suspend fun addRefs(appId: String, refs: List<Reference>) {
         databaseService.addRefs(refs, appId)
         cachingService.cacheAppReferences(appId, refs)
