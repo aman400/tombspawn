@@ -140,4 +140,11 @@ class AppModule {
     fun provideRedisAppCacheMap(redissonClient: RedissonClient): StringMap {
         return StringMap("AppCache", redissonClient)
     }
+
+    @Provides
+    @AppScope
+    @ApkCacheMap
+    fun provideRedisApkCacheMap(redissonClient: RedissonClient): StringMap {
+        return StringMap("ApkCache", redissonClient)
+    }
 }

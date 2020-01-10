@@ -27,6 +27,7 @@ import io.ktor.request.*
 import io.ktor.response.respond
 import io.ktor.routing.Routing
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -62,8 +63,10 @@ fun Routing.slackAction(
         val params = call.receive<Parameters>()
         val payload = params["payload"]
         LOGGER.debug("SlackAction payload: $payload")
-        payload?.let {
-            applicationService.handleSlackEvent(it)
+        GlobalScope.launch(Dispatchers.IO) {
+            payload?.let {
+                applicationService.handleSlackEvent(it)
+            }
         }
         call.respond(HttpStatusCode.OK)
     }
@@ -82,13 +85,14 @@ fun Routing.buildApp(applicationService: ApplicationService) {
             LOGGER.info("$key: $list")
         }
 
-        text?.trim()?.toMap()?.let { buildData ->
-            applicationService.generateApk(buildData, channelId!!, command.appID, responseUrl!!)
-            call.respond(HttpStatusCode.OK)
-        } ?: run {
-            LOGGER.warn("Command options not set. These options can be set using '/build-fleet BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'")
-            applicationService.showGenerateApkDialog(command.appID, triggerId!!)
-            call.respond(HttpStatusCode.OK)
+        call.respond(HttpStatusCode.OK)
+        GlobalScope.launch(Dispatchers.IO) {
+            text?.trim()?.toMap()?.let { buildData ->
+                applicationService.generateApk(buildData, channelId!!, command.appID, responseUrl!!)
+            } ?: run {
+                LOGGER.warn("Command options not set. These options can be set using '/build-fleet BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'")
+                applicationService.showGenerateApkDialog(command.appID, triggerId!!)
+            }
         }
     }
 }
