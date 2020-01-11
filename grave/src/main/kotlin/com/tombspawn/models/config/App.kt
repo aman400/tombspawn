@@ -13,5 +13,11 @@ data class App constructor(
     @SerializedName("swap") val swap: Long? = null,
     @SerializedName("cpu_shares") val cpuShares: Int? = null,
     @SerializedName("container_uri") val containerUri: String? = null,
-    @SerializedName("environment_variables") val env: List<String>? = null
-)
+    @SerializedName("environment_variables") val env: List<String>? = null,
+    @SerializedName("files") val fileMappings: List<FileMapping>? = null
+) {
+    data class FileMapping(
+        @SerializedName("name") val name: String,
+        @SerializedName("path") val path: String
+    )
+}

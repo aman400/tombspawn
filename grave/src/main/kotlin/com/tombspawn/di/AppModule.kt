@@ -128,8 +128,8 @@ class AppModule {
     @AppScope
     fun provideRedisClient(redis: Redis): RedissonClient {
         val config = Config()
-        config.setTransportMode(TransportMode.EPOLL).useSingleServer().apply {
-            timeout = 1000000
+        config.useSingleServer().apply {
+            timeout = 10000
             address = "${redis.host ?: Constants.Common.DEFAULT_REDIS_HOST}:${redis.port?: Constants.Common.DEFAULT_REDIS_PORT}"
         }
         return Redisson.create(config)
