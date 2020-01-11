@@ -170,10 +170,10 @@ class ApplicationService @Inject constructor(
                     }?.firstOrNull()?.let { file ->
                         if (file.exists()) {
                             gitService.fetchLogs().await()?.let {
-                                parameters["COMMIT_MESSAGE"] = it.shortMessage
-                                parameters["COMMIT_ID"] = it.id.name
+                                parameters[CommonConstants.COMMIT_MESSAGE] = it.shortMessage
+                                parameters[CommonConstants.COMMIT_ID] = it.id.name
                                 it.authorIdent?.let { author ->
-                                    parameters["COMMIT_AUTHOR"] =
+                                    parameters[CommonConstants.COMMIT_AUTHOR] =
                                         "${author.name}<${author.emailAddress}> ${HUMAN_DATE_FORMAT.format(author.getWhen())}"
                                 }
                             }
