@@ -57,7 +57,7 @@ COPY /skeleton/build/libs/application.jar /app/skeleton/build/libs/application.j
 COPY /skeleton/Dockerfile /app/skeleton/Dockerfile
 COPY /skeleton/AndroidDockerfile /app/skeleton/AndroidDockerfile
 COPY /skeleton/setup_android_sdk.sh /app/skeleton/setup_android_sdk.sh
-COPY /scripts/local/gradle.properties /app/skeleton/gradle.properties
+COPY /scripts/apps /app/skeleton/apps
 
 COPY grave/build/libs/application.jar /app/application.jar
 WORKDIR /app

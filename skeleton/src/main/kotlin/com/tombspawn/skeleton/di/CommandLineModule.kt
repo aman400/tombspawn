@@ -17,7 +17,7 @@ class CommandLineModule {
     @GradlePath
     @Provides
     fun provideGradlePath(commonConfig: CommonConfig): String {
-        return commonConfig.gradlePath
+        return commonConfig.gradlePath ?: "./gradlew --no-daemon"
     }
 
     @AppDir
