@@ -169,9 +169,9 @@ class DockerService @Inject constructor(
             val androidCache = Bind(android, Volume("/home/skeleton/.android/"))
             // volume for cloned apps to persist them
             val gitApps = dockerClient.createVolume("git")
-            val appVolumeBind = Bind(gitApps, Volume("/app/"))
+            val appVolumeBind = Bind(gitApps, Volume("/app/git/"))
 
-            val appPath = "/app/${app.id}/"
+            val appPath = "/app/git/${app.id}/"
             app.dir = appPath
 
             val request = gson.toJson(
