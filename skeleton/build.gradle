@@ -63,6 +63,8 @@ dependencies {
 
     implementation Kotlin.stdlib
 
+    implementation Apache.commonIO
+
     implementation Ktor.jvmLogging
     implementation Ktor.netty
     implementation Ktor.json
