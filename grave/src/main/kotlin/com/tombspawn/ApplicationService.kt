@@ -293,7 +293,31 @@ class ApplicationService @Inject constructor(
                     "$callbackUri/success",
                     "$callbackUri/failure",
                     apkPrefix,
-                    buildData
+                    buildData,
+                    // verify if app was generated from some queued request
+                    verify = {
+                        coroutineScope {
+                            val cache = buildData[SlackConstants.TYPE_SELECT_BRANCH]?.let {
+                                cachingService.getApkCache(app.id, it)
+                            }?.firstOrNull {
+                                it == toVerify
+                            }?.let {
+                                Pair(it, it.pathOnDisk?.let { File(it) })
+                            }
+                            if (cache?.second?.exists() == true) {
+                                launch(Dispatchers.IO) {
+                                    uploadApk(
+                                        Apps.App.Callback(Apps.App(app.id), callbackId),
+                                        cache.second!!,
+                                        cache.first.params.toMutableMap()
+                                    )
+                                }
+                                return@coroutineScope true
+                            } else {
+                                return@coroutineScope false
+                            }
+                        }
+                    }
                 )
                 slackService.sendMessage(randomWaitingMessages.shuffled().first(), channelId, null)
             }
