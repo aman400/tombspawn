@@ -13,7 +13,7 @@ import javax.inject.Inject
 class GitService @Inject constructor(private val app: App, private val gitClient: GitClient) {
 
     suspend fun clone(): Boolean {
-        return gitClient.clone(app.dir!!, app.uri!!)
+        return gitClient.clone(app.id, app.dir!!, app.uri!!)
     }
 
     suspend fun fetchLogs(): Deferred<RevCommit?> {

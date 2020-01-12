@@ -146,8 +146,8 @@ class DockerService @Inject constructor(
                     // Create Dockerfile for given app
                     it.createNewFile()
                     // Copy given files to given directories
-                    val dataToAppend = "FROM skeleton as ${app.id}" + app.fileMappings?.joinToString("") { mapping ->
-                        "\nCOPY ${mapping.name} ${mapping.path}"
+                    val dataToAppend = "FROM skeleton as ${app.id}\nENV HOME /root\n" + app.fileMappings?.joinToString("") { mapping ->
+                        "COPY ${mapping.name} ${mapping.path}\n"
                     }
                     @Suppress("BlockingMethodInNonBlockingContext")
                     FileWriter(it).use { writer ->
@@ -166,7 +166,7 @@ class DockerService @Inject constructor(
             // Create android cache volume
             val android = dockerClient.createVolume("android")
 //            val gradleCache = Bind(gradle, Volume("/home/skeleton/.gradle/caches/"))
-            val androidCache = Bind(android, Volume("/home/skeleton/.android/"))
+            val androidCache = Bind(android, Volume("/root/.android/"))
             // volume for cloned apps to persist them
             val gitApps = dockerClient.createVolume("git")
             val appVolumeBind = Bind(gitApps, Volume("/app/git/"))
