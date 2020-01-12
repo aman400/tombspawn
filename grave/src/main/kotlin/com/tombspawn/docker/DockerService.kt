@@ -17,7 +17,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.channels.actor
 import org.slf4j.LoggerFactory
-import java.io.File
+import java.io.*
 import java.util.concurrent.LinkedBlockingQueue
 import javax.inject.Inject
 
@@ -90,7 +90,7 @@ class DockerService @Inject constructor(
     }
 
     suspend fun logEvents() = coroutineScope {
-        dockerClient.logEvents {event ->
+        dockerClient.logEvents { event ->
             if (event.type == EventType.CONTAINER) {
                 when (Status.from(event.status)) {
                     Status.STOP -> {
@@ -129,12 +129,45 @@ class DockerService @Inject constructor(
                 File("${System.getProperty("user.dir")}/skeleton/AndroidDockerfile"),
                 "android-sdk"
             )
-            dockerClient.createImage(File("${System.getProperty("user.dir")}/skeleton/Dockerfile"), "skeleton")
+            File("${System.getProperty("user.dir")}/skeleton/Dockerfile").takeIf {
+                it.exists()
+            }?.let {
+                dockerClient.createImage(it, "skeleton")
+            }
+            try {
+                File("${System.getProperty("user.dir")}/skeleton/apps/${app.id}/Dockerfile").let {
+                    // Clear older Dockerfile if any
+                    if(it.exists()) {
+                        it.delete()
+                    }
+                    // Create all parent directories
+                    it.parentFile.mkdirs()
+                    @Suppress("BlockingMethodInNonBlockingContext")
+                    // Create Dockerfile for given app
+                    it.createNewFile()
+                    // Copy given files to given directories
+                    val dataToAppend = "FROM skeleton as ${app.id}\nENV HOME /root\n" + app.fileMappings?.joinToString("") { mapping ->
+                        "COPY ${mapping.name} ${mapping.path}\n"
+                    }
+                    @Suppress("BlockingMethodInNonBlockingContext")
+                    FileWriter(it).use { writer ->
+                        writer.write(dataToAppend)
+                    }
+                    it
+                }.let {
+                    dockerClient.createImage(it, app.id)
+                }
+            } catch (exception: Exception) {
+                LOGGER.error("Unable to create image for $app", exception)
+            }
+            // Create network for docker
             val networkId = dockerClient.createNetwork("tombspawn")
 //            val gradle = dockerClient.createVolume("gradle")
+            // Create android cache volume
             val android = dockerClient.createVolume("android")
 //            val gradleCache = Bind(gradle, Volume("/home/skeleton/.gradle/caches/"))
-            val androidCache = Bind(android, Volume("/home/skeleton/.android/"))
+            val androidCache = Bind(android, Volume("/root/.android/"))
+            // volume for cloned apps to persist them
             val gitApps = dockerClient.createVolume("git")
             val appVolumeBind = Bind(gitApps, Volume("/app/git/"))
 
@@ -152,7 +185,7 @@ class DockerService @Inject constructor(
             val portBindings = Ports()
             portBindings.bind(exposedPort, Ports.Binding.bindPort(port))
             dockerClient.createContainer(
-                "skeleton",
+                app.id,
                 app.id, listOf(
                     "java",
                     "-server",
@@ -171,7 +204,7 @@ class DockerService @Inject constructor(
                 ), null, listOf(androidCache, appVolumeBind),
                 portBindings, listOf(exposedPort), app.memory, app.swap, app.cpuShares, app.env
             )?.let { containerId ->
-                if(containerMapping[app.id] == null) {
+                if (containerMapping[app.id] == null) {
                     containerMapping[app.id] = ContainerInfo(app.id, containerId, ContainerState.CREATED)
                 } else {
                     containerMapping[app.id]?.containerId = containerId
@@ -252,7 +285,7 @@ class DockerService @Inject constructor(
     suspend fun startQueueExecution() {
         while (true) {
             delay(3000)
-            if(::sendChannel.isInitialized) {
+            if (::sendChannel.isInitialized) {
                 sendChannel.offer(QueueVerifyAndRunAction)
             }
         }

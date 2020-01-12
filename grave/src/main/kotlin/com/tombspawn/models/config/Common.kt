@@ -13,7 +13,7 @@ data class Common constructor(@SerializedName("base_url") val baseUrl: String?,
             return if(_basePort in 1024..65535) {
                 _basePort!!
             } else {
-                LOGGER.error("Base port must be in range from 1024 to 65535")
+                LOGGER.warn("Base port must be in range from 1024 to 65535")
                 DEFAULT_BASE_PORT
             }
         }

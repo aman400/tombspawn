@@ -20,6 +20,7 @@ import io.ktor.http.URLProtocol
 import org.redisson.Redisson
 import org.redisson.api.RedissonClient
 import org.redisson.config.Config
+import org.redisson.config.TransportMode
 
 
 @Module
@@ -128,7 +129,7 @@ class AppModule {
     fun provideRedisClient(redis: Redis): RedissonClient {
         val config = Config()
         config.useSingleServer().apply {
-            timeout = 1000000
+            timeout = 10000
             address = "${redis.host ?: Constants.Common.DEFAULT_REDIS_HOST}:${redis.port?: Constants.Common.DEFAULT_REDIS_PORT}"
         }
         return Redisson.create(config)
@@ -139,5 +140,12 @@ class AppModule {
     @AppCacheMap
     fun provideRedisAppCacheMap(redissonClient: RedissonClient): StringMap {
         return StringMap("AppCache", redissonClient)
+    }
+
+    @Provides
+    @AppScope
+    @ApkCacheMap
+    fun provideRedisApkCacheMap(redissonClient: RedissonClient): StringMap {
+        return StringMap("ApkCache", redissonClient)
     }
 }

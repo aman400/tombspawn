@@ -3,6 +3,7 @@ package com.tombspawn.skeleton.git
 import com.tombspawn.skeleton.extensions.authenticate
 import com.tombspawn.skeleton.extensions.checkout
 import kotlinx.coroutines.*
+import org.apache.commons.io.FileUtils
 import org.eclipse.jgit.api.CloneCommand
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.api.ListBranchCommand
@@ -19,7 +20,7 @@ import javax.inject.Inject
 import kotlin.coroutines.resume
 
 class GitClient @Inject constructor(private val provider: CredentialProvider) {
-    suspend fun clone(dir: String, gitUri: String) = suspendCancellableCoroutine<Boolean> { continuation ->
+    suspend fun clone(appId: String, dir: String, gitUri: String) = suspendCancellableCoroutine<Boolean> { continuation ->
         if (!try {
                 LOGGER.debug("Generating app")
                 initRepository(dir).use {
@@ -39,6 +40,18 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
                     }
                 } else {
                     LOGGER.info("$dir already exists")
+                    LOGGER.info("Moving all files in $dir to temp directory")
+                    val files = this.listFiles()
+                    files?.filter {
+                        it?.exists() == true
+                    }?.forEach {
+                        try {
+                            FileUtils.moveFileToDirectory(it, File(this@apply.parent, "temp_$appId"), true)
+                        } catch (exception: Exception) {
+                            LOGGER.error("Unable to move file ${it.absolutePath} to temp directory", exception)
+                        }
+                    }
+                    LOGGER.info("Moved all files to temp directory")
                 }
             }
             LOGGER.debug("Cloning app")
@@ -84,6 +97,29 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
                 .authenticate(provider)
                 .call()
             LOGGER.debug("Clone completed")
+
+            try {
+                LOGGER.info("Moving files back to original directory")
+                File(directory.parentFile, "temp_$appId").apply {
+                    if (this.exists()) {
+                        val files = this.listFiles()
+                        files?.filter {
+                            it?.exists() == true
+                        }?.forEach {
+                            try {
+                                FileUtils.moveFileToDirectory(it, directory, false)
+                            } catch (exception: Exception) {
+                                LOGGER.error("Unable to move file ${it.absolutePath} back to original directory", exception)
+                            }
+                        }
+                        this.deleteRecursively()
+                    }
+                }
+                LOGGER.info("Moved files back to original directory")
+            } catch (exception: Exception) {
+                LOGGER.error("Unable to move files back to directory", exception)
+            }
+            LOGGER.info("Moved all files to temp directory")
             continuation.resume(true)
         } else {
             runBlocking {

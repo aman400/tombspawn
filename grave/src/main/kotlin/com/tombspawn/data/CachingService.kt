@@ -3,6 +3,8 @@ package com.tombspawn.data
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.tombspawn.base.di.scopes.AppScope
+import com.tombspawn.data.cache.models.ApkCache
+import com.tombspawn.di.qualifiers.ApkCacheMap
 import com.tombspawn.di.qualifiers.AppCacheMap
 import com.tombspawn.models.Reference
 import com.tombspawn.models.redis.ApkCallbackCache
@@ -11,16 +13,17 @@ import javax.inject.Inject
 
 @AppScope
 class CachingService @Inject constructor(@AppCacheMap val cacheMap: StringMap,
+                                         @ApkCacheMap val apkCacheMap: StringMap,
                                          val gson: Gson) {
     private val LOGGER = LoggerFactory.getLogger("com.tombspawn.data.CachingService")
 
     fun cacheAppReferences(appId: String, refs: List<Reference>) {
-        cacheMap.setData(StringMap.getReferencesCacheKey(appId),
+        cacheMap.setData(getReferencesCacheKey(appId),
             gson.toJson(refs, object: TypeToken<List<Reference>>() {}.type))
     }
 
     fun getCachedReferences(appId: String): List<Reference>? {
-        return cacheMap.getData(StringMap.getReferencesCacheKey(appId)).takeIf {
+        return cacheMap.getData(getReferencesCacheKey(appId)).takeIf {
             !it.isNullOrEmpty()
         }?.let {
             LOGGER.debug("References: Cache hit")
@@ -29,7 +32,7 @@ class CachingService @Inject constructor(@AppCacheMap val cacheMap: StringMap,
     }
 
     fun getCachedFlavours(appId: String): List<String>? {
-        return cacheMap.getData(StringMap.getFlavoursCacheKey(appId)).takeIf {
+        return cacheMap.getData(getFlavoursCacheKey(appId)).takeIf {
             !it.isNullOrEmpty()
         }?.let {
             LOGGER.debug("Flavours: Cache hit")
@@ -38,7 +41,7 @@ class CachingService @Inject constructor(@AppCacheMap val cacheMap: StringMap,
     }
 
     fun getBuildVariants(appId: String): List<String>? {
-        return cacheMap.getData(StringMap.getBuildVariantCacheKey(appId)).takeIf {
+        return cacheMap.getData(getBuildVariantCacheKey(appId)).takeIf {
             !it.isNullOrEmpty()
         }?.let {
             LOGGER.debug("Build Variants: Cache hit")
@@ -47,13 +50,38 @@ class CachingService @Inject constructor(@AppCacheMap val cacheMap: StringMap,
     }
 
     fun cacheBuildVariants(appId: String, buildVariants: List<String>) {
-        cacheMap.setData(StringMap.getBuildVariantCacheKey(appId),
+        cacheMap.setData(getBuildVariantCacheKey(appId),
             gson.toJson(buildVariants, object: TypeToken<List<String>>() {}.type))
     }
 
     fun cacheAppFlavours(appId: String, flavours: List<String>) {
-        cacheMap.setData(StringMap.getFlavoursCacheKey(appId),
+        cacheMap.setData(getFlavoursCacheKey(appId),
             gson.toJson(flavours, object: TypeToken<List<String>>() {}.type))
+    }
+
+    fun cacheApk(appId: String, branch: String, apkCache: ApkCache) {
+        val list = getApkCache(appId, branch)
+        list.add(0, apkCache)
+        apkCacheMap.setData(getAppCacheMapKey(appId, branch),
+            gson.toJson(list, object: TypeToken<List<ApkCache>>() {}.type))
+    }
+
+    fun getApkCache(appId: String, branch: String): MutableList<ApkCache> {
+        return apkCacheMap.getData(getAppCacheMapKey(appId, branch))?.let {
+            gson.fromJson<MutableList<ApkCache>>(it, object: TypeToken<MutableList<ApkCache>>() {}.type)
+        } ?: mutableListOf()
+    }
+
+    fun deleteApkCache(appId: String, branch: String, apkCache: ApkCache? = null) {
+        if(apkCache != null) {
+            val list = getApkCache(appId, branch)
+            list.remove(apkCache)
+            apkCacheMap.setData(getAppCacheMapKey(appId, branch),
+                gson.toJson(list, object : TypeToken<List<ApkCache>>() {}.type)
+            )
+        } else {
+            apkCacheMap.deleteKey(getAppCacheMapKey(appId, branch))
+        }
     }
 
     fun saveAppCallbackCache(callbackId: String, responseUrl: String, channelId: String) {
@@ -82,5 +110,24 @@ class CachingService @Inject constructor(@AppCacheMap val cacheMap: StringMap,
 
     fun close() {
         cacheMap.close()
+    }
+
+    companion object {
+
+        fun getAppCacheMapKey(appId: String, branch: String): String {
+            return "${appId}__${branch}"
+        }
+
+        fun getReferencesCacheKey(appId: String): String {
+            return "${appId}_references"
+        }
+
+        fun getFlavoursCacheKey(appId: String): String {
+            return "${appId}_flavours"
+        }
+
+        fun getBuildVariantCacheKey(appId: String): String {
+            return "${appId}_build_variants"
+        }
     }
 }

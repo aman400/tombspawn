@@ -35,3 +35,5 @@ build/
 out/
 /skeleton/gradle.properties
 output/
+/scripts/apps/
+/skeleton/apps/

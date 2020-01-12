@@ -7,8 +7,8 @@ networks:
 volumes:
   mysqldb:
     name: mysqldb
-  redisdb:
-    name: redisdb
+#  redisdb:
+#    name: redisdb
 
 services:
   db:
@@ -28,8 +28,8 @@ services:
     container_name: redisdb
     build: docker/redis/.
     image: redisdb
-    volumes:
-      - redisdb:/data
+#    volumes:
+#      - redisdb:/data
     restart: always
     networks:
       - tombspawn

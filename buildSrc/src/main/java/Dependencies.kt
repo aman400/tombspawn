@@ -55,6 +55,10 @@ object Dagger {
     const val assistedInjectProcessor = "com.squareup.inject:assisted-inject-processor-dagger2:0.5.1"
 }
 
+object Apache {
+    const val commonIO = "commons-io:commons-io:2.6"
+}
+
 object Ktor {
     const val netty = "io.ktor:ktor-server-netty:${Versions.ktorVersion}"
     const val json = "io.ktor:ktor-client-json:${Versions.ktorVersion}"

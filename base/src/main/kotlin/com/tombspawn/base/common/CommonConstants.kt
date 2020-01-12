@@ -7,6 +7,9 @@ object CommonConstants {
     const val CALLBACK_URI = "callbackUri"
     const val TAG_LIMIT = "tagLimit"
     const val BRANCH_LIMIT = "branchLimit"
+    const val COMMIT_ID = "commit_id"
+    const val COMMIT_MESSAGE = "commit_message"
+    const val COMMIT_AUTHOR = "commit_author"
 }
 
 object SlackConstants {

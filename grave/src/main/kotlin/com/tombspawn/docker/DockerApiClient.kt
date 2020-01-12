@@ -22,6 +22,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.io.FileOutputStream
+import java.io.FileWriter
 import javax.inject.Inject
 import kotlin.coroutines.suspendCoroutine
 
@@ -266,6 +268,7 @@ class DockerApiClient @Inject constructor(
 
     suspend fun createImage(file: File, tag: String) {
         coroutineScope {
+            @Suppress("BlockingMethodInNonBlockingContext")
             dockerClient.listImagesCmd().withImageNameFilter(tag).exec().firstOrNull() ?: dockerClient.buildImageCmd(
                 file
             )
@@ -274,12 +277,12 @@ class DockerApiClient @Inject constructor(
                 .exec(object : BuildImageResultCallback() {
                     override fun onNext(item: BuildResponseItem?) {
                         super.onNext(item)
-                        item?.let {
-                            it.stream?.let {
+                        item?.let { buildResponse ->
+                            buildResponse.stream?.let {
                                 LOGGER.trace(it)
                             }
-                            it.errorDetail?.let {
-                                LOGGER.error("${it.code} : ${it.message}")
+                            buildResponse.errorDetail?.let { error ->
+                                LOGGER.error("${error.code} : ${error.message}")
                             }
                         }
                     }
@@ -327,7 +330,7 @@ class DockerApiClient @Inject constructor(
         }
     }
 
-    suspend fun logEvents(onEvent : ((event: Event) -> Unit)? = null) {
+    suspend fun logEvents(onEvent: ((event: Event) -> Unit)? = null) {
         coroutineScope {
             val callback = object : EventsResultCallback() {
                 override fun onNext(event: Event) {
@@ -358,10 +361,10 @@ class DockerApiClient @Inject constructor(
                         if (!commands.isNullOrEmpty()) {
                             withCmd(commands)
                         }
-                        if(!env.isNullOrEmpty()) {
+                        if (!env.isNullOrEmpty()) {
                             withEnv(env)
                         }
-                        if(!exposedPorts.isNullOrEmpty()) {
+                        if (!exposedPorts.isNullOrEmpty()) {
                             withExposedPorts(exposedPorts)
                         }
                     }
@@ -371,22 +374,22 @@ class DockerApiClient @Inject constructor(
                     .withHostConfig(
                         HostConfig.newHostConfig()
                             .apply {
-                                if(memory != null) {
+                                if (memory != null) {
                                     withMemory(memory)
                                 }
-                                if(swapMemory != null) {
+                                if (swapMemory != null) {
                                     withMemorySwap(swapMemory)
                                 }
                             }
                             .withRestartPolicy(RestartPolicy.noRestart())
                             .apply {
-                                if(cpuShares != null) {
+                                if (cpuShares != null) {
                                     withCpuShares(cpuShares)
                                 }
                                 if (memory != null) {
                                     withMemoryReservation(memory / 2)
                                 }
-                                if(!volumeBinds.isNullOrEmpty()) {
+                                if (!volumeBinds.isNullOrEmpty()) {
                                     withBinds(volumeBinds)
                                 }
                             }
