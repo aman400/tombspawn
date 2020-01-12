@@ -1,2 +1,3 @@
 FROM redis:rc-alpine3.11
-CMD [ "redis-server" ]
+COPY redis.conf /usr/local/etc/redis/redis.conf
+CMD [ "redis-server", "/usr/local/etc/redis/redis.conf" ]

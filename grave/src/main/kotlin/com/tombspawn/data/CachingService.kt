@@ -18,98 +18,159 @@ class CachingService @Inject constructor(@AppCacheMap val cacheMap: StringMap,
     private val LOGGER = LoggerFactory.getLogger("com.tombspawn.data.CachingService")
 
     fun cacheAppReferences(appId: String, refs: List<Reference>) {
-        cacheMap.setData(getReferencesCacheKey(appId),
-            gson.toJson(refs, object: TypeToken<List<Reference>>() {}.type))
+        try {
+            cacheMap.setData(getReferencesCacheKey(appId),
+                gson.toJson(refs, object : TypeToken<List<Reference>>() {}.type)
+            )
+        } catch (exception: Exception) {
+            LOGGER.error("Unable to cache App References", exception)
+        }
     }
 
     fun getCachedReferences(appId: String): List<Reference>? {
-        return cacheMap.getData(getReferencesCacheKey(appId)).takeIf {
-            !it.isNullOrEmpty()
-        }?.let {
-            LOGGER.debug("References: Cache hit")
-            gson.fromJson<List<Reference>>(it, object: TypeToken<List<Reference>>() {}.type)
+        return try {
+            cacheMap.getData(getReferencesCacheKey(appId)).takeIf {
+                !it.isNullOrEmpty()
+            }?.let {
+                LOGGER.debug("References: Cache hit")
+                gson.fromJson<List<Reference>>(it, object : TypeToken<List<Reference>>() {}.type)
+            }
+        } catch (exception: Exception) {
+            LOGGER.error("Unable to get cached References", exception)
+            null
         }
     }
 
     fun getCachedFlavours(appId: String): List<String>? {
-        return cacheMap.getData(getFlavoursCacheKey(appId)).takeIf {
-            !it.isNullOrEmpty()
-        }?.let {
-            LOGGER.debug("Flavours: Cache hit")
-            gson.fromJson<List<String>>(it, object: TypeToken<List<String>>() {}.type)
+        return try {
+            cacheMap.getData(getFlavoursCacheKey(appId)).takeIf {
+                !it.isNullOrEmpty()
+            }?.let {
+                LOGGER.debug("Flavours: Cache hit")
+                gson.fromJson<List<String>>(it, object: TypeToken<List<String>>() {}.type)
+            }
+        } catch (exception: Exception) {
+            LOGGER.error("Unable to get cached Flavours", exception)
+            null
         }
     }
 
     fun getBuildVariants(appId: String): List<String>? {
-        return cacheMap.getData(getBuildVariantCacheKey(appId)).takeIf {
-            !it.isNullOrEmpty()
-        }?.let {
-            LOGGER.debug("Build Variants: Cache hit")
-            gson.fromJson<List<String>>(it, object: TypeToken<List<String>>() {}.type)
+        return try {
+            cacheMap.getData(getBuildVariantCacheKey(appId)).takeIf {
+                !it.isNullOrEmpty()
+            }?.let {
+                LOGGER.debug("Build Variants: Cache hit")
+                gson.fromJson<List<String>>(it, object: TypeToken<List<String>>() {}.type)
+            }
+        } catch (exception: Exception) {
+            LOGGER.error("Unable to get build Variants", exception)
+            null
         }
     }
 
     fun cacheBuildVariants(appId: String, buildVariants: List<String>) {
-        cacheMap.setData(getBuildVariantCacheKey(appId),
-            gson.toJson(buildVariants, object: TypeToken<List<String>>() {}.type))
+        try {
+            cacheMap.setData(getBuildVariantCacheKey(appId),
+                gson.toJson(buildVariants, object: TypeToken<List<String>>() {}.type))
+        } catch (exception: Exception) {
+            LOGGER.error("Unable to cache Build Variants", exception)
+        }
     }
 
     fun cacheAppFlavours(appId: String, flavours: List<String>) {
-        cacheMap.setData(getFlavoursCacheKey(appId),
-            gson.toJson(flavours, object: TypeToken<List<String>>() {}.type))
+        try {
+            cacheMap.setData(getFlavoursCacheKey(appId),
+                gson.toJson(flavours, object : TypeToken<List<String>>() {}.type)
+            )
+        } catch (exception: Exception) {
+            LOGGER.error("Unable to cache App Flavours", exception)
+        }
     }
 
     fun cacheApk(appId: String, branch: String, apkCache: ApkCache) {
-        val list = getApkCache(appId, branch)
-        list.add(0, apkCache)
-        apkCacheMap.setData(getAppCacheMapKey(appId, branch),
-            gson.toJson(list, object: TypeToken<List<ApkCache>>() {}.type))
-    }
-
-    fun getApkCache(appId: String, branch: String): MutableList<ApkCache> {
-        return apkCacheMap.getData(getAppCacheMapKey(appId, branch))?.let {
-            gson.fromJson<MutableList<ApkCache>>(it, object: TypeToken<MutableList<ApkCache>>() {}.type)
-        } ?: mutableListOf()
-    }
-
-    fun deleteApkCache(appId: String, branch: String, apkCache: ApkCache? = null) {
-        if(apkCache != null) {
+        try {
             val list = getApkCache(appId, branch)
-            list.remove(apkCache)
+            list.add(0, apkCache)
             apkCacheMap.setData(getAppCacheMapKey(appId, branch),
                 gson.toJson(list, object : TypeToken<List<ApkCache>>() {}.type)
             )
-        } else {
-            apkCacheMap.deleteKey(getAppCacheMapKey(appId, branch))
+        } catch (exception: Exception) {
+            LOGGER.error("Unable to cache apk", exception)
+        }
+    }
+
+    fun getApkCache(appId: String, branch: String): MutableList<ApkCache> {
+        return try {
+            apkCacheMap.getData(getAppCacheMapKey(appId, branch))?.let {
+                gson.fromJson<MutableList<ApkCache>>(it, object : TypeToken<MutableList<ApkCache>>() {}.type)
+            } ?: mutableListOf()
+        } catch (exception: Exception) {
+            LOGGER.error("Unable to fetch App Cache list", exception)
+            mutableListOf()
+        }
+    }
+
+    fun deleteApkCache(appId: String, branch: String, apkCache: ApkCache? = null) {
+        try {
+            if (apkCache != null) {
+                val list = getApkCache(appId, branch)
+                list.remove(apkCache)
+                apkCacheMap.setData(
+                    getAppCacheMapKey(appId, branch),
+                    gson.toJson(list, object : TypeToken<List<ApkCache>>() {}.type)
+                )
+            } else {
+                apkCacheMap.deleteKey(getAppCacheMapKey(appId, branch))
+            }
+        } catch (exception: Exception) {
+            LOGGER.error("Unable to delete App cache", exception)
         }
     }
 
     fun saveAppCallbackCache(callbackId: String, responseUrl: String, channelId: String) {
-        cacheMap.setData(
-            callbackId, gson.toJson(
-                ApkCallbackCache(callbackId, responseUrl, channelId),
-                ApkCallbackCache::class.java
-            ).toString()
-        )
+        try {
+            cacheMap.setData(
+                callbackId, gson.toJson(
+                    ApkCallbackCache(callbackId, responseUrl, channelId),
+                    ApkCallbackCache::class.java
+                ).toString()
+            )
+        } catch (exception: Exception) {
+            LOGGER.error("Unable to save App callback cache", exception)
+        }
     }
 
     fun getAppCallbackCache(callbackId: String): ApkCallbackCache? {
-        return cacheMap.getData(callbackId)?.let {
-            try {
-                gson.fromJson<ApkCallbackCache>(it, ApkCallbackCache::class.java)
-            } catch (exception: Exception) {
-                LOGGER.error("Callback cache missing", exception)
-                null
+        return try {
+            cacheMap.getData(callbackId)?.let {
+                try {
+                    gson.fromJson<ApkCallbackCache>(it, ApkCallbackCache::class.java)
+                } catch (exception: Exception) {
+                    LOGGER.error("Callback cache missing", exception)
+                    null
+                }
             }
+        } catch (exception: Exception) {
+            LOGGER.error("Unable to fetch app callback cache", exception)
+            null
         }
     }
 
     fun clearAppCallback(callbackId: String) {
-        cacheMap.deleteKey(callbackId)
+        try {
+            cacheMap.deleteKey(callbackId)
+        } catch (exception: Exception) {
+            LOGGER.error("Unable to clear app callback cache", exception)
+        }
     }
 
     fun close() {
-        cacheMap.close()
+        try {
+            cacheMap.close()
+        } catch (exception: Exception) {
+            LOGGER.error("Unable to close cache map", exception)
+        }
     }
 
     companion object {
