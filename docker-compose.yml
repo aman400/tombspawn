@@ -7,8 +7,6 @@ networks:
 volumes:
   mysqldb:
     name: mysqldb
-#  redisdb:
-#    name: redisdb
 
 services:
   db:
@@ -22,19 +20,13 @@ services:
       - scripts/local/mysql.env
     networks:
       - tombspawn
-    ports:
-      - "3306:3306"
   redis:
     container_name: redisdb
     build: docker/redis/.
     image: redisdb
-#    volumes:
-#      - redisdb:/data
     restart: always
     networks:
       - tombspawn
-    ports:
-      - "6379:6379"
   application:
     container_name: application
     depends_on:
