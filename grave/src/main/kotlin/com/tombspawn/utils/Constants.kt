@@ -53,7 +53,7 @@ class Constants {
 
     class Github {
         companion object {
-            const val HEADER_KEY_EVENT = "X-Github-Event"
+            const val HEADER_KEY_EVENT = "X-GitHub-Event"
             const val HEADER_VALUE_EVENT_PUSH = "push"
             const val HEADER_VALUE_EVENT_DELETE: String = "delete"
             const val HEADER_VALUE_EVENT_CREATE: String = "create"

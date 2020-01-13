@@ -1,14 +1,25 @@
 package com.tombspawn.data
 
+import org.redisson.api.LocalCachedMapOptions
+import org.redisson.api.RLocalCachedMap
 import org.redisson.api.RMap
 import org.redisson.api.RedissonClient
+import org.redisson.client.codec.Codec
 import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
 
 class StringMap constructor(val key: String, redisClient: RedissonClient): Redis<String>(redisClient) {
     private val LOGGER = LoggerFactory.getLogger("com.tombspawn.data.StringMap")
 
-    private val stringMap: RMap<String, String> = redisClient.getMap<String, String>(key)
+    private val stringMap: RLocalCachedMap<String, String>
+
+    init {
+        val cachingOptions = LocalCachedMapOptions.defaults<String, String>()
+        cachingOptions.evictionPolicy(LocalCachedMapOptions.EvictionPolicy.NONE)
+        cachingOptions.reconnectionStrategy(LocalCachedMapOptions.ReconnectionStrategy.NONE)
+        cachingOptions.syncStrategy(LocalCachedMapOptions.SyncStrategy.NONE)
+        stringMap = redisClient.getLocalCachedMap<String, String>(key, cachingOptions)
+    }
 
     override fun getData(key: String): String? {
         return stringMap[key]
