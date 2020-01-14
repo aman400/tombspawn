@@ -42,11 +42,20 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
                     LOGGER.info("$dir already exists")
                     LOGGER.info("Moving all files in $dir to temp directory")
                     val files = this.listFiles()
+                    val tempDir = File(this@apply.parent, "temp_$appId")
                     files?.filter {
                         it?.exists() == true
+                    }?.also {
+                        if(!tempDir.exists()) {
+                            tempDir.mkdirs()
+                            LOGGER.info("Creating temp directory")
+                        } else {
+                            LOGGER.info("Temp directory already exists")
+                        }
                     }?.forEach {
                         try {
-                            FileUtils.moveFileToDirectory(it, File(this@apply.parent, "temp_$appId"), true)
+                            LOGGER.info("Moving ${it.absolutePath} to ${tempDir.absolutePath}")
+                            FileUtils.moveFileToDirectory(it, tempDir, false)
                         } catch (exception: Exception) {
                             LOGGER.error("Unable to move file ${it.absolutePath} to temp directory", exception)
                         }
@@ -107,19 +116,21 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
                             it?.exists() == true
                         }?.forEach {
                             try {
+                                LOGGER.info("Moving ${it.absolutePath} to ${directory.absolutePath}")
                                 FileUtils.moveFileToDirectory(it, directory, false)
                             } catch (exception: Exception) {
                                 LOGGER.error("Unable to move file ${it.absolutePath} back to original directory", exception)
                             }
                         }
                         this.deleteRecursively()
+                    } else {
+                        LOGGER.info("No files to be moved to original directory")
                     }
                 }
                 LOGGER.info("Moved files back to original directory")
             } catch (exception: Exception) {
                 LOGGER.error("Unable to move files back to directory", exception)
             }
-            LOGGER.info("Moved all files to temp directory")
             continuation.resume(true)
         } else {
             runBlocking {

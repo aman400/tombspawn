@@ -22,7 +22,7 @@
     <logger name="com.tombspawn.skeleton.ApplicationService" level="TRACE"/>
     <logger name="com.tombspawn.base.network.Common" level="TRACE"/>
     <logger name="com.tombspawn.skeleton.gradle.GradleExecutor" level="TRACE"/>
-    <logger name="com.tombspawn.skeleton.git.GitClient" level="TRACE"/>
+    <logger name="com.tombspawn.skeleton.git.GitClient" level="INFO"/>
     <logger name="com.tombspawn.skeleton.commandline.CommandLineClient" level="TRACE"/>
     <logger name="com.tombspawn.skeleton.extensions.GitUtils" level="TRACE"/>
 
