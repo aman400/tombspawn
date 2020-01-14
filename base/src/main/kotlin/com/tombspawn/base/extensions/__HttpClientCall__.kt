@@ -3,37 +3,37 @@ package com.tombspawn.base.extensions
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.tombspawn.base.common.*
-import io.ktor.client.call.HttpClientCall
-import io.ktor.client.response.readText
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.readText
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
-suspend inline fun <reified T> HttpClientCall.await(): Response<T> = suspendCancellableCoroutine { continuation ->
+suspend inline fun <reified T> HttpResponse.await(): Response<T> = suspendCancellableCoroutine { continuation ->
     GlobalScope.launch(continuation.context) {
         try {
             when {
-                response.status.isSuccess() -> {
-                    continuation.resume(CallSuccess(Gson().fromJson(response.readText(Charsets.UTF_8),
+                status.isSuccess() -> {
+                    continuation.resume(CallSuccess(Gson().fromJson(readText(Charsets.UTF_8),
                         object: TypeToken<T>() {}.type)))
                 }
-                response.status.value in 400..499 -> {
-                    continuation.resume(CallFailure(response.readText(Charsets.UTF_8), null))
+                status.value in 400..499 -> {
+                    continuation.resume(CallFailure(readText(Charsets.UTF_8), null))
                 }
-                response.status.value in 500..599 -> {
-                    continuation.resume(ServerFailure(Throwable(response.status.description), response.status.value,
+                status.value in 500..599 -> {
+                    continuation.resume(ServerFailure(Throwable(status.description), status.value,
                         "Something went wrong"))
                 }
                 else -> {
-                    continuation.resume(CallError(Throwable(response.status.description)))
+                    continuation.resume(CallError(Throwable(status.description)))
                 }
             }
         } catch (exception: Exception) {
             continuation.resume(CallError(exception))
         } finally {
-            close()
+            call.client.close()
         }
     }
 }

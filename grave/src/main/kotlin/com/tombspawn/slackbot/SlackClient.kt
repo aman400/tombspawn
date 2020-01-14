@@ -3,40 +3,28 @@ package com.tombspawn.slackbot
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.tombspawn.base.common.*
-import com.tombspawn.data.DatabaseService
 import com.tombspawn.base.extensions.await
-import com.tombspawn.base.extensions.random
-import com.tombspawn.base.extensions.toMap
 import com.tombspawn.di.qualifiers.SlackHttpClient
-import com.tombspawn.docker.DockerApiClient
-import com.tombspawn.models.*
 import com.tombspawn.models.CallResponse
-import com.tombspawn.models.config.App
+import com.tombspawn.models.RequestData
 import com.tombspawn.models.config.Slack
-import com.tombspawn.models.github.RefType
 import com.tombspawn.models.slack.*
 import com.tombspawn.utils.Constants
 import io.ktor.client.HttpClient
-import io.ktor.client.call.call
 import io.ktor.client.request.forms.FormDataContent
 import io.ktor.client.request.forms.MultiPartFormDataContent
-import io.ktor.client.request.forms.formData
 import io.ktor.client.request.parameter
+import io.ktor.client.request.request
 import io.ktor.client.request.url
+import io.ktor.client.statement.HttpResponse
 import io.ktor.http.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import com.tombspawn.models.slack.Event
-import com.tombspawn.models.slack.IMListData
-import com.tombspawn.models.slack.SlackUser
 import io.ktor.http.content.PartData
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
-import java.io.File
-import java.io.FileInputStream
 import java.net.URL
 import javax.inject.Inject
-import kotlin.collections.set
 
 class SlackClient @Inject constructor(
     @SlackHttpClient
@@ -48,7 +36,7 @@ class SlackClient @Inject constructor(
 
     @Throws(Exception::class)
     suspend fun fetchBotData(botToken: String): BotInfo.Self? = coroutineScope {
-        val call = httpClient.call {
+        val call = httpClient.request<HttpResponse> {
             method = HttpMethod.Get
             url {
                 encodedPath = "/api/rtm.connect"
@@ -89,7 +77,7 @@ class SlackClient @Inject constructor(
                 append(Constants.Slack.TS, updatedMessage.timestamp!!)
                 append(Constants.Slack.ATTACHMENTS, gson.toJson(updatedMessage.attachments))
             }.build()
-            val call = httpClient.call {
+            val call = httpClient.request<HttpResponse> {
                 method = HttpMethod.Post
                 url {
                     encodedPath = "/api/chat.update"
@@ -115,7 +103,7 @@ class SlackClient @Inject constructor(
     }
 
     suspend fun sendMessage(url: String, data: RequestData?) = withContext(Dispatchers.IO) {
-        val call = httpClient.call {
+        val call = httpClient.request<HttpResponse> {
             url(url)
             method = HttpMethod.Post
             headers.append(HttpHeaders.ContentType, ContentType.Application.Json)
@@ -142,7 +130,7 @@ class SlackClient @Inject constructor(
 
 
     suspend fun uploadFile(formData: List<PartData>): Response<CallResponse> {
-        val call = httpClient.call {
+        val call = httpClient.request<HttpResponse> {
             url {
                 encodedPath = "/api/files.upload"
             }
@@ -154,7 +142,7 @@ class SlackClient @Inject constructor(
 
     suspend fun fetchUser(userId: String): UserProfile? = coroutineScope {
         withContext(Dispatchers.IO) {
-            val call = httpClient.call {
+            val call = httpClient.request<HttpResponse> {
                 method = HttpMethod.Get
                 url {
                     encodedPath = "/api/users.profile.get"
@@ -195,7 +183,7 @@ class SlackClient @Inject constructor(
             }
         }.build()
 
-        val call = httpClient.call {
+        val call = httpClient.request<HttpResponse> {
             method = HttpMethod.Post
             url {
                 encodedPath = "/api/chat.postMessage"
@@ -227,7 +215,7 @@ class SlackClient @Inject constructor(
             append(Constants.Slack.CHANNEL, channelId)
             append(Constants.Slack.TOKEN, slack.botToken)
         }.build()
-        val call = httpClient.call {
+        val call = httpClient.request<HttpResponse> {
             method = HttpMethod.Post
             url {
                 encodedPath = "/api/chat.postEphemeral"
@@ -258,7 +246,7 @@ class SlackClient @Inject constructor(
             append(Constants.Slack.TOKEN, slack.botToken)
             append(Constants.Slack.TRIGGER_ID, triggerId)
         }
-        val call = httpClient.call {
+        val call = httpClient.request<HttpResponse> {
             method = HttpMethod.Post
             url {
                 encodedPath = "/api/dialog.open"
@@ -288,7 +276,7 @@ class SlackClient @Inject constructor(
             append(Constants.Slack.TOKEN, slackBotToken)
             append(Constants.Slack.TRIGGER_ID, triggerId)
         }.build()
-        val call = httpClient.call {
+        val call = httpClient.request<HttpResponse> {
             method = HttpMethod.Post
             url {
                 encodedPath = "/api/dialog.open"
@@ -315,7 +303,7 @@ class SlackClient @Inject constructor(
     }
 
     private suspend fun getUserList(token: String, cursor: String? = null, limit: Int? = null): UserResponse? {
-        val call = httpClient.call {
+        val call = httpClient.request<HttpResponse> {
             url {
                 url(URL("https://slack.com/api/users.list"))
                 parameters.append(Constants.Slack.TOKEN, token)
@@ -356,7 +344,7 @@ class SlackClient @Inject constructor(
     }
 
     private suspend fun getIMList(token: String, cursor: String? = null, limit: Int? = null): IMListData? {
-        val call = httpClient.call {
+        val call = httpClient.request<HttpResponse> {
             url {
                 encodedPath = "/api/im.list"
                 parameters.append(Constants.Slack.TOKEN, token)
