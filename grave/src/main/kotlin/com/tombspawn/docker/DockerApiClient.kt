@@ -14,7 +14,8 @@ import com.tombspawn.base.network.withRetry
 import com.tombspawn.di.qualifiers.DockerHttpClient
 import com.tombspawn.models.config.App
 import io.ktor.client.HttpClient
-import io.ktor.client.call.call
+import io.ktor.client.request.request
+import io.ktor.client.statement.HttpResponse
 import io.ktor.http.HttpMethod
 import io.ktor.http.parametersOf
 import kotlinx.coroutines.Dispatchers
@@ -22,8 +23,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import java.io.File
-import java.io.FileOutputStream
-import java.io.FileWriter
 import javax.inject.Inject
 import kotlin.coroutines.suspendCoroutine
 
@@ -39,7 +38,7 @@ class DockerApiClient @Inject constructor(
     suspend fun fetchFlavours(app: App, callbackUri: String): JsonObject? = coroutineScope {
         dockerHttpClients[app.id]?.let { client ->
             withRetry(3, 10000, -1) {
-                val call = client.call {
+                val call = client.request<HttpResponse> {
                     method = HttpMethod.Get
                     url {
                         encodedPath = "/flavours"
@@ -72,7 +71,7 @@ class DockerApiClient @Inject constructor(
     suspend fun fetchBuildVariants(app: App, callbackUri: String): JsonObject? = coroutineScope {
         withContext(Dispatchers.IO) {
             dockerHttpClients[app.id]?.let { client ->
-                val call = client.call {
+                val call = client.request<HttpResponse> {
                     method = HttpMethod.Get
                     url {
                         encodedPath = "/build-variants"
@@ -104,7 +103,7 @@ class DockerApiClient @Inject constructor(
 
     suspend fun generateApp(appId: String, vararg params: Pair<String, List<String>>): JsonObject? = coroutineScope {
         dockerHttpClients[appId]?.let { client ->
-            client.call {
+            client.request<HttpResponse> {
                 method = HttpMethod.Get
                 url {
                     encodedPath = "/app/generate"
@@ -135,7 +134,7 @@ class DockerApiClient @Inject constructor(
     suspend fun fetchReferences(app: App, callbackUri: String): JsonObject? = coroutineScope {
         dockerHttpClients[app.id]?.let { client ->
             withRetry(20, 10000, -1) {
-                val call = client.call {
+                val call = client.request<HttpResponse> {
                     method = HttpMethod.Get
                     url {
                         encodedPath = "/references"
@@ -169,7 +168,7 @@ class DockerApiClient @Inject constructor(
     suspend fun cleanApp(app: App, callbackUri: String): JsonObject? = coroutineScope {
         dockerHttpClients[app.id]?.let { client ->
             withRetry(20, 10000, -1) {
-                val call = client.call {
+                val call = client.request<HttpResponse> {
                     method = HttpMethod.Post
                     url {
                         encodedPath = "/app/clean"

@@ -2,9 +2,10 @@ object Versions {
     const val jgitVersion = "5.6.0.201912101111-r"
     const val junitVersion = "4.12"
     const val kotlin = "1.3.61"
-    const val ktorVersion = "1.3.0-beta-1"
+    const val ktorVersion = "1.3.0"
     const val shadowJar = "5.2.0"
-    const val daggerVersion = "2.25.3"
+    const val daggerVersion = "2.25.4"
+    const val exposed = "0.20.3"
 }
 
 object Classpaths {
@@ -43,9 +44,14 @@ object Docker {
 
 object Database {
     const val mysql = "mysql:mysql-connector-java:8.0.18"
-    const val exposed = "org.jetbrains.exposed:exposed:0.14.1"
     const val pool = "com.zaxxer:HikariCP:3.4.1"
     const val redis = "org.redisson:redisson:3.12.0"
+}
+
+object Exposed {
+    const val core = "org.jetbrains.exposed:exposed-core:${Versions.exposed}"
+    const val dao = "org.jetbrains.exposed:exposed-dao:${Versions.exposed}"
+    const val jdbc = "org.jetbrains.exposed:exposed-jdbc:${Versions.exposed}"
 }
 
 object Dagger {

@@ -146,9 +146,13 @@ class DockerService @Inject constructor(
                     // Create Dockerfile for given app
                     it.createNewFile()
                     // Copy given files to given directories
-                    val dataToAppend = "FROM skeleton as ${app.id}\nENV HOME /root\n" + app.fileMappings?.joinToString("") { mapping ->
-                        "COPY ${mapping.name} ${mapping.path}\n"
-                    }
+                    val dataToAppend = "FROM skeleton as ${app.id}\nENV HOME /root\n${app.fileMappings.takeIf {
+                        !it.isNullOrEmpty()
+                    }?.let {
+                            it.joinToString("") { mapping ->
+                            "COPY ${mapping.name} ${mapping.path}\n"
+                        }
+                    } ?: ""}"
                     @Suppress("BlockingMethodInNonBlockingContext")
                     FileWriter(it).use { writer ->
                         writer.write(dataToAppend)

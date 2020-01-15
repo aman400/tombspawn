@@ -71,7 +71,7 @@ class Skeleton(val args: Array<String>) {
         Runtime.getRuntime().addShutdownHook(object : Thread() {
             override fun run() {
                 LOGGER.debug("Stopping server gracefully")
-                server.stop(3, 5, TimeUnit.SECONDS)
+                server.stop(3000, 5000)
             }
         })
         server.start(true)

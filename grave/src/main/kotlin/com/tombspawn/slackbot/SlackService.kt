@@ -2,10 +2,8 @@ package com.tombspawn.slackbot
 
 import com.google.gson.Gson
 import com.tombspawn.base.common.*
-import com.tombspawn.base.extensions.await
 import com.tombspawn.data.DatabaseService
 import com.tombspawn.data.Ref
-import com.tombspawn.models.CallResponse
 import com.tombspawn.models.Reference
 import com.tombspawn.models.RequestData
 import com.tombspawn.models.config.App
@@ -20,7 +18,6 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.append
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import java.io.File

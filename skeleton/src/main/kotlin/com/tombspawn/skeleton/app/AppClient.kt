@@ -8,7 +8,8 @@ import com.tombspawn.base.network.withRetry
 import com.tombspawn.skeleton.di.qualifiers.UploadAppClient
 import com.tombspawn.skeleton.models.Reference
 import io.ktor.client.HttpClient
-import io.ktor.client.call.call
+import io.ktor.client.request.request
+import io.ktor.client.statement.HttpResponse
 import io.ktor.http.*
 import java.io.File
 import javax.inject.Inject
@@ -21,7 +22,7 @@ class AppClient @Inject constructor(@UploadAppClient private val uploadHttpClien
         parameters: Map<String, String>?
     ): Response<JsonObject> {
         return withRetry(3, 5000, 10000, 1.5) {
-            uploadHttpClient.call(url) {
+            uploadHttpClient.request<HttpResponse>(url) {
                 method = HttpMethod.Post
                 body = MultiPartContent.build {
                     add("title", apkPrefix)
@@ -36,7 +37,7 @@ class AppClient @Inject constructor(@UploadAppClient private val uploadHttpClien
 
     suspend fun initComplete(url: String, success: Boolean): Response<JsonObject> {
         return withRetry(3, 5000, 10000, 1.5) {
-            uploadHttpClient.call(url) {
+            uploadHttpClient.request<HttpResponse>(url) {
                 method = HttpMethod.Post
                 body = SuccessResponse(if (success) "success" else "failed")
                 headers.append(HttpHeaders.ContentType, ContentType.Application.Json)
@@ -46,7 +47,7 @@ class AppClient @Inject constructor(@UploadAppClient private val uploadHttpClien
 
     suspend fun reportFailure(url: String, errorResponse: ErrorResponse): Response<JsonObject> {
         return withRetry(3, 10000, 20000, 1.5) {
-            uploadHttpClient.call(url) {
+            uploadHttpClient.request<HttpResponse>(url) {
                 this.contentType(ContentType.Application.Json)
                 method = HttpMethod.Post
                 this.body = errorResponse
@@ -56,7 +57,7 @@ class AppClient @Inject constructor(@UploadAppClient private val uploadHttpClien
 
     suspend fun sendFlavours(url: String, flavours: List<String>): Response<JsonObject> {
         return withRetry(3, 10000, 20000, 1.5) {
-            uploadHttpClient.call(url) {
+            uploadHttpClient.request<HttpResponse>(url) {
                 method = HttpMethod.Post
                 body = ListBodyRequest(flavours)
                 headers.append(HttpHeaders.ContentType, ContentType.Application.Json)
@@ -66,7 +67,7 @@ class AppClient @Inject constructor(@UploadAppClient private val uploadHttpClien
 
     suspend fun sendBuildVariants(url: String, buildVariants: List<String>): Response<JsonObject> {
         return withRetry(3, 10000, 20000, 1.5) {
-            uploadHttpClient.call(url) {
+            uploadHttpClient.request<HttpResponse>(url) {
                 method = HttpMethod.Post
                 body = ListBodyRequest(buildVariants)
                 headers.append(HttpHeaders.ContentType, ContentType.Application.Json)
@@ -76,7 +77,7 @@ class AppClient @Inject constructor(@UploadAppClient private val uploadHttpClien
 
     suspend fun sendCleanCommandResponse(url: String, responseMessage: CallResponse): Response<JsonObject> {
         return withRetry(3, 10000, 20000, 1.5) {
-            uploadHttpClient.call(url) {
+            uploadHttpClient.request<HttpResponse>(url) {
                 method = HttpMethod.Post
                 body = responseMessage
                 headers.append(HttpHeaders.ContentType, ContentType.Application.Json)
@@ -86,7 +87,7 @@ class AppClient @Inject constructor(@UploadAppClient private val uploadHttpClien
 
     suspend fun sendReferences(url: String, refs: List<Reference>): Response<JsonObject> {
         return withRetry(3, 10000, 20000, 1.5) {
-            uploadHttpClient.call(url) {
+            uploadHttpClient.request<HttpResponse>(url) {
                 method = HttpMethod.Post
                 body = ListBodyRequest(refs)
                 headers.append(HttpHeaders.ContentType, ContentType.Application.Json)
