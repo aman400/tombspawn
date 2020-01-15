@@ -48,7 +48,10 @@ dependencies {
     implementation Log.logback
     implementation Gson.lib
 
-    implementation Database.exposed
+    implementation Exposed.core
+    implementation Exposed.dao
+    implementation Exposed.jdbc
+
     implementation Database.mysql
     implementation Database.pool
     implementation Database.redis
