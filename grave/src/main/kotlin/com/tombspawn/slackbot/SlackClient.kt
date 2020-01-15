@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.tombspawn.base.common.*
 import com.tombspawn.base.extensions.await
+import com.tombspawn.base.network.withRetry
 import com.tombspawn.di.qualifiers.SlackHttpClient
 import com.tombspawn.models.CallResponse
 import com.tombspawn.models.RequestData
@@ -130,14 +131,16 @@ class SlackClient @Inject constructor(
 
 
     suspend fun uploadFile(formData: List<PartData>): Response<CallResponse> {
-        val call = httpClient.request<HttpResponse> {
-            url {
-                encodedPath = "/api/files.upload"
+        return withRetry(3, 5000, 10000, 1.5) {
+            val call = httpClient.request<HttpResponse> {
+                url {
+                    encodedPath = "/api/files.upload"
+                }
+                method = HttpMethod.Post
+                body = MultiPartFormDataContent(formData)
             }
-            method = HttpMethod.Post
-            body = MultiPartFormDataContent(formData)
+            call.await<CallResponse>()
         }
-        return call.await()
     }
 
     suspend fun fetchUser(userId: String): UserProfile? = coroutineScope {

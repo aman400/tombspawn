@@ -32,8 +32,6 @@ suspend inline fun <reified T> HttpResponse.await(): Response<T> = suspendCancel
             }
         } catch (exception: Exception) {
             continuation.resume(CallError(exception))
-        } finally {
-            call.client.close()
         }
     }
 }
