@@ -37,6 +37,22 @@ class GenerateAppCommand constructor(command: String, workingDir: File = File(".
     }
 }
 
+class ExecuteTaskCommand constructor(command: String, workingDir: File = File("."),
+                                     timeoutAmount: Long = 15, timeoutUnit: TimeUnit = TimeUnit.MINUTES,
+                                     id: String = UUID.randomUUID().toString(),
+                                     listener: CompletableDeferred<CommandResponse>? = null,
+                                     val preProcess: (suspend () -> Boolean),
+                                     val postProcess: (suspend (commandResponse: CommandResponse) -> Boolean)) :
+    Request(command, workingDir, timeoutAmount, timeoutUnit, id, listener), Processable {
+    override suspend fun onPreProcess(): Boolean {
+        return this.preProcess()
+    }
+
+    override suspend fun onPostProcess(response: CommandResponse): Boolean {
+        return this.postProcess(response)
+    }
+}
+
 sealed class CommandResponse : Command()
 
 data class Success(val data: String?) : CommandResponse()

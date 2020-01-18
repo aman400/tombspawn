@@ -14,10 +14,19 @@ data class App constructor(
     @SerializedName("cpu_shares") val cpuShares: Int? = null,
     @SerializedName("container_uri") val containerUri: String? = null,
     @SerializedName("environment_variables") val env: List<String>? = null,
-    @SerializedName("files") val fileMappings: List<FileMapping>? = null
+    @SerializedName("files") val fileMappings: List<FileMapping>? = null,
+    @SerializedName("gradle_tasks") val gradleTasks: List<GradleTask>? = null
 ) {
     data class FileMapping(
         @SerializedName("name") val name: String,
         @SerializedName("path") val path: String
     )
+
+    data class GradleTask(@SerializedName("id") val id: String,
+                          @SerializedName("tasks") val tasks: List<String>,
+                          @SerializedName("output_dir") val outputDir: String) {
+        override fun toString(): String {
+            return id
+        }
+    }
 }

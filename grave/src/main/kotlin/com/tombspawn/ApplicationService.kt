@@ -330,12 +330,12 @@ class ApplicationService @Inject constructor(
         }?.let { app ->
             LOGGER.warn("Command options not set. These options can be set using '/build-fleet BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'")
             val branchList = getReferences(app.id)
-            val flavourList = getFlavours(app.id)
-            val buildTypesList = getBuildVariants(app.id)
+            val buildTypesList = app.gradleTasks?.map {
+                it.id
+            }
             slackService.sendShowGenerateApkDialog(
                 branchList,
                 buildTypesList,
-                flavourList,
                 null,
                 triggerId,
                 Constants.Slack.CALLBACK_GENERATE_APK + app.id,
@@ -415,11 +415,15 @@ class ApplicationService @Inject constructor(
                                     }?.let { app ->
                                         val callback = gson.fromJson(action.value, GenerateCallback::class.java)
                                         slackService.subscriptionResponse(app, callback, slackEvent,
-                                            databaseService.getFlavours(app.id)?.map {
-                                                it.name
-                                            }, databaseService.getBuildTypes(app.id)?.map {
-                                                it.name
+//                                            databaseService.getFlavours(app.id)?.map {
+//                                                it.name
+//                                            },
+                                            app.gradleTasks?.map {
+                                                it.id
                                             })
+//                                            databaseService.getBuildTypes(app.id)?.map {
+//                                                it.name
+//                                            })
                                     }
                                 }
                             }

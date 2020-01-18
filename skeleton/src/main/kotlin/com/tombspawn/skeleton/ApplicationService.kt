@@ -7,11 +7,13 @@ import com.tombspawn.skeleton.di.qualifiers.FileUploadDir
 import com.tombspawn.skeleton.di.qualifiers.InitCallbackUri
 import com.tombspawn.skeleton.git.GitService
 import com.tombspawn.skeleton.gradle.GradleService
+import com.tombspawn.skeleton.models.App
 import com.tombspawn.skeleton.models.RefType
 import com.tombspawn.skeleton.models.Reference
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.nio.file.Paths
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
@@ -25,7 +27,8 @@ class ApplicationService @Inject constructor(
     @FileUploadDir
     private val fileUploadDir: String,
     @InitCallbackUri
-    private val initCallbackUri: String
+    private val initCallbackUri: String,
+    private val app: App
 ) : CoroutineScope {
 
     private val HUMAN_DATE_FORMAT by lazy {
@@ -141,11 +144,149 @@ class ApplicationService @Inject constructor(
         return gitService.pullCode(selectedBranch)
     }
 
+    suspend fun generateApplication(
+        parameters: MutableMap<String, String> = mutableMapOf(), successCallbackUri: String?,
+        failureCallbackUri: String?, apkPrefix: String
+    ) = coroutineScope {
+        app.gradleTasks?.firstOrNull {
+            it.id == parameters[SlackConstants.TYPE_SELECT_BUILD_TYPE]
+        }?.let { gradleTask ->
+            val branch = parameters[SlackConstants.TYPE_SELECT_BRANCH]
+            val lastTask = gradleTask.tasks.size - 1
+            val jobs: MutableList<Job> = mutableListOf()
+            gradleTask.tasks.forEachIndexed { index: Int, task: String ->
+                jobs.add(gradleService.executeTask(task, parameters, {
+                    if(index == 0) {
+                        branch?.trim()?.let {
+                            // Clean git repo to remove untracked files/folders
+                            gitService.clean().await().let {
+                                LOGGER.info(it.joinToString(", "))
+                            }
+                            // Reset branch to point to head of tracked branch
+                            gitService.resetBranch().await().let { ref ->
+                                LOGGER.info("Reset head to ${ref.name} ${ref.objectId}")
+                            }
+                            gitService.fetchRemoteBranches().await()
+                            // Checkout to given branch before app generation
+                            checkoutBranch(it).await()
+                        } ?: false
+                    } else {
+                        true
+                    }
+                }, { response ->
+                    if (index == lastTask) {
+                        when (response) {
+                            is Success -> {
+                                val paths = Paths.get(app.dir!!)
+                                val outputDir = try {
+                                    paths.resolve(gradleTask.outputDir).toFile()
+                                } catch (exception: Exception) {
+                                    LOGGER.error("Unable to resolve directory paths", exception)
+                                    null
+                                }
+                                if (outputDir?.exists() == true && outputDir.isDirectory) {
+                                    outputDir.listFiles().takeIf {
+                                        !it.isNullOrEmpty()
+                                    }?.firstOrNull { it.extension.equals("apk", true) }?.let { file ->
+                                        if (file.exists()) {
+                                            gitService.fetchLogs().await()?.let {
+                                                parameters[CommonConstants.COMMIT_MESSAGE] = it.shortMessage
+                                                parameters[CommonConstants.COMMIT_ID] = it.id.name
+                                                it.authorIdent?.let { author ->
+                                                    parameters[CommonConstants.COMMIT_AUTHOR] =
+                                                        "${author.name}<${author.emailAddress}> ${HUMAN_DATE_FORMAT.format(
+                                                            author.getWhen()
+                                                        )}"
+                                                }
+                                            }
+                                            successCallbackUri?.let { url ->
+                                                when (val responseData =
+                                                    appClient.uploadFile(url, apkPrefix, file, parameters)) {
+                                                    is CallSuccess -> {
+                                                        file.delete()
+                                                        LOGGER.debug("Uploaded successfully")
+                                                        true
+                                                    }
+                                                    is CallFailure -> {
+                                                        file.delete()
+                                                        LOGGER.error("Unable to upload file", responseData.throwable)
+                                                        onTaskFailure(failureCallbackUri, responseData.errorBody)
+                                                        false
+                                                    }
+                                                    is ServerFailure -> {
+                                                        file.delete()
+                                                        LOGGER.error("Unable to upload file", responseData.throwable)
+                                                        onTaskFailure(
+                                                            failureCallbackUri,
+                                                            responseData.throwable?.message
+                                                        )
+                                                        false
+                                                    }
+                                                    is CallError -> {
+                                                        file.delete()
+                                                        LOGGER.error("Unable to upload file", responseData.throwable)
+                                                        onTaskFailure(
+                                                            failureCallbackUri,
+                                                            responseData.throwable?.message
+                                                        )
+                                                        false
+                                                    }
+                                                }
+                                            } ?: run {
+                                                LOGGER.error("Callback uri is null")
+                                                onTaskFailure(failureCallbackUri, "Callback uri is null")
+                                                false
+                                            }
+                                        } else {
+                                            LOGGER.error("File cannot be located in directory")
+                                            onTaskFailure(failureCallbackUri, "File cannot be located in directory")
+                                            false
+                                        }
+                                    } ?: run {
+                                        LOGGER.error("Apk not found")
+                                        onTaskFailure(failureCallbackUri, "Apk not found")
+                                        false
+                                    }
+                                } else {
+                                    LOGGER.error("Directory not found")
+                                    onTaskFailure(failureCallbackUri, "Directory not found")
+                                    false
+                                }
+                            }
+                            is Failure -> {
+                                LOGGER.error("Failed to execute task ${response.error}", response.throwable)
+                                onTaskFailure(failureCallbackUri, "Failed to execute task ${response.error}")
+                                false
+                            }
+                        }
+                    } else {
+                        true
+                    }
+                }))
+            }
+            jobs.forEach {
+                it.join()
+            }
+        } ?: run {
+            onTaskFailure(failureCallbackUri, "No gradle task specified")
+        }
+    }
+
+    private suspend fun onTaskFailure(failureUri: String?, error: String?) = coroutineScope {
+        failureUri?.let {
+            appClient.reportFailure(
+                failureUri, ErrorResponse(
+                    error ?: "Something went wrong."
+                )
+            )
+        }
+    }
+
     suspend fun generateApp(
         parameters: MutableMap<String, String> = mutableMapOf(), successCallbackUri: String?,
         failureCallbackUri: String?, apkPrefix: String
     ) = coroutineScope {
-        val branch = parameters.get(SlackConstants.TYPE_SELECT_BRANCH)
+        val branch = parameters[SlackConstants.TYPE_SELECT_BRANCH]
 
         when (val response = gradleService.generateApp(parameters, fileUploadDir, apkPrefix) {
             branch?.trim()?.let {

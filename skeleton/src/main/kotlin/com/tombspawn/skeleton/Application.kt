@@ -178,7 +178,7 @@ fun Application.module(appComponent: AppComponent) {
             params.remove(CommonConstants.FAILURE_CALLBACK_URI)
 
             launch(Dispatchers.IO) {
-                applicationService.generateApp(params, successCallbackUri, failureCallbackUri, userAppPrefix)
+                applicationService.generateApplication(params, successCallbackUri, failureCallbackUri, userAppPrefix)
             }
             call.respond(SuccessResponse("ok"))
         }

@@ -99,7 +99,6 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
     suspend fun sendShowGenerateApkDialog(
         branches: List<Reference>?,
         buildTypes: List<String>?,
-        flavours: List<String>?,
         echo: String?,
         triggerId: String,
         callbackId: String,
@@ -133,20 +132,6 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
                 Element(
                     ElementType.SELECT, "Select Build Type",
                     SlackConstants.TYPE_SELECT_BUILD_TYPE, options = buildTypeList
-                )
-            )
-        }
-
-        val flavourList = mutableListOf<Element.Option>()
-        flavours?.forEach {
-            flavourList.add(Element.Option(it, it))
-        }
-
-        if (flavourList.size > 0) {
-            dialogElementList.add(
-                Element(
-                    ElementType.SELECT, "Select Flavour",
-                    SlackConstants.TYPE_SELECT_FLAVOUR, options = flavourList
                 )
             )
         }
@@ -315,7 +300,8 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
 
     suspend fun subscriptionResponse(
         app: App, callback: GenerateCallback,
-        slackEvent: SlackEvent, flavours: List<String>?,
+        slackEvent: SlackEvent,
+//        flavours: List<String>?,
         buildTypes: List<String>?
     ) = coroutineScope {
         val updatedMessage = slackEvent.originalMessage?.copy(attachments = null)
@@ -334,7 +320,9 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
             }
 
             sendShowGenerateApkDialog(
-                branchList, buildTypes, flavours, gson.toJson(updatedMessage),
+                branchList, buildTypes,
+//                flavours,
+                gson.toJson(updatedMessage),
                 slackEvent.triggerId!!,
                 Constants.Slack.CALLBACK_GENERATE_APK + app.id,
                 app.appUrl ?: ""
