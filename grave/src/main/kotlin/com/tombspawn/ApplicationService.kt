@@ -123,8 +123,6 @@ class ApplicationService @Inject constructor(
                     dockerService.appInitialized(it)
                 }
                 fetchReferences(it)
-                fetchFlavours(it)
-                fetchBuildVariants(it)
             }
         }
     }
