@@ -53,7 +53,7 @@ object Refs: IntIdTable() {
     val deleted = bool("deleted").default(false)
     val type = enumeration("type", RefType::class).default(RefType.BRANCH)
     val appId = reference("app_id", Apps, ReferenceOption.CASCADE, ReferenceOption.RESTRICT)
-    override val primaryKey: PrimaryKey =  PrimaryKey(name, appId)
+    override val primaryKey: PrimaryKey =  PrimaryKey(id, name, appId)
 }
 
 class Ref(id: EntityID<Int>) : IntEntity(id) {
@@ -68,7 +68,7 @@ class Ref(id: EntityID<Int>) : IntEntity(id) {
 object BuildTypes : IntIdTable() {
     val name = varchar("name", 100)
     val appId = reference("app_id", Apps, ReferenceOption.CASCADE, ReferenceOption.RESTRICT)
-    override val primaryKey: PrimaryKey =  PrimaryKey(name, appId)
+    override val primaryKey: PrimaryKey =  PrimaryKey(id, name, appId)
 }
 
 class BuildType(id: EntityID<Int>) : IntEntity(id) {
@@ -81,7 +81,7 @@ class BuildType(id: EntityID<Int>) : IntEntity(id) {
 object Flavours : IntIdTable() {
     val name = varchar("name", 100)
     val appId = reference("app_id", Apps, ReferenceOption.CASCADE, ReferenceOption.RESTRICT)
-    override val primaryKey: PrimaryKey =  PrimaryKey(name, appId)
+    override val primaryKey: PrimaryKey =  PrimaryKey(id, name, appId)
 }
 
 class Flavour(id: EntityID<Int>) : IntEntity(id) {
@@ -105,7 +105,7 @@ object Apis : IntIdTable() {
     val apiId = varchar("api_id", 100).uniqueIndex()
     val verb = reference("verb", Verbs, ReferenceOption.CASCADE, ReferenceOption.RESTRICT)
     val response = text("response")
-    override val primaryKey: PrimaryKey =  PrimaryKey(apiId, verb)
+    override val primaryKey: PrimaryKey =  PrimaryKey(id, apiId, verb)
 }
 
 class Api(id: EntityID<Int>) : IntEntity(id) {
@@ -137,7 +137,7 @@ object Subscriptions : IntIdTable() {
             onUpdate = ReferenceOption.RESTRICT
         )
     val channel = varchar("channel_id", 100)
-    override val primaryKey: PrimaryKey =  PrimaryKey(userId, refId, appId, channel)
+    override val primaryKey: PrimaryKey =  PrimaryKey(id, userId, refId, appId, channel)
     init {
         index(true, userId, refId, appId, channel)
     }
