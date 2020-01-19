@@ -3,12 +3,12 @@ package com.tombspawn
 import com.google.common.base.Optional
 import com.google.gson.Gson
 import com.google.gson.JsonParser
-import com.tombspawn.base.common.*
+import com.tombspawn.base.common.ErrorResponse
+import com.tombspawn.base.common.SlackConstants
 import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.extensions.toMap
 import com.tombspawn.data.*
 import com.tombspawn.data.cache.models.ApkCache
-import com.tombspawn.di.qualifiers.AppCacheMap
 import com.tombspawn.di.qualifiers.ApplicationBaseUri
 import com.tombspawn.di.qualifiers.Debuggable
 import com.tombspawn.di.qualifiers.UploadDirPath
@@ -28,7 +28,6 @@ import com.tombspawn.models.slack.SlackEvent
 import com.tombspawn.slackbot.SlackService
 import com.tombspawn.utils.Constants
 import io.ktor.http.URLBuilder
-import javafx.application.Application.launch
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -123,8 +122,6 @@ class ApplicationService @Inject constructor(
                     dockerService.appInitialized(it)
                 }
                 fetchReferences(it)
-                fetchFlavours(it)
-                fetchBuildVariants(it)
             }
         }
     }
@@ -330,12 +327,12 @@ class ApplicationService @Inject constructor(
         }?.let { app ->
             LOGGER.warn("Command options not set. These options can be set using '/build-fleet BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'")
             val branchList = getReferences(app.id)
-            val flavourList = getFlavours(app.id)
-            val buildTypesList = getBuildVariants(app.id)
+            val buildTypesList = app.gradleTasks?.map {
+                it.id
+            }
             slackService.sendShowGenerateApkDialog(
                 branchList,
                 buildTypesList,
-                flavourList,
                 null,
                 triggerId,
                 Constants.Slack.CALLBACK_GENERATE_APK + app.id,
@@ -415,10 +412,8 @@ class ApplicationService @Inject constructor(
                                     }?.let { app ->
                                         val callback = gson.fromJson(action.value, GenerateCallback::class.java)
                                         slackService.subscriptionResponse(app, callback, slackEvent,
-                                            databaseService.getFlavours(app.id)?.map {
-                                                it.name
-                                            }, databaseService.getBuildTypes(app.id)?.map {
-                                                it.name
+                                            app.gradleTasks?.map {
+                                                it.id
                                             })
                                     }
                                 }

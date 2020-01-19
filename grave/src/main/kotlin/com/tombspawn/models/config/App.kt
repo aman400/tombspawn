@@ -1,6 +1,7 @@
 package com.tombspawn.models.config
 
 import com.google.gson.annotations.SerializedName
+import com.tombspawn.base.common.models.GradleTask
 
 data class App constructor(
     @SerializedName("id") val id: String,
@@ -14,7 +15,8 @@ data class App constructor(
     @SerializedName("cpu_shares") val cpuShares: Int? = null,
     @SerializedName("container_uri") val containerUri: String? = null,
     @SerializedName("environment_variables") val env: List<String>? = null,
-    @SerializedName("files") val fileMappings: List<FileMapping>? = null
+    @SerializedName("files") val fileMappings: List<FileMapping>? = null,
+    @SerializedName("gradle_tasks") val gradleTasks: List<GradleTask>? = null
 ) {
     data class FileMapping(
         @SerializedName("name") val name: String,

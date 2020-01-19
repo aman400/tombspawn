@@ -31,6 +31,7 @@ dependencies {
     api Ktor.apache
     api Gson.lib
     api Log.logback
+    api Apache.commonIO
 
     api Dagger.lib
     kapt Dagger.annotationProcessor

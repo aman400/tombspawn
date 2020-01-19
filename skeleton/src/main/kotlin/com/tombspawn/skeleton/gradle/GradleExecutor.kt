@@ -125,6 +125,31 @@ class GradleExecutor @Inject constructor(
         return request.listener!!.await()
     }
 
+    override suspend fun executeTask(
+        task: String,
+        parameters: MutableMap<String, String>?,
+        onPreProcess: suspend () -> Boolean,
+        onPostProcess: suspend (response: CommandResponse) -> Boolean
+    ): CompletableDeferred<CommandResponse> {
+        val executionDirectory = File(appDir)
+        var executableCommand = "$gradlePath $task"
+
+        parameters?.filter {
+            it.key != SlackConstants.TYPE_SELECT_APP_PREFIX && it.key != SlackConstants.TYPE_ADDITIONAL_PARAMS
+                    && it.key != SlackConstants.TYPE_SELECT_BRANCH && it.key != SlackConstants.TYPE_SELECT_BUILD_TYPE
+        }?.forEach { key, value ->
+            executableCommand += " -P$key=$value"
+        }
+
+        val buildId = UUID.randomUUID().toString()
+        val request = ExecuteTaskCommand(
+            executableCommand, executionDirectory,
+            id = buildId, listener = CompletableDeferred(), preProcess = onPreProcess, postProcess = onPostProcess
+        )
+        requestExecutor.send(request)
+        return request.listener!!
+    }
+
     override suspend fun generateApp(
         parameters: MutableMap<String, String>?,
         uploadDirPath: String, APKPrefix: String,
@@ -145,8 +170,10 @@ class GradleExecutor @Inject constructor(
         executableCommand += " -Pgradlebot.git.username=${credentialProvider.username}"
 
         val buildId = UUID.randomUUID().toString()
-        val request = GenerateAppCommand(executableCommand, executionDirectory,
-            id = buildId, listener = CompletableDeferred(), preProcess = onPreProcess)
+        val request = GenerateAppCommand(
+            executableCommand, executionDirectory,
+            id = buildId, listener = CompletableDeferred(), preProcess = onPreProcess
+        )
         requestExecutor.send(request)
         return request.listener!!.await()
     }

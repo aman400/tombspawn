@@ -2,10 +2,10 @@ package com.tombspawn.data
 
 import com.tombspawn.models.github.RefType
 import io.ktor.auth.Principal
-import org.jetbrains.exposed.dao.EntityID
+import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
-import org.jetbrains.exposed.dao.IntIdTable
+import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.ReferenceOption
 
 
@@ -49,10 +49,11 @@ class App(id: EntityID<Int>) : IntEntity(id) {
 }
 
 object Refs: IntIdTable() {
-    val name = varchar("name", 100).primaryKey()
+    val name = varchar("name", 100)
     val deleted = bool("deleted").default(false)
     val type = enumeration("type", RefType::class).default(RefType.BRANCH)
-    val appId = reference("app_id", Apps, ReferenceOption.CASCADE, ReferenceOption.RESTRICT).primaryKey()
+    val appId = reference("app_id", Apps, ReferenceOption.CASCADE, ReferenceOption.RESTRICT)
+    override val primaryKey: PrimaryKey =  PrimaryKey(id, name, appId)
 }
 
 class Ref(id: EntityID<Int>) : IntEntity(id) {
@@ -65,8 +66,9 @@ class Ref(id: EntityID<Int>) : IntEntity(id) {
 }
 
 object BuildTypes : IntIdTable() {
-    val name = varchar("name", 100).primaryKey()
-    val appId = reference("app_id", Apps, ReferenceOption.CASCADE, ReferenceOption.RESTRICT).primaryKey()
+    val name = varchar("name", 100)
+    val appId = reference("app_id", Apps, ReferenceOption.CASCADE, ReferenceOption.RESTRICT)
+    override val primaryKey: PrimaryKey =  PrimaryKey(id, name, appId)
 }
 
 class BuildType(id: EntityID<Int>) : IntEntity(id) {
@@ -77,8 +79,9 @@ class BuildType(id: EntityID<Int>) : IntEntity(id) {
 }
 
 object Flavours : IntIdTable() {
-    val name = varchar("name", 100).primaryKey()
-    val appId = reference("app_id", Apps, ReferenceOption.CASCADE, ReferenceOption.RESTRICT).primaryKey()
+    val name = varchar("name", 100)
+    val appId = reference("app_id", Apps, ReferenceOption.CASCADE, ReferenceOption.RESTRICT)
+    override val primaryKey: PrimaryKey =  PrimaryKey(id, name, appId)
 }
 
 class Flavour(id: EntityID<Int>) : IntEntity(id) {
@@ -99,9 +102,10 @@ class Verb(id: EntityID<Int>) : IntEntity(id) {
 }
 
 object Apis : IntIdTable() {
-    val apiId = varchar("api_id", 100).uniqueIndex().primaryKey()
-    val verb = reference("verb", Verbs, ReferenceOption.CASCADE, ReferenceOption.RESTRICT).primaryKey()
+    val apiId = varchar("api_id", 100).uniqueIndex()
+    val verb = reference("verb", Verbs, ReferenceOption.CASCADE, ReferenceOption.RESTRICT)
     val response = text("response")
+    override val primaryKey: PrimaryKey =  PrimaryKey(id, apiId, verb)
 }
 
 class Api(id: EntityID<Int>) : IntEntity(id) {
@@ -118,22 +122,22 @@ object Subscriptions : IntIdTable() {
         Users,
         onDelete = ReferenceOption.CASCADE,
         onUpdate = ReferenceOption.RESTRICT
-    ).primaryKey()
+    )
     val refId = reference(
         "ref_id",
         Refs,
         onDelete = ReferenceOption.CASCADE,
         onUpdate = ReferenceOption.CASCADE
-    ).primaryKey()
+    )
     val appId =
         reference(
             "app_id",
             Apps,
             onDelete = ReferenceOption.CASCADE,
             onUpdate = ReferenceOption.RESTRICT
-        ).primaryKey()
-    val channel = varchar("channel_id", 100).primaryKey()
-
+        )
+    val channel = varchar("channel_id", 100)
+    override val primaryKey: PrimaryKey =  PrimaryKey(id, userId, refId, appId, channel)
     init {
         index(true, userId, refId, appId, channel)
     }
