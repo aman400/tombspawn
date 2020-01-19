@@ -63,6 +63,9 @@ object Dagger {
 
 object Apache {
     const val commonIO = "commons-io:commons-io:2.6"
+    const val zip = "org.apache.commons:commons-compress:1.19"
+    const val apacheCommons = "org.apache.commons:commons-io:1.3.2"
+    const val text = "org.apache.commons:commons-text:1.8"
 }
 
 object Ktor {

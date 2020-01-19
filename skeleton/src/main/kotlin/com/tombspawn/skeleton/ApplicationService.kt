@@ -11,6 +11,9 @@ import com.tombspawn.skeleton.models.App
 import com.tombspawn.skeleton.models.RefType
 import com.tombspawn.skeleton.models.Reference
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.FlowCollector
+import kotlinx.coroutines.flow.asFlow
+import org.apache.commons.io.FileUtils
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Paths
@@ -156,7 +159,7 @@ class ApplicationService @Inject constructor(
             val jobs: MutableList<Job> = mutableListOf()
             gradleTask.tasks.forEachIndexed { index: Int, task: String ->
                 jobs.add(gradleService.executeTask(task, parameters, {
-                    if(index == 0) {
+                    if (index == 0) {
                         branch?.trim()?.let {
                             // Clean git repo to remove untracked files/folders
                             gitService.clean().await().let {
@@ -185,9 +188,10 @@ class ApplicationService @Inject constructor(
                                     null
                                 }
                                 if (outputDir?.exists() == true && outputDir.isDirectory) {
-                                    outputDir.listFiles().takeIf {
-                                        !it.isNullOrEmpty()
-                                    }?.firstOrNull { it.extension.equals("apk", true) }?.let { file ->
+                                    FileUtils.iterateFiles(outputDir, arrayOf("apk"), true)
+                                        .takeIf {
+                                            it.hasNext()
+                                        }?.next()?.let { file ->
                                         if (file.exists()) {
                                             gitService.fetchLogs().await()?.let {
                                                 parameters[CommonConstants.COMMIT_MESSAGE] = it.shortMessage

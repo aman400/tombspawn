@@ -1,6 +1,7 @@
 package com.tombspawn.skeleton.models
 
 import com.google.gson.annotations.SerializedName
+import com.tombspawn.base.common.models.GradleTask
 
 data class App constructor(
     @SerializedName("id")
@@ -17,8 +18,4 @@ data class App constructor(
     var uri: String? = null,
     @SerializedName("gradle_tasks")
     val gradleTasks: List<GradleTask>? = null
-) {
-    data class GradleTask(@SerializedName("id") val id: String,
-                          @SerializedName("tasks") val tasks: List<String>,
-                          @SerializedName("output_dir") val outputDir: String)
-}
+)
