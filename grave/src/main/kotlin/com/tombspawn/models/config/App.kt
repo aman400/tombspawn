@@ -2,11 +2,11 @@ package com.tombspawn.models.config
 
 import com.google.gson.annotations.SerializedName
 import com.tombspawn.base.common.models.GradleTask
+import com.tombspawn.models.slack.Element
 
 data class App constructor(
     @SerializedName("id") val id: String,
     @SerializedName("name") val name: String?,
-    @SerializedName("app_url") val appUrl: String?,
     @SerializedName("repo_id") val repoId: String?,
     @SerializedName("dir") var dir: String? = null,
     @SerializedName("remote_uri") val uri: String? = null,
@@ -16,7 +16,8 @@ data class App constructor(
     @SerializedName("container_uri") val containerUri: String? = null,
     @SerializedName("environment_variables") val env: List<String>? = null,
     @SerializedName("files") val fileMappings: List<FileMapping>? = null,
-    @SerializedName("gradle_tasks") val gradleTasks: List<GradleTask>? = null
+    @SerializedName("gradle_tasks") val gradleTasks: List<GradleTask>? = null,
+    @SerializedName("build_params") val elements: List<Element>? = null
 ) {
     data class FileMapping(
         @SerializedName("name") val name: String,
