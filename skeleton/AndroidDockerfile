@@ -22,4 +22,4 @@ RUN chmod +x /app/setup_android_sdk.sh
 #USER $APPLICATION_USER
 
 WORKDIR /app
-RUN /bin/bash /app/setup_android_sdk.sh -f -a
+RUN /bin/bash /app/setup_android_sdk.sh -b -a
