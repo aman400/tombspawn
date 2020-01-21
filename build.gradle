@@ -15,7 +15,7 @@ buildscript {
 
 
 task copyDockerFiles(type: Copy) {
-    from "$rootDir/docker-compose.yml", "$rootDir/Dockerfile", "$rootDir/.env"
+    from "$rootDir/docker-compose.yml", "$rootDir/Dockerfile"
     into "$rootDir/output"
 }
 

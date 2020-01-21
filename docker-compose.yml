@@ -38,7 +38,7 @@ services:
     image: application
     restart: always
     volumes:
-      - ${CONF_PATH}:/app/application.json
+      - ./scripts/local/application.json:/app/application.json
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - tombspawn
