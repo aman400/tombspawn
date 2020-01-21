@@ -336,7 +336,7 @@ class ApplicationService @Inject constructor(
                 null,
                 triggerId,
                 Constants.Slack.CALLBACK_GENERATE_APK + app.id,
-                app.appUrl ?: ""
+                app
             )
         }
     }

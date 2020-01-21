@@ -102,7 +102,7 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
         echo: String?,
         triggerId: String,
         callbackId: String,
-        defaultAppUrl: String
+        app: App
     ) {
         val dialogElementList = mutableListOf<Element>()
         val branchList = mutableListOf<Element.Option>()
@@ -136,31 +136,8 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
             )
         }
 
-        dialogElementList.add(
-            Element(
-                ElementType.TEXT,
-                "App URL",
-                SlackConstants.TYPE_SELECT_URL,
-                defaultAppUrl,
-                hint = defaultAppUrl,
-                maxLength = 150,
-                optional = true,
-                defaultValue = defaultAppUrl,
-                inputType = Element.InputType.URL
-            )
-        )
-
-        if (dialogElementList.size < 4) {
-            dialogElementList.add(
-                Element(
-                    ElementType.TEXT,
-                    "App Prefix",
-                    SlackConstants.TYPE_SELECT_APP_PREFIX,
-                    hint = "Prefixes this along with the generated App name",
-                    maxLength = 50,
-                    optional = true
-                )
-            )
+        app.elements?.take(2)?.forEach {
+            dialogElementList.add(it)
         }
 
         dialogElementList.add(
@@ -301,7 +278,6 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
     suspend fun subscriptionResponse(
         app: App, callback: GenerateCallback,
         slackEvent: SlackEvent,
-//        flavours: List<String>?,
         buildTypes: List<String>?
     ) = coroutineScope {
         val updatedMessage = slackEvent.originalMessage?.copy(attachments = null)
@@ -321,11 +297,10 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
 
             sendShowGenerateApkDialog(
                 branchList, buildTypes,
-//                flavours,
                 gson.toJson(updatedMessage),
                 slackEvent.triggerId!!,
                 Constants.Slack.CALLBACK_GENERATE_APK + app.id,
-                app.appUrl ?: ""
+                app
             )
         } else {
             updatedMessage?.apply {
