@@ -83,7 +83,7 @@ dependencies {
     api Dagger.assistedInjectLib
     kapt Dagger.assistedInjectProcessor
 
-    testImplementation Ktor.test
+    testImplementation Testing.ktor
 }
 
 task copyConfigFiles(type: Copy) {

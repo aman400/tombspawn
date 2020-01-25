@@ -3,6 +3,7 @@ package com.tombspawn.di
 import com.tombspawn.ApplicationService
 import com.tombspawn.base.di.CoreComponent
 import com.tombspawn.base.di.scopes.AppScope
+import com.tombspawn.data.CachingService
 import com.tombspawn.di.qualifiers.SlackHttpClient
 import dagger.BindsInstance
 import dagger.Component

@@ -9,7 +9,7 @@ mainClassName = "com.tombspawn.Grave"
 
 sourceSets {
     main.kotlin.srcDirs = main.java.srcDirs = ['src/main/kotlin']
-    test.kotlin.srcDirs = test.java.srcDirs = ['test/main/kotlin']
+    test.kotlin.srcDirs = test.java.srcDirs = ['src/test/kotlin']
     main.resources.srcDirs = ['src/main/resources']
     test.resources.srcDirs = ['src/test/resources']
 }
@@ -40,8 +40,6 @@ task generateApplication(type: Copy) {
 }
 
 dependencies {
-    testImplementation Ktor.test
-
     implementation Kotlin.stdlib
     implementation Kotlin.html
 
@@ -76,8 +74,18 @@ dependencies {
     api Dagger.assistedInjectLib
     kapt Dagger.assistedInjectProcessor
 
+    kaptTest Dagger.annotationProcessor
+    kaptTest Dagger.assistedInjectProcessor
+
     implementation 'com.google.code.findbugs:jsr305:3.0.2'
 
+    testImplementation Testing.mockito
+    testImplementation Testing.mockitoInline
+    testImplementation Testing.ktor
+    testImplementation Testing.junit
+
+    testImplementation Testing.clientMock
+    testImplementation Testing.clientMockJvm
 }
 
 application {
