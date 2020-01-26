@@ -1,0 +1,84 @@
+[
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "master",
+      "BUILD_TYPE": "debug",
+      "APP_URL": "https://consumer.api.com/api/v1/",
+      "PROGUARD_ENABLED": "false",
+      "commit_message": "Merge pull request #213 from apilabs/development",
+      "commit_id": "5c549cc2baf8f1f822da836acc6db1ebd1b9554a",
+      "commit_author": "AMAN<amandeep400@gmail.com> 10:38 PM, Mon, Jan 13, '20"
+    },
+    "pathOnDisk": "/app/temp/20141863939193040/app-debug.apk"
+  },
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "master",
+      "BUILD_TYPE": "debug",
+      "APP_URL": "https://dev-api-con-test.tech/api/v1/",
+      "commit_message": "Merge pull request #213 from apilabs/development",
+      "commit_id": "5c549cc2baf8f1f822da836acc6db1ebd1b9554a",
+      "commit_author": "AMAN<amandeep400@gmail.com> 10:38 PM, Mon, Jan 13, '20"
+    },
+    "pathOnDisk": "/app/temp/19872055539960502/app-debug.apk"
+  },
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "master",
+      "BUILD_TYPE": "release",
+      "APP_URL": "https://dev-api-con-test.tech/api/v1/",
+      "commit_message": "Merge pull request #213 from apilabs/development",
+      "commit_id": "5c549cc2baf8f1f822da836acc6db1ebd1b9554a",
+      "commit_author": "AMAN<amandeep400@gmail.com> 10:38 PM, Mon, Jan 13, '20"
+    },
+    "pathOnDisk": "/app/temp/19867581640597275/app-release.apk"
+  },
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "master",
+      "BUILD_TYPE": "release",
+      "APP_URL": "https://dev-api-con-test.tech/api/v1/",
+      "commit_message": "Merge pull request #213 from apilabs/development",
+      "commit_id": "5c549cc2baf8f1f822da836acc6db1ebd1b9554a",
+      "commit_author": "AMAN<amandeep400@gmail.com> 10:38 PM, Mon, Jan 13, '20"
+    },
+    "pathOnDisk": "/app/temp/19867581640597275/app-release.apk"
+  },
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "master",
+      "BUILD_TYPE": "debug",
+      "APP_URL": "https://chint-consumer-api.tech/api/v1/",
+      "PROGUARD_ENABLED": "true",
+      "commit_message": "Merge pull request #213 from apilabs/development",
+      "commit_id": "5c549cc2baf8f1f822da836acc6db1ebd1b9554a",
+      "commit_author": "AMAN<amandeep400@gmail.com> 10:38 PM, Mon, Jan 13, '20"
+    },
+    "pathOnDisk": "/app/temp/19789443035154974/app-debug.apk"
+  }
+]

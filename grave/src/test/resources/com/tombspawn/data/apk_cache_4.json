@@ -1,0 +1,220 @@
+[
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "development",
+      "BUILD_TYPE": "debug",
+      "APP_URL": "https://qa-con.api.com/api/v1/",
+      "PROGUARD_ENABLED": "true",
+      "commit_message": "station meta flag disabled.",
+      "commit_id": "b41f2061dd90fd36566e82c722cf309a9af547f9",
+      "commit_author": "abc kumar<abc@gmail.com> 2:42 PM, Wed, Jan 22, '20"
+    },
+    "pathOnDisk": "/app/temp/19980552086355681/app-debug.apk"
+  },
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "development",
+      "BUILD_TYPE": "debug",
+      "APP_URL": "https://stage-con-2.api.tech/api/v1/",
+      "PROGUARD_ENABLED": "true",
+      "commit_message": "station meta flag disabled.",
+      "commit_id": "b41f2061dd90fd36566e82c722cf309a9af547f9",
+      "commit_author": "abc kumar<abc@gmail.com> 2:42 PM, Wed, Jan 22, '20"
+    },
+    "pathOnDisk": "/app/temp/19965889209997370/app-debug.apk"
+  },
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "development",
+      "BUILD_TYPE": "debug",
+      "APP_URL": "https://stage-con-2.api.tech/api/v1/",
+      "PROGUARD_ENABLED": "true",
+      "commit_message": "station meta flag disabled.",
+      "commit_id": "b41f2061dd90fd36566e82c722cf309a9af547f9",
+      "commit_author": "abc kumar<abc@gmail.com> 2:42 PM, Wed, Jan 22, '20"
+    },
+    "pathOnDisk": "/app/temp/19965889209997370/app-debug.apk"
+  },
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "development",
+      "BUILD_TYPE": "debug",
+      "APP_URL": "https://stage-con.api.tech/api/v1/",
+      "PROGUARD_ENABLED": "false",
+      "commit_message": "station meta flag disabled.",
+      "commit_id": "b41f2061dd90fd36566e82c722cf309a9af547f9",
+      "commit_author": "abc kumar<abc@gmail.com> 2:42 PM, Wed, Jan 22, '20"
+    },
+    "pathOnDisk": "/app/temp/19960181176155341/app-debug.apk"
+  },
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "development",
+      "BUILD_TYPE": "debug",
+      "APP_URL": "https://dileep-con.api.tech/api/v1/",
+      "commit_message": "station meta flag disabled.",
+      "commit_id": "b41f2061dd90fd36566e82c722cf309a9af547f9",
+      "commit_author": "abc kumar<abc@gmail.com> 2:42 PM, Wed, Jan 22, '20"
+    },
+    "pathOnDisk": "/app/temp/19959656946720826/app-debug.apk"
+  },
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "development",
+      "BUILD_TYPE": "debug",
+      "APP_URL": "https://test-con3.api.tech/api/v1/",
+      "PROGUARD_ENABLED": "true",
+      "commit_message": "station meta flag disabled.",
+      "commit_id": "b41f2061dd90fd36566e82c722cf309a9af547f9",
+      "commit_author": "abc kumar<abc@gmail.com> 2:42 PM, Wed, Jan 22, '20"
+    },
+    "pathOnDisk": "/app/temp/19958775949358654/app-debug.apk"
+  },
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "development",
+      "BUILD_TYPE": "debug",
+      "APP_URL": "https://omkar-con.api.tech/api/v1/",
+      "PROGUARD_ENABLED": "true",
+      "commit_message": "station meta flag disabled.",
+      "commit_id": "b41f2061dd90fd36566e82c722cf309a9af547f9",
+      "commit_author": "abc kumar<abc@gmail.com> 2:42 PM, Wed, Jan 22, '20"
+    },
+    "pathOnDisk": "/app/temp/19952744206722406/app-debug.apk"
+  },
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "development",
+      "BUILD_TYPE": "debug",
+      "APP_URL": "https://stage-con.api.tech/api/v1/",
+      "PROGUARD_ENABLED": "true",
+      "commit_message": "station meta flag disabled.",
+      "commit_id": "b41f2061dd90fd36566e82c722cf309a9af547f9",
+      "commit_author": "abc kumar<abc@gmail.com> 2:42 PM, Wed, Jan 22, '20"
+    },
+    "pathOnDisk": "/app/temp/19897532663885311/app-debug.apk"
+  },
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "development",
+      "BUILD_TYPE": "debug",
+      "APP_URL": "https://ble-test-1-con.api.tech/api/v1/",
+      "PROGUARD_ENABLED": "true",
+      "commit_message": "station meta flag disabled.",
+      "commit_id": "b41f2061dd90fd36566e82c722cf309a9af547f9",
+      "commit_author": "abc kumar<abc@gmail.com> 2:42 PM, Wed, Jan 22, '20"
+    },
+    "pathOnDisk": "/app/temp/19897284407712423/app-debug.apk"
+  },
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "development",
+      "BUILD_TYPE": "debug",
+      "APP_URL": "https://stage-replica-con-2.api.tech/api/v1/",
+      "commit_message": "station meta flag disabled.",
+      "commit_id": "b41f2061dd90fd36566e82c722cf309a9af547f9",
+      "commit_author": "abc kumar<abc@gmail.com> 2:42 PM, Wed, Jan 22, '20"
+    },
+    "pathOnDisk": "/app/temp/19889203324508191/app-debug.apk"
+  },
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "development",
+      "BUILD_TYPE": "debug",
+      "APP_URL": "https://stage-con.api.tech/api/v1/",
+      "PROGUARD_ENABLED": "false",
+      "commit_message": "station meta flag disabled.",
+      "commit_id": "b41f2061dd90fd36566e82c722cf309a9af547f9",
+      "commit_author": "abc kumar<abc@gmail.com> 2:42 PM, Wed, Jan 22, '20"
+    },
+    "pathOnDisk": "/app/temp/19885166129014696/app-debug.apk"
+  },
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "development",
+      "BUILD_TYPE": "debug",
+      "APP_URL": "https://stage-con.api.tech/api/v1/",
+      "PROGUARD_ENABLED": "true",
+      "commit_message": "station meta flag disabled.",
+      "commit_id": "b41f2061dd90fd36566e82c722cf309a9af547f9",
+      "commit_author": "abc kumar<abc@gmail.com> 2:42 PM, Wed, Jan 22, '20"
+    },
+    "pathOnDisk": "/app/temp/19880156396131501/app-debug.apk"
+  },
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "development",
+      "BUILD_TYPE": "debug",
+      "APP_URL": "https://dileep-con.api.tech/api/v1/",
+      "commit_message": "station meta flag disabled.",
+      "commit_id": "b41f2061dd90fd36566e82c722cf309a9af547f9",
+      "commit_author": "abc kumar<abc@gmail.com> 2:42 PM, Wed, Jan 22, '20"
+    },
+    "pathOnDisk": "/app/temp/19879462349488945/app-debug.apk"
+  }
+]
