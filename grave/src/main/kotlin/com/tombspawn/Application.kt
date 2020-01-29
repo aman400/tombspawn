@@ -39,10 +39,9 @@ class Grave(val args: Array<String>) {
         val coreComponent = DaggerCoreComponent.create()
         val env = applicationEngineEnvironment {
             module {
-                val appComponent = DaggerAppComponent.builder()
-                    .plus(this)
-                    .plus(coreComponent)
-                    .build()
+                val appComponent = DaggerAppComponent
+                    .factory()
+                    .create(this, coreComponent)
                 module(appComponent)
             }
 

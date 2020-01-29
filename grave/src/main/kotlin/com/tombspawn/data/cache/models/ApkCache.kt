@@ -18,7 +18,7 @@ class ApkCache constructor(val params: Map<String, String>, val pathOnDisk: Stri
         if (params.filterNot {
                 it.key in paramExcludeList
             } != other.params.filterNot {
-                it.key in paramExcludeList
+                it.key in other.paramExcludeList
             }) {
             return false
         }

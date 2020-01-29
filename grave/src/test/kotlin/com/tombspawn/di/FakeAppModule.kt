@@ -6,7 +6,7 @@ import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.di.qualifiers.ApplicationBaseUri
 import com.tombspawn.di.qualifiers.Debuggable
 import com.tombspawn.di.qualifiers.SlackHttpClient
-import com.tombspawn.di.qualifiers.UploadDirPath
+import com.tombspawn.di.qualifiers.UploadDir
 import com.tombspawn.git.CredentialProvider
 import com.tombspawn.models.config.App
 import com.tombspawn.models.config.Common
@@ -21,10 +21,15 @@ import io.ktor.http.ContentType
 import io.ktor.http.URLBuilder
 import io.ktor.http.fullPath
 import io.ktor.http.headersOf
+import org.junit.Rule
+import org.junit.rules.TemporaryFolder
 import org.mockito.Mockito.mock
+import java.io.File
 
 @Module
 class FakeAppModule {
+
+    @Rule val tempFolder = TemporaryFolder()
 
     @AppScope
     @Provides
@@ -51,10 +56,10 @@ class FakeAppModule {
     }
 
     @AppScope
-    @UploadDirPath
+    @UploadDir
     @Provides
-    fun provideFakeUploadDirPath(): String {
-        return "/"
+    fun provideFakeUploadDir(): File {
+        return tempFolder.newFolder("temp")
     }
 
     @Provides

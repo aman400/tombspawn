@@ -11,7 +11,7 @@ import com.tombspawn.data.*
 import com.tombspawn.data.cache.models.ApkCache
 import com.tombspawn.di.qualifiers.ApplicationBaseUri
 import com.tombspawn.di.qualifiers.Debuggable
-import com.tombspawn.di.qualifiers.UploadDirPath
+import com.tombspawn.di.qualifiers.UploadDir
 import com.tombspawn.docker.DockerService
 import com.tombspawn.models.Reference
 import com.tombspawn.models.RequestData
@@ -44,8 +44,8 @@ class ApplicationService @Inject constructor(
     private val apps: List<App>,
     private val dockerService: DockerService,
     private val slackService: SlackService,
-    @UploadDirPath
-    val uploadDirPath: String,
+    @UploadDir
+    val uploadDir: File,
     private val cachingService: CachingService,
     @Debuggable
     val debug: Boolean,
@@ -132,7 +132,7 @@ class ApplicationService @Inject constructor(
     private suspend fun cleanAppCacheFiles() = coroutineScope {
         launch(Dispatchers.IO) {
             try {
-                File(uploadDirPath).let {
+                uploadDir.let {
                     if(it.exists()) {
                         it.deleteRecursively()
                     }
@@ -274,6 +274,7 @@ class ApplicationService @Inject constructor(
             LOGGER.debug("CallbackUri: %s", callbackUri)
 
             val toVerify = ApkCache(buildData)
+            // Find the cached Apk if any
             val cachedApk = buildData[SlackConstants.TYPE_SELECT_BRANCH]?.let {
                 cachingService.getApkCache(app.id, it)
             }?.firstOrNull {
@@ -282,7 +283,9 @@ class ApplicationService @Inject constructor(
                 Pair(it, it.pathOnDisk?.let { File(it) })
             }
             if (cachedApk?.second?.exists() == true) {
-                uploadApk(Apps.App.Callback(Apps.App(app.id), callbackId), cachedApk.second!!, cachedApk.first.params.toMutableMap())
+                // File already exists in cache
+                uploadApk(Apps.App.Callback(Apps.App(app.id), callbackId), cachedApk.second!!,
+                    cachedApk.first.params.toMutableMap(), /* do not cache already cached apk */ false)
             } else {
                 // Generate the application
                 dockerService.generateApp(
@@ -306,7 +309,9 @@ class ApplicationService @Inject constructor(
                                     uploadApk(
                                         Apps.App.Callback(Apps.App(app.id), callbackId),
                                         cache.second!!,
-                                        cache.first.params.toMutableMap()
+                                        cache.first.params.toMutableMap(),
+                                        // Do not cache the apk again
+                                        false
                                     )
                                 }
                                 return@coroutineScope true
@@ -644,7 +649,8 @@ class ApplicationService @Inject constructor(
         } ?: fileToCache.parentFile.deleteRecursively()
     }
 
-    suspend fun uploadApk(apkCallback: Apps.App.Callback, receivedFile: File, params: MutableMap<String, String>) {
+    suspend fun uploadApk(apkCallback: Apps.App.Callback, receivedFile: File,
+                          params: MutableMap<String, String>, cacheApk: Boolean) {
         val callback = cachingService.getAppCallbackCache(apkCallback.callbackId)
         cachingService.clearAppCallback(apkCallback.callbackId)
         if (receivedFile.exists()) {
@@ -655,11 +661,14 @@ class ApplicationService @Inject constructor(
             callback?.channelId?.let { channelId ->
                 LOGGER.info("Apk Cache hit")
                 slackService.uploadFile(receivedFile, channelId, data) {
-                    // Delete the file and parent directories after upload
-                    verifyAndCacheApp(apkCallback.app.id, params, receivedFile)
+                    if(cacheApk) {
+                        verifyAndCacheApp(apkCallback.app.id, params, receivedFile)
+                    }
                 }
             } ?: run {
-                verifyAndCacheApp(apkCallback.app.id, params, receivedFile)
+                if(cacheApk) {
+                    verifyAndCacheApp(apkCallback.app.id, params, receivedFile)
+                }
                 LOGGER.error("Channel id is null, Unable to upload file")
             }
         } else {
