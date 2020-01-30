@@ -30,19 +30,24 @@ import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import java.io.File
 import java.util.concurrent.TimeUnit
+import javax.inject.Inject
 
 class Grave(val args: Array<String>) {
     private val LOGGER = LoggerFactory.getLogger("com.tombspawn.Grave")
+
+    @Inject
+    lateinit var applicationService: ApplicationService
 
     @ExperimentalStdlibApi
     fun startServer() {
         val coreComponent = DaggerCoreComponent.create()
         val env = applicationEngineEnvironment {
             module {
-                val appComponent = DaggerAppComponent
+                DaggerAppComponent
                     .factory()
                     .create(this, coreComponent)
-                module(appComponent)
+                    .inject(this@Grave)
+                module(applicationService)
             }
 
             var host = Constants.Common.DEFAULT_HOST
@@ -92,16 +97,16 @@ class Grave(val args: Array<String>) {
 @ExperimentalStdlibApi
 @KtorExperimentalLocationsAPI
 @Suppress("unused") // Referenced in application.conf
-fun Application.module(appComponent: AppComponent) {
+fun Application.module(applicationService: ApplicationService) {
     val LOGGER = LoggerFactory.getLogger("com.tombspawn.grave.Application")
 
     launch(Dispatchers.IO) {
-        appComponent.applicationService().init()
+        applicationService.init()
     }
 
     environment.monitor.subscribe(ApplicationStopping) {
         LOGGER.debug("Clearing data")
-        appComponent.applicationService().clear()
+        applicationService.clear()
         LOGGER.debug("Data cleared")
     }
 
@@ -172,13 +177,13 @@ fun Application.module(appComponent: AppComponent) {
     routing {
         status()
         health()
-        buildApp(appComponent.applicationService())
-        apkCallback(appComponent.applicationService())
-        slackEvent(appComponent.applicationService())
-        subscribe(appComponent.applicationService())
-        slackAction(appComponent.applicationService())
-        githubWebhook(appComponent.applicationService())
-        mockApi(appComponent.applicationService())
-        createApi(appComponent.applicationService())
+        buildApp(applicationService)
+        apkCallback(applicationService)
+        slackEvent(applicationService)
+        subscribe(applicationService)
+        slackAction(applicationService)
+        githubWebhook(applicationService)
+        mockApi(applicationService)
+        createApi(applicationService)
     }
 }

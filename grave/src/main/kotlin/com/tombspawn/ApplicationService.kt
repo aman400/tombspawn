@@ -55,7 +55,6 @@ class ApplicationService @Inject constructor(
 ) {
 
     private val randomWaitingMessages = listOf(
-        "Utha le re Baghwan..",
         "Try Holding your Breath!!",
         "Hold your horses!!",
         "Creating Randomly Generated Feature",
