@@ -1,6 +1,7 @@
 package com.tombspawn.di
 
 import com.google.gson.Gson
+import com.tombspawn.TestApplicationService
 import dagger.Component
 
 @Component(modules = [FakeCoreModule::class])

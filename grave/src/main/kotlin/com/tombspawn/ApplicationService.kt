@@ -250,15 +250,8 @@ class ApplicationService @Inject constructor(
             }
         }
 
-        val userAppPrefix = buildData[SlackConstants.TYPE_SELECT_APP_PREFIX]
-        // Remove application prefix
-        buildData.remove(SlackConstants.TYPE_SELECT_APP_PREFIX)
         // Remove additional params
         buildData.remove(SlackConstants.TYPE_ADDITIONAL_PARAMS)
-        // Generate the application prefix
-        val apkPrefix = "${userAppPrefix?.let {
-            "$it-"
-        } ?: ""}${System.currentTimeMillis()}"
 
         // Find the app to be generated
         apps.firstOrNull {
@@ -273,55 +266,45 @@ class ApplicationService @Inject constructor(
             LOGGER.debug("CallbackUri: %s", callbackUri)
 
             val toVerify = ApkCache(buildData)
-            // Find the cached Apk if any
-            val cachedApk = buildData[SlackConstants.TYPE_SELECT_BRANCH]?.let {
-                cachingService.getApkCache(app.id, it)
-            }?.firstOrNull {
-                it == toVerify
-            }?.let {
-                Pair(it, it.pathOnDisk?.let { File(it) })
-            }
-            if (cachedApk?.second?.exists() == true) {
-                // File already exists in cache
-                uploadApk(Apps.App.Callback(Apps.App(app.id), callbackId), cachedApk.second!!,
-                    cachedApk.first.params.toMutableMap(), /* do not cache already cached apk */ false)
-            } else {
+            if(!verifyAndUploadCachedApk(buildData, toVerify, app, callbackId)) {
                 // Generate the application
                 dockerService.generateApp(
                     app.id,
                     "$callbackUri/success",
                     "$callbackUri/failure",
-                    apkPrefix,
                     buildData,
                     // verify if app was generated from some queued request
                     verify = {
-                        coroutineScope {
-                            val cache = buildData[SlackConstants.TYPE_SELECT_BRANCH]?.let {
-                                cachingService.getApkCache(app.id, it)
-                            }?.firstOrNull {
-                                it == toVerify
-                            }?.let {
-                                Pair(it, it.pathOnDisk?.let { File(it) })
-                            }
-                            if (cache?.second?.exists() == true) {
-                                launch(Dispatchers.IO) {
-                                    uploadApk(
-                                        Apps.App.Callback(Apps.App(app.id), callbackId),
-                                        cache.second!!,
-                                        cache.first.params.toMutableMap(),
-                                        // Do not cache the apk again
-                                        false
-                                    )
-                                }
-                                return@coroutineScope true
-                            } else {
-                                return@coroutineScope false
-                            }
-                        }
+                        verifyAndUploadCachedApk(buildData, toVerify, app, callbackId)
                     }
                 )
                 slackService.sendMessage(randomWaitingMessages.shuffled().first(), channelId, null)
             }
+        }
+    }
+
+    private suspend fun verifyAndUploadCachedApk(buildData: MutableMap<String, String>,
+                                                 apkCache: ApkCache, app: App, callbackId: String) = coroutineScope {
+        val cache = buildData[SlackConstants.TYPE_SELECT_BRANCH]?.let {
+            cachingService.getApkCache(app.id, it)
+        }?.firstOrNull {
+            it == apkCache
+        }?.let {
+            Pair(it, it.pathOnDisk?.let { File(it) })
+        }
+        if (cache?.second?.exists() == true) {
+            launch(Dispatchers.IO) {
+                uploadApk(
+                    Apps.App.Callback(Apps.App(app.id), callbackId),
+                    cache.second!!,
+                    cache.first.params.toMutableMap(),
+                    // Do not cache the apk again
+                    false
+                )
+            }
+            return@coroutineScope true
+        } else {
+            return@coroutineScope false
         }
     }
 

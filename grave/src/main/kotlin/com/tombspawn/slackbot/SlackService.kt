@@ -58,7 +58,7 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
                     buf,
                     Headers.build {
                         append(HttpHeaders.ContentType, ContentType.Application.OctetStream)
-                        append(HttpHeaders.ContentDisposition, " filename=${file.name}")
+                        append(HttpHeaders.ContentDisposition, "filename=${file.name}")
                     }
                 )
             }

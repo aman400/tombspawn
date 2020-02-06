@@ -26,7 +26,7 @@ class FakeDockerModule {
     @DockerHttpClient
     @Provides
     fun provideDockerClient(): MutableMap<String, HttpClient> {
-        return mutableMapOf("a" to HttpClient(MockEngine) {
+        return mutableMapOf("test" to HttpClient(MockEngine) {
             engine {
                 addHandler { request ->
                     when (request.url.fullPath) {
