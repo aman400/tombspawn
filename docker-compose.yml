@@ -11,7 +11,7 @@ volumes:
 services:
   db:
     container_name: mysqldb
-    build: docker/mysql/.
+    build: scripts/remote/docker/mysql/.
     image: mysqldb
     volumes:
       - mysqldb:/var/lib/mysql
@@ -22,7 +22,7 @@ services:
       - tombspawn
   redis:
     container_name: redisdb
-    build: docker/redis/.
+    build: scripts/remote/docker/redis/.
     image: redisdb
     restart: always
     networks:

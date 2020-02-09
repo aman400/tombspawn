@@ -265,8 +265,12 @@ class ApplicationService @Inject constructor(
             cachingService.saveAppCallbackCache(callbackId, responseUrl, channelId)
             LOGGER.debug("CallbackUri: %s", callbackUri)
 
+            val useCache: Boolean = app.gradleTasks?.firstOrNull {
+                        it.id == buildData[SlackConstants.TYPE_SELECT_BUILD_TYPE]
+                    }?.useCache ?: true
+
             val toVerify = ApkCache(buildData)
-            if(!verifyAndUploadCachedApk(buildData, toVerify, app, callbackId)) {
+            if(!useCache || !verifyAndUploadCachedApk(buildData, toVerify, app, callbackId)) {
                 // Generate the application
                 dockerService.generateApp(
                     app.id,
@@ -275,7 +279,11 @@ class ApplicationService @Inject constructor(
                     buildData,
                     // verify if app was generated from some queued request
                     verify = {
-                        verifyAndUploadCachedApk(buildData, toVerify, app, callbackId)
+                        if(useCache) {
+                            verifyAndUploadCachedApk(buildData, toVerify, app, callbackId)
+                        } else {
+                            false
+                        }
                     }
                 )
                 slackService.sendMessage(randomWaitingMessages.shuffled().first(), channelId, null)
