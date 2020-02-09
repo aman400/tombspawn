@@ -151,7 +151,7 @@ class CachingService @Inject constructor(
         return try {
             cacheMap.getData(callbackId)?.let {
                 try {
-                    gson.fromJson<ApkCallbackCache>(it, ApkCallbackCache::class.java)
+                    gson.fromJson(it, ApkCallbackCache::class.java)
                 } catch (exception: Exception) {
                     LOGGER.error("Callback cache missing", exception)
                     null

@@ -18,8 +18,11 @@ data class App constructor(
     @SerializedName("files") val fileMappings: List<FileMapping>? = null,
     @SerializedName("gradle_tasks") val gradleTasks: List<GradleTask>? = null,
     @SerializedName("build_params") val elements: List<Element>? = null,
-    @SerializedName("tag_count") val tagCount: Int = 5
+    @SerializedName("tag_count") private val _tagCount: Int? = null
 ) {
+    val tagCount: Int
+        get() = _tagCount ?: 5
+
     data class FileMapping(
         @SerializedName("name") val name: String,
         @SerializedName("path") val path: String

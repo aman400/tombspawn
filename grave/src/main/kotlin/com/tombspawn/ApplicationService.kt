@@ -269,6 +269,8 @@ class ApplicationService @Inject constructor(
                         it.id == buildData[SlackConstants.TYPE_SELECT_BUILD_TYPE]
                     }?.useCache ?: true
 
+            LOGGER.debug(if(useCache) "Using cache" else "Skipping cache")
+
             val toVerify = ApkCache(buildData)
             if(!useCache || !verifyAndUploadCachedApk(buildData, toVerify, app, callbackId)) {
                 // Generate the application
