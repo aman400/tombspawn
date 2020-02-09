@@ -41,7 +41,6 @@ task packageDistribution(type: Zip) {
     from "$rootDir/output"
 }
 
-
 task cleanup(type: Delete) {
     delete "output"
     delete "out"
