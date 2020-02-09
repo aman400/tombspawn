@@ -17,7 +17,8 @@ data class App constructor(
     @SerializedName("environment_variables") val env: List<String>? = null,
     @SerializedName("files") val fileMappings: List<FileMapping>? = null,
     @SerializedName("gradle_tasks") val gradleTasks: List<GradleTask>? = null,
-    @SerializedName("build_params") val elements: List<Element>? = null
+    @SerializedName("build_params") val elements: List<Element>? = null,
+    @SerializedName("tag_count") val tagCount: Int = 5
 ) {
     data class FileMapping(
         @SerializedName("name") val name: String,
