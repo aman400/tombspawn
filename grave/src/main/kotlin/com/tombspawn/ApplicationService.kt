@@ -659,7 +659,7 @@ class ApplicationService @Inject constructor(
                             verifyAndCacheApp(apkCallback.app.id, params, receivedFile)
                         }
                     } else {
-                        receivedFile.parent.deleteRecursively()
+                        receivedFile.parentFile.deleteRecursively()
                     }
                 }
             } ?: run {
@@ -668,7 +668,7 @@ class ApplicationService @Inject constructor(
                         verifyAndCacheApp(apkCallback.app.id, params, receivedFile)
                     }
                 } else {
-                    receivedFile.parent.deleteRecursively()
+                    receivedFile.parentFile.deleteRecursively()
                 }
                 LOGGER.error("Channel id is null, Unable to upload file")
             }
