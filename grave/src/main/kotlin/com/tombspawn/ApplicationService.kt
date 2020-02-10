@@ -261,13 +261,14 @@ class ApplicationService @Inject constructor(
             val callbackId = System.nanoTime().toString()
             // Base url for callback
             val callbackUri = baseUri.get().path("apps", app.id, "callback", callbackId).build().toString()
-            // Save the application generation cache.
-            cachingService.saveAppCallbackCache(callbackId, responseUrl, channelId)
-            LOGGER.debug("CallbackUri: %s", callbackUri)
 
             val useCache: Boolean = app.gradleTasks?.firstOrNull {
-                        it.id == buildData[SlackConstants.TYPE_SELECT_BUILD_TYPE]
-                    }?.useCache ?: true
+                it.id == buildData[SlackConstants.TYPE_SELECT_BUILD_TYPE]
+            }?.useCache ?: true
+
+            // Save the application generation cache.
+            cachingService.saveAppCallbackCache(callbackId, responseUrl, channelId, useCache)
+            LOGGER.debug("CallbackUri: %s", callbackUri)
 
             LOGGER.debug(if(useCache) "Using cache" else "Skipping cache")
 
@@ -653,13 +654,21 @@ class ApplicationService @Inject constructor(
             callback?.channelId?.let { channelId ->
                 LOGGER.info("Apk Cache hit")
                 slackService.uploadFile(receivedFile, channelId, data) {
-                    if(cacheApk) {
-                        verifyAndCacheApp(apkCallback.app.id, params, receivedFile)
+                    if(callback.useCache) {
+                        if (cacheApk) {
+                            verifyAndCacheApp(apkCallback.app.id, params, receivedFile)
+                        }
+                    } else {
+                        receivedFile.parent.deleteRecursively()
                     }
                 }
             } ?: run {
-                if(cacheApk) {
-                    verifyAndCacheApp(apkCallback.app.id, params, receivedFile)
+                if(callback?.useCache == true) {
+                    if (cacheApk) {
+                        verifyAndCacheApp(apkCallback.app.id, params, receivedFile)
+                    }
+                } else {
+                    receivedFile.parent.deleteRecursively()
                 }
                 LOGGER.error("Channel id is null, Unable to upload file")
             }

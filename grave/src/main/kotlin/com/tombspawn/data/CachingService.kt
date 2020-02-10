@@ -134,11 +134,11 @@ class CachingService @Inject constructor(
         }
     }
 
-    fun saveAppCallbackCache(callbackId: String, responseUrl: String, channelId: String) {
+    fun saveAppCallbackCache(callbackId: String, responseUrl: String, channelId: String, useCache: Boolean) {
         try {
             cacheMap.setData(
                 callbackId, gson.toJson(
-                    ApkCallbackCache(callbackId, responseUrl, channelId),
+                    ApkCallbackCache(callbackId, responseUrl, channelId, useCache),
                     ApkCallbackCache::class.java
                 ).toString()
             )
