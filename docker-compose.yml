@@ -9,8 +9,7 @@ volumes:
     name: mysqldb
   redisdb:
     name: redisdb
-  application:
-    name: cache
+  apkCache:
 
 services:
   db:
@@ -44,7 +43,7 @@ services:
     image: application
     restart: always
     volumes:
-      - cache:/app/temp
+      - apkCache:/app/temp
       - ./scripts/local/application.json:/app/application.json
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
