@@ -6,6 +6,7 @@ object Versions {
     const val shadowJar = "5.2.0"
     const val daggerVersion = "2.25.4"
     const val exposed = "0.20.3"
+    const val mockito = "3.2.4"
 }
 
 object Classpaths {
@@ -15,10 +16,6 @@ object Classpaths {
 
 object Jgit {
     const val lib = "org.eclipse.jgit:org.eclipse.jgit:${Versions.jgitVersion}"
-}
-
-object TestDeps {
-    const val junit = "junit:junit:${Versions.junitVersion}"
 }
 
 object Kotlin {
@@ -80,6 +77,14 @@ object Ktor {
     const val jwt = "io.ktor:ktor-auth-jwt:${Versions.ktorVersion}"
     const val jvmLogging = "io.ktor:ktor-client-logging-jvm:${Versions.ktorVersion}"
     const val curl = "io.ktor:ktor-client-curl:${Versions.ktorVersion}"
+}
 
-    const val test = "io.ktor:ktor-server-tests:${Versions.ktorVersion}"
+object Testing {
+    const val mockito = "org.mockito:mockito-core:${Versions.mockito}"
+    const val mockitoInline = "org.mockito:mockito-inline:${Versions.mockito}"
+    const val ktor = "io.ktor:ktor-server-tests:${Versions.ktorVersion}"
+    const val junit = "junit:junit:${Versions.junitVersion}"
+
+    const val clientMock = "io.ktor:ktor-client-mock:${Versions.ktorVersion}"
+    const val clientMockJvm = "io.ktor:ktor-client-mock-jvm:${Versions.ktorVersion}"
 }

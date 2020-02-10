@@ -1,0 +1,34 @@
+[
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "fota-bypass-change",
+      "BUILD_TYPE": "release",
+      "APP_URL": "https://fleet.api.com/api/v1/",
+      "commit_message": " model value data type  changed",
+      "commit_id": "83130cab167fd7b95b5f816947872824662a18d5",
+      "commit_author": "saini2saini<saini.saini@gmail.com> 1:55 PM, Thu, Jan 23, '20"
+    },
+    "pathOnDisk": "/app/temp/20035906171694136/app-release.apk"
+  },
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "fota-bypass-change",
+      "BUILD_TYPE": "debug",
+      "APP_URL": "https://stage-api.tech/api/v1/",
+      "commit_message": " model value data type  changed",
+      "commit_id": "83130cab167fd7b95b5f816947872824662a18d5",
+      "commit_author": "saini2saini<saini.saini@gmail.com> 1:55 PM, Thu, Jan 23, '20"
+    },
+    "pathOnDisk": "/app/temp/19977253028880033/app-debug.apk"
+  }
+]

@@ -12,14 +12,17 @@ import org.slf4j.LoggerFactory
 import javax.inject.Inject
 
 @AppScope
-class CachingService @Inject constructor(@AppCacheMap val cacheMap: StringMap,
-                                         @ApkCacheMap val apkCacheMap: StringMap,
-                                         val gson: Gson) {
+class CachingService @Inject constructor(
+    @AppCacheMap private val cacheMap: StringMap,
+    @ApkCacheMap private val apkCacheMap: StringMap,
+    private val gson: Gson
+) {
     private val LOGGER = LoggerFactory.getLogger("com.tombspawn.data.CachingService")
 
     fun cacheAppReferences(appId: String, refs: List<Reference>) {
         try {
-            cacheMap.setData(getReferencesCacheKey(appId),
+            cacheMap.setData(
+                getReferencesCacheKey(appId),
                 gson.toJson(refs, object : TypeToken<List<Reference>>() {}.type)
             )
         } catch (exception: Exception) {
@@ -47,7 +50,7 @@ class CachingService @Inject constructor(@AppCacheMap val cacheMap: StringMap,
                 !it.isNullOrEmpty()
             }?.let {
                 LOGGER.debug("Flavours: Cache hit")
-                gson.fromJson<List<String>>(it, object: TypeToken<List<String>>() {}.type)
+                gson.fromJson<List<String>>(it, object : TypeToken<List<String>>() {}.type)
             }
         } catch (exception: Exception) {
             LOGGER.error("Unable to get cached Flavours", exception)
@@ -61,7 +64,7 @@ class CachingService @Inject constructor(@AppCacheMap val cacheMap: StringMap,
                 !it.isNullOrEmpty()
             }?.let {
                 LOGGER.debug("Build Variants: Cache hit")
-                gson.fromJson<List<String>>(it, object: TypeToken<List<String>>() {}.type)
+                gson.fromJson<List<String>>(it, object : TypeToken<List<String>>() {}.type)
             }
         } catch (exception: Exception) {
             LOGGER.error("Unable to get build Variants", exception)
@@ -72,7 +75,8 @@ class CachingService @Inject constructor(@AppCacheMap val cacheMap: StringMap,
     fun cacheBuildVariants(appId: String, buildVariants: List<String>) {
         try {
             cacheMap.setData(getBuildVariantCacheKey(appId),
-                gson.toJson(buildVariants, object: TypeToken<List<String>>() {}.type))
+                gson.toJson(buildVariants, object : TypeToken<List<String>>() {}.type)
+            )
         } catch (exception: Exception) {
             LOGGER.error("Unable to cache Build Variants", exception)
         }
@@ -80,7 +84,8 @@ class CachingService @Inject constructor(@AppCacheMap val cacheMap: StringMap,
 
     fun cacheAppFlavours(appId: String, flavours: List<String>) {
         try {
-            cacheMap.setData(getFlavoursCacheKey(appId),
+            cacheMap.setData(
+                getFlavoursCacheKey(appId),
                 gson.toJson(flavours, object : TypeToken<List<String>>() {}.type)
             )
         } catch (exception: Exception) {
@@ -91,8 +96,9 @@ class CachingService @Inject constructor(@AppCacheMap val cacheMap: StringMap,
     fun cacheApk(appId: String, branch: String, apkCache: ApkCache) {
         try {
             val list = getApkCache(appId, branch)
-            list.add(0, apkCache)
-            apkCacheMap.setData(getAppCacheMapKey(appId, branch),
+            list.add(apkCache)
+            apkCacheMap.setData(
+                getAppCacheMapKey(appId, branch),
                 gson.toJson(list, object : TypeToken<List<ApkCache>>() {}.type)
             )
         } catch (exception: Exception) {
@@ -128,11 +134,11 @@ class CachingService @Inject constructor(@AppCacheMap val cacheMap: StringMap,
         }
     }
 
-    fun saveAppCallbackCache(callbackId: String, responseUrl: String, channelId: String) {
+    fun saveAppCallbackCache(callbackId: String, responseUrl: String, channelId: String, useCache: Boolean) {
         try {
             cacheMap.setData(
                 callbackId, gson.toJson(
-                    ApkCallbackCache(callbackId, responseUrl, channelId),
+                    ApkCallbackCache(callbackId, responseUrl, channelId, useCache),
                     ApkCallbackCache::class.java
                 ).toString()
             )
@@ -145,7 +151,7 @@ class CachingService @Inject constructor(@AppCacheMap val cacheMap: StringMap,
         return try {
             cacheMap.getData(callbackId)?.let {
                 try {
-                    gson.fromJson<ApkCallbackCache>(it, ApkCallbackCache::class.java)
+                    gson.fromJson(it, ApkCallbackCache::class.java)
                 } catch (exception: Exception) {
                     LOGGER.error("Callback cache missing", exception)
                     null

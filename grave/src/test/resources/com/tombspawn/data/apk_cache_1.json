@@ -1,0 +1,50 @@
+[
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "locus-floater-fe",
+      "BUILD_TYPE": "debug",
+      "APP_URL": "https://stage-api.tech/api/v1/",
+      "commit_message": "Hiding vehicle number view for current purpose",
+      "commit_id": "608bcfd8024bb89671b6239159b8f5a66e207333",
+      "commit_author": "Mr das<mr.das@gmail.com> 7:58 PM, Wed, Jan 22, '20"
+    },
+    "pathOnDisk": "/app/temp/19980329078028542/app-debug.apk"
+  },
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "locus-floater-fe",
+      "BUILD_TYPE": "debug",
+      "APP_URL": "https://stage-api.tech/api/v1/",
+      "commit_message": "Hiding vehicle number view for current purpose",
+      "commit_id": "608bcfd8024bb89671b6239159b8f5a66e207333",
+      "commit_author": "Mr das<mr.das@gmail.com> 7:58 PM, Wed, Jan 22, '20"
+    },
+    "pathOnDisk": "/app/temp/19980329078028542/app-debug.apk"
+  },
+  {
+    "paramExcludeList": [
+      "commit_author",
+      "commit_id",
+      "commit_message"
+    ],
+    "params": {
+      "BRANCH": "locus-floater-fe",
+      "BUILD_TYPE": "debug",
+      "APP_URL": "https://stage.api.tech/api/v1/",
+      "commit_message": "Hiding vehicle number view for current purpose",
+      "commit_id": "608bcfd8024bb89671b6239159b8f5a66e207333",
+      "commit_author": "Mr das<mr.das@gmail.com> 7:58 PM, Wed, Jan 22, '20"
+    },
+    "pathOnDisk": "/app/temp/19980046176383033/app-debug.apk"
+  }
+]

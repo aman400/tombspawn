@@ -119,7 +119,7 @@ fun Routing.apkCallback(applicationService: ApplicationService) {
                     }
                 }
                 is PartData.FileItem -> {
-                    val directory = File("${applicationService.uploadDirPath}/${callback.callback.callbackId}")
+                    val directory = File(applicationService.uploadDir, callback.callback.callbackId)
                     if(!directory.exists()) {
                         directory.mkdirs()
                     }
@@ -132,7 +132,7 @@ fun Routing.apkCallback(applicationService: ApplicationService) {
 
             part.dispose()
             receivedFile?.let {
-                applicationService.uploadApk(callback.callback, it, otherData)
+                applicationService.uploadApk(callback.callback, it, otherData, true)
             }
         }
         applicationService.onTaskCompleted(callback.callback.app.id)

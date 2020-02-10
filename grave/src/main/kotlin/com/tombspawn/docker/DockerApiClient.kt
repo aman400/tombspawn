@@ -139,7 +139,7 @@ class DockerApiClient @Inject constructor(
                     url {
                         encodedPath = "/references"
                         parameters.append(CommonConstants.CALLBACK_URI, callbackUri)
-                        parameters.append(CommonConstants.TAG_LIMIT, "5")
+                        parameters.append(CommonConstants.TAG_LIMIT, app.tagCount.toString())
                     }
                 }
                 call.await<JsonObject>()

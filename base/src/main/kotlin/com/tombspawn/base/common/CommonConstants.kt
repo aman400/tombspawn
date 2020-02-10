@@ -15,7 +15,6 @@ object SlackConstants {
     const val TYPE_SELECT_BRANCH = "BRANCH"
     const val TYPE_SELECT_BUILD_TYPE = "BUILD_TYPE"
     const val TYPE_SELECT_APP_PREFIX = "APP_PREFIX"
-    const val TYPE_SELECT_URL = "APP_URL"
     const val TYPE_ADDITIONAL_PARAMS = "ADDITIONAL_PARAMS"
     const val TYPE_CREATE_MOCK_API = "mock-api"
 }

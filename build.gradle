@@ -13,15 +13,9 @@ buildscript {
     }
 }
 
-
 task copyDockerFiles(type: Copy) {
     from "$rootDir/docker-compose.yml", "$rootDir/Dockerfile"
     into "$rootDir/output"
-}
-
-task copyDockerConfig(type: Copy) {
-    from "$rootDir/docker"
-    into "$rootDir/output/docker"
 }
 
 task copyScripts(type: Copy) {
@@ -31,7 +25,6 @@ task copyScripts(type: Copy) {
 
 task generateDistribution() {
     dependsOn copyScripts
-    dependsOn copyDockerConfig
     dependsOn copyDockerFiles
     dependsOn ':skeleton:generateApplication'
     dependsOn ':grave:generateApplication'
@@ -47,7 +40,6 @@ task packageDistribution(type: Zip) {
 
     from "$rootDir/output"
 }
-
 
 task cleanup(type: Delete) {
     delete "output"
@@ -69,5 +61,6 @@ allprojects {
         maven { url 'https://dl.bintray.com/kotlin/kotlin-eap' }
         maven { url 'https://dl.bintray.com/kotlin/kotlinx' }
         maven { url 'https://dl.bintray.com/kotlin/ktor' }
+        maven { url "https://jitpack.io" }
     }
 }

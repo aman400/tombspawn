@@ -32,7 +32,10 @@ class DockerModule {
     @Provides
     @AppScope
     @DockerHttpClient
-    fun provideDockerHttpClients(gsonSerializer: GsonSerializer, apps: List<App>, @Debuggable isDebug: Boolean): MutableMap<String, HttpClient> {
+    fun provideDockerHttpClients(
+        gsonSerializer: GsonSerializer,
+        apps: List<App>, @Debuggable isDebug: Boolean
+    ): MutableMap<String, HttpClient> {
         val dockerHttpClients = mutableMapOf<String, HttpClient>()
         apps.forEach { app ->
             dockerHttpClients[app.id] = Common.createHttpClient(

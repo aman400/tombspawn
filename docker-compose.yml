@@ -7,11 +7,15 @@ networks:
 volumes:
   mysqldb:
     name: mysqldb
+  redisdb:
+    name: redisdb
+  apkCache:
+    name: apkCache
 
 services:
   db:
     container_name: mysqldb
-    build: docker/mysql/.
+    build: scripts/remote/docker/mysql/.
     image: mysqldb
     volumes:
       - mysqldb:/var/lib/mysql
@@ -22,8 +26,10 @@ services:
       - tombspawn
   redis:
     container_name: redisdb
-    build: docker/redis/.
+    build: scripts/remote/docker/redis/.
     image: redisdb
+    volumes:
+      - redisdb:/data
     restart: always
     networks:
       - tombspawn
@@ -38,6 +44,7 @@ services:
     image: application
     restart: always
     volumes:
+      - apkCache:/app/temp
       - ./scripts/local/application.json:/app/application.json
       - /var/run/docker.sock:/var/run/docker.sock
     networks:

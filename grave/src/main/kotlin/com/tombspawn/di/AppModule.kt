@@ -5,8 +5,10 @@ import com.tombspawn.base.config.JsonApplicationConfig
 import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.network.Common.createHttpClient
 import com.tombspawn.data.DatabaseService
-import com.tombspawn.data.StringMap
-import com.tombspawn.di.qualifiers.*
+import com.tombspawn.di.qualifiers.ApplicationBaseUri
+import com.tombspawn.di.qualifiers.Debuggable
+import com.tombspawn.di.qualifiers.SlackHttpClient
+import com.tombspawn.di.qualifiers.UploadDir
 import com.tombspawn.git.CredentialProvider
 import com.tombspawn.models.config.*
 import com.tombspawn.utils.Constants
@@ -17,11 +19,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.features.json.GsonSerializer
 import io.ktor.http.URLBuilder
 import io.ktor.http.URLProtocol
-import org.redisson.Redisson
-import org.redisson.api.RedissonClient
-import org.redisson.config.Config
-import org.redisson.config.TransportMode
-
+import java.io.File
 
 @Module
 class AppModule {
@@ -79,9 +77,9 @@ class AppModule {
 
     @Provides
     @AppScope
-    @UploadDirPath
-    fun provideUploadDirPath(): String {
-        return "${System.getProperty("user.dir")}/temp"
+    @UploadDir
+    fun provideTempUploadDir(): File {
+        return File(System.getProperty("user.dir"), "temp")
     }
 
     @Provides
@@ -113,7 +111,6 @@ class AppModule {
     @AppScope
     fun provideAppList(config: JsonApplicationConfig): List<App> {
         return config.configList("apps").map {
-
             it.getAs(App::class.java)
         }
     }
@@ -122,30 +119,5 @@ class AppModule {
     @AppScope
     fun provideServerConf(config: JsonApplicationConfig): Optional<ServerConf> {
         return Optional.fromNullable(config.propertyOrNull("server")?.getAs(ServerConf::class.java))
-    }
-
-    @Provides
-    @AppScope
-    fun provideRedisClient(redis: Redis): RedissonClient {
-        val config = Config()
-        config.useSingleServer().apply {
-            timeout = 10000
-            address = "${redis.host ?: Constants.Common.DEFAULT_REDIS_HOST}:${redis.port?: Constants.Common.DEFAULT_REDIS_PORT}"
-        }
-        return Redisson.create(config)
-    }
-
-    @Provides
-    @AppScope
-    @AppCacheMap
-    fun provideRedisAppCacheMap(redissonClient: RedissonClient): StringMap {
-        return StringMap("AppCache", redissonClient)
-    }
-
-    @Provides
-    @AppScope
-    @ApkCacheMap
-    fun provideRedisApkCacheMap(redissonClient: RedissonClient): StringMap {
-        return StringMap("ApkCache", redissonClient)
     }
 }
