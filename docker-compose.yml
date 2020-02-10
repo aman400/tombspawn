@@ -10,6 +10,7 @@ volumes:
   redisdb:
     name: redisdb
   apkCache:
+    name: apkCache
 
 services:
   db:
