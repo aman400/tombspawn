@@ -12,6 +12,7 @@ import com.tombspawn.data.cache.models.ApkCache
 import com.tombspawn.di.qualifiers.ApplicationBaseUri
 import com.tombspawn.di.qualifiers.Debuggable
 import com.tombspawn.di.qualifiers.UploadDir
+import com.tombspawn.di.qualifiers.WaitingMessages
 import com.tombspawn.docker.DockerService
 import com.tombspawn.models.Reference
 import com.tombspawn.models.RequestData
@@ -51,28 +52,10 @@ class ApplicationService @Inject constructor(
     val debug: Boolean,
     val config: Optional<ServerConf>,
     @ApplicationBaseUri
-    val baseUri: Provider<URLBuilder>
+    val baseUri: Provider<URLBuilder>,
+    @WaitingMessages
+    private val randomWaitingMessages: Optional<List<String>>
 ) {
-
-    private val randomWaitingMessages = listOf(
-        "Try Holding your Breath!!",
-        "Hold your horses!!",
-        "Creating Randomly Generated Feature",
-        "Doing Something You Don't Wanna Know About",
-        "Doing The Impossible",
-        "Don't Panic",
-        "Ensuring Everything Works Perfektly",
-        "Generating Plans for Faster-Than-Light Travel",
-        "Hitting Your Keyboard Won't Make This Faster",
-        "Loading, Don't Wait If You Don't Want To",
-        "You usually have to wait for that which is worth waiting for",
-        "The waiting time, my brothers, Is the hardest time of all",
-        "Waiting is a trap. There will always be reasons to wait",
-        "Don't Wait! Start on your dreams",
-        "How much of human life is lost in waiting.",
-        "If you wait for App, App comes. If you don't wait for App, App still comes.",
-        "All things come to him who waits - provided he knows what he is waiting for."
-    )
 
     fun onTaskCompleted(id: String) {
         dockerService.onTaskCompleted(id)
@@ -89,9 +72,6 @@ class ApplicationService @Inject constructor(
         }
         launch(Dispatchers.Default) {
             dockerService.startQueueExecution()
-        }
-        launch {
-            cleanAppCacheFiles()
         }
         apps.forEachIndexed { index, app ->
             val callbackUri = baseUri.get().path("apps", app.id, "init").build().toString()
@@ -289,7 +269,8 @@ class ApplicationService @Inject constructor(
                         }
                     }
                 )
-                slackService.sendMessage(randomWaitingMessages.shuffled().first(), channelId, null)
+                slackService.sendMessage(randomWaitingMessages.get()?.shuffled()
+                    ?.firstOrNull() ?: "Please wait", channelId, null)
             }
         }
     }

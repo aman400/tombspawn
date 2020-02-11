@@ -69,7 +69,7 @@ class TestApplicationService {
                     this.host = Constants.Common.DEFAULT_HOST
                     this.port = Constants.Common.DEFAULT_PORT
                 }
-            }
+            }, Optional.fromNullable(null)
         )
     }
 

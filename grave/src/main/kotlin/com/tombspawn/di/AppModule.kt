@@ -1,14 +1,12 @@
 package com.tombspawn.di
 
 import com.google.common.base.Optional
+import com.google.gson.reflect.TypeToken
 import com.tombspawn.base.config.JsonApplicationConfig
 import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.network.Common.createHttpClient
 import com.tombspawn.data.DatabaseService
-import com.tombspawn.di.qualifiers.ApplicationBaseUri
-import com.tombspawn.di.qualifiers.Debuggable
-import com.tombspawn.di.qualifiers.SlackHttpClient
-import com.tombspawn.di.qualifiers.UploadDir
+import com.tombspawn.di.qualifiers.*
 import com.tombspawn.git.CredentialProvider
 import com.tombspawn.models.config.*
 import com.tombspawn.utils.Constants
@@ -80,6 +78,18 @@ class AppModule {
     @UploadDir
     fun provideTempUploadDir(): File {
         return File(System.getProperty("user.dir"), "temp")
+    }
+
+    @Provides
+    @AppScope
+    @WaitingMessages
+    fun provideWaitingMessages(config: JsonApplicationConfig): Optional<List<String>> {
+        val messages: List<String>? = config.propertyOrNull("waiting_messages")
+            ?.getAs<List<String>>(object : TypeToken<List<String>>() {}.type).takeIf {
+                !it.isNullOrEmpty()
+            }
+        return Optional.fromNullable(messages)
+
     }
 
     @Provides
