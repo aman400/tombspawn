@@ -11,7 +11,34 @@ plugins {
     // Apply the java-library plugin for API and implementation separation.
     id 'java-library'
     id "org.jetbrains.kotlin.kapt"
+    id 'com.google.protobuf' version '0.8.8'
 }
+
+sourceSets {
+    main {
+        java {
+            srcDirs 'build/generated/source/proto/main/grpc'
+            srcDirs 'build/generated/source/proto/main/java'
+        }
+    }
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:3.11.0"
+    }
+    plugins {
+        grpc {
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.27.1'
+        }
+    }
+    generateProtoTasks {
+        all()*.plugins {
+            grpc {}
+        }
+    }
+}
+
 
 repositories {
     // Use jcenter for resolving dependencies.
@@ -32,6 +59,9 @@ dependencies {
     api Gson.lib
     api Log.logback
     api Apache.commonIO
+    api GRPC.netty
+    api GRPC.protobuf
+    api GRPC.stub
 
     api Dagger.lib
     kapt Dagger.annotationProcessor

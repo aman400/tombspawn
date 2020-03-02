@@ -7,23 +7,27 @@ import com.github.dockerjava.core.command.BuildImageResultCallback
 import com.github.dockerjava.core.command.EventsResultCallback
 import com.github.dockerjava.core.command.LogContainerResultCallback
 import com.google.gson.JsonObject
+import com.google.protobuf.ByteString
+import com.tombspawn.base.*
 import com.tombspawn.base.common.*
 import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.extensions.await
+import com.tombspawn.base.network.Common
 import com.tombspawn.base.network.withRetry
 import com.tombspawn.di.qualifiers.DockerHttpClient
 import com.tombspawn.models.config.App
+import com.tombspawn.utils.Constants
+import io.grpc.stub.StreamObserver
 import io.ktor.client.HttpClient
 import io.ktor.client.request.request
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.HttpMethod
-import io.ktor.http.parametersOf
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.suspendCancellableCoroutine
 import org.slf4j.LoggerFactory
 import java.io.File
 import javax.inject.Inject
+import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 @AppScope
@@ -35,133 +39,53 @@ class DockerApiClient @Inject constructor(
         private val LOGGER = LoggerFactory.getLogger("com.tombspawn.docker.DockerApiClient")
     }
 
-    suspend fun fetchFlavours(app: App, callbackUri: String): JsonObject? = coroutineScope {
-        dockerHttpClients[app.id]?.let { client ->
-            withRetry(3, 10000, -1) {
-                val call = client.request<HttpResponse> {
-                    method = HttpMethod.Get
-                    url {
-                        encodedPath = "/flavours"
-                        parameters.append(CommonConstants.CALLBACK_URI, callbackUri)
-                    }
-                }
-                call.await<JsonObject>()
-            }.let { response ->
-                when (response) {
-                    is CallSuccess -> {
-                        response.data
-                    }
-                    is CallFailure -> {
-                        LOGGER.error(response.errorBody, response.throwable)
-                        null
-                    }
-                    is ServerFailure -> {
-                        LOGGER.error(response.errorBody, response.throwable)
-                        null
-                    }
-                    is CallError -> {
-                        LOGGER.error("Unable to fetch flavours", response.throwable)
-                        null
-                    }
-                }
-            }
-        }
-    }
-
-    suspend fun fetchBuildVariants(app: App, callbackUri: String): JsonObject? = coroutineScope {
-        withContext(Dispatchers.IO) {
-            dockerHttpClients[app.id]?.let { client ->
-                val call = client.request<HttpResponse> {
-                    method = HttpMethod.Get
-                    url {
-                        encodedPath = "/build-variants"
-                        parameters.append(CommonConstants.CALLBACK_URI, callbackUri)
-                    }
-                }
-                return@withContext when (val response = call.await<JsonObject>()) {
-                    is CallSuccess -> {
-                        response.data?.let {
-                            it
+    suspend fun generateApp(app: App, vararg params: Pair<String, String>): ByteString? =
+        suspendCancellableCoroutine { continuation ->
+            Common.createGrpcChannel(app.id, Constants.Common.DEFAULT_PORT).let { channel ->
+                var byteData = ByteString.EMPTY
+                ApplicationGrpc.newStub(channel).generateApp(GenerateAppRequest
+                    .newBuilder()
+                    .putAllBuildParams(params.toMap())
+                    .build(), object : StreamObserver<GenerateAppResponse> {
+                    override fun onNext(value: GenerateAppResponse?) {
+                        LOGGER.debug("On application bytes received")
+                        value?.data?.let {
+                            byteData = byteData.concat(it)
+                            ByteString.copyFrom(it.toByteArray())
                         }
                     }
-                    is CallFailure -> {
-                        LOGGER.error(response.errorBody)
-                        null
+
+                    override fun onError(t: Throwable?) {
+                        LOGGER.error("Unable to transfer application bytes", t)
+                        continuation.resume(null)
                     }
-                    is ServerFailure -> {
-                        LOGGER.error(response.errorBody, response.throwable)
-                        null
+
+                    override fun onCompleted() {
+                        LOGGER.debug("On application data transfer complete")
+                        continuation.resume(byteData)
+                        channel.shutdown()
                     }
-                    is CallError -> {
-                        LOGGER.error("Unable to fetch build variants", response.throwable)
-                        null
-                    }
-                }
+                })
             }
         }
-    }
 
-    suspend fun generateApp(appId: String, vararg params: Pair<String, List<String>>): JsonObject? = coroutineScope {
-        dockerHttpClients[appId]?.let { client ->
-            client.request<HttpResponse> {
-                method = HttpMethod.Get
-                url {
-                    encodedPath = "/app/generate"
-                    parameters.appendAll(parametersOf(*params))
-                }
-            }.await<JsonObject>().let { response ->
-                when (response) {
-                    is CallSuccess -> {
-                        response.data
-                    }
-                    is CallFailure -> {
-                        LOGGER.error(response.errorBody)
-                        null
-                    }
-                    is ServerFailure -> {
-                        LOGGER.error(response.errorBody, response.throwable)
-                        null
-                    }
-                    is CallError -> {
-                        LOGGER.error("Unable to fetch References", response.throwable)
-                        null
-                    }
-                }
+    suspend fun fetchReferences(app: App): List<Ref> = coroutineScope {
+        Common.createGrpcChannel(app.id, Constants.Common.DEFAULT_PORT).let { channel ->
+            val refs: List<Ref> = try {
+                ApplicationGrpc.newBlockingStub(channel)
+                    .fetchReferences(
+                        ReferencesRequest.newBuilder()
+                            .setBranchLimit(-1)
+                            .setTagLimit(app.tagCount)
+                            .build()
+                    ).refList
+            } catch (exception: Exception) {
+                LOGGER.error("Unable to fetch references", exception)
+                listOf()
             }
-        }
-    }
+            channel.shutdown()
+            return@coroutineScope refs
 
-    suspend fun fetchReferences(app: App, callbackUri: String): JsonObject? = coroutineScope {
-        dockerHttpClients[app.id]?.let { client ->
-            withRetry(20, 10000, -1) {
-                val call = client.request<HttpResponse> {
-                    method = HttpMethod.Get
-                    url {
-                        encodedPath = "/references"
-                        parameters.append(CommonConstants.CALLBACK_URI, callbackUri)
-                        parameters.append(CommonConstants.TAG_LIMIT, app.tagCount.toString())
-                    }
-                }
-                call.await<JsonObject>()
-            }.let { response ->
-                when (response) {
-                    is CallSuccess -> {
-                        response.data
-                    }
-                    is CallFailure -> {
-                        LOGGER.error(response.errorBody)
-                        null
-                    }
-                    is ServerFailure -> {
-                        LOGGER.error(response.errorBody, response.throwable)
-                        null
-                    }
-                    is CallError -> {
-                        LOGGER.error("Unable to fetch References", response.throwable)
-                        null
-                    }
-                }
-            }
         }
     }
 
@@ -198,20 +122,12 @@ class DockerApiClient @Inject constructor(
         }
     }
 
-    suspend fun listContainer(): MutableList<Container>? {
-        return suspendCoroutine {
-            dockerClient.listContainersCmd()
-                .withShowSize(true)
-                .withShowAll(true).exec()
-        }
-    }
-
     suspend fun createVolume(name: String, driver: String = "local"): String {
         return coroutineScope<String> {
             dockerClient.listVolumesCmd()
                 .exec().volumes.firstOrNull {
-                it.name == name
-            }?.name ?: dockerClient.createVolumeCmd()
+                    it.name == name
+                }?.name ?: dockerClient.createVolumeCmd()
                 .withName(name)
                 .withDriver(driver)
                 .exec().name
@@ -269,8 +185,8 @@ class DockerApiClient @Inject constructor(
         coroutineScope {
             @Suppress("BlockingMethodInNonBlockingContext")
             dockerClient.listImagesCmd().withImageNameFilter(tag).exec().firstOrNull() ?: dockerClient.buildImageCmd(
-                file
-            )
+                    file
+                )
                 .withTags(setOf(tag))
                 .withQuiet(false)
                 .exec(object : BuildImageResultCallback() {

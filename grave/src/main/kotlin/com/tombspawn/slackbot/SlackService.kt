@@ -46,19 +46,26 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
             FileInputStream(file).use {
                 it.read(buf)
             }
+            uploadFile(buf, channelId, initialComment, onFinish, file.name)
+        }
+    }
+
+    suspend fun uploadFile(fileData: ByteArray, channelId: String,
+                           initialComment: String, onFinish: (() -> Unit)? = null, fileName: String) {
+        withContext(Dispatchers.IO) {
             val formData = formData {
                 append("token", slack.botToken)
-                append("title", file.nameWithoutExtension)
-                append("filename", file.name)
+                append("title", fileName)
+                append("filename", fileName)
                 append("filetype", "auto")
                 append("channels", channelId)
                 append("initial_comment", initialComment)
                 append(
                     "file",
-                    buf,
+                    fileData,
                     Headers.build {
                         append(HttpHeaders.ContentType, ContentType.Application.OctetStream)
-                        append(HttpHeaders.ContentDisposition, "filename=${file.name}")
+                        append(HttpHeaders.ContentDisposition, "filename=${fileName}")
                     }
                 )
             }

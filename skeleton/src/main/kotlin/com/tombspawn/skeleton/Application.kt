@@ -1,12 +1,10 @@
 package com.tombspawn.skeleton
 
-import com.tombspawn.base.common.CommonConstants
 import com.tombspawn.base.common.SuccessResponse
 import com.tombspawn.base.config.JsonApplicationConfig
 import com.tombspawn.base.di.DaggerCoreComponent
-import com.tombspawn.skeleton.di.AppComponent
 import com.tombspawn.skeleton.di.DaggerAppComponent
-import com.tombspawn.skeleton.locations.*
+import com.tombspawn.skeleton.locations.References
 import com.tombspawn.skeleton.models.config.ServerConf
 import io.ktor.application.*
 import io.ktor.features.*
@@ -15,34 +13,34 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.locations.KtorExperimentalLocationsAPI
 import io.ktor.locations.Locations
 import io.ktor.locations.get
-import io.ktor.locations.post
 import io.ktor.request.path
 import io.ktor.response.respond
 import io.ktor.routing.get
-import io.ktor.routing.post
 import io.ktor.routing.routing
 import io.ktor.server.engine.applicationEngineEnvironment
 import io.ktor.server.engine.connector
 import io.ktor.server.engine.embeddedServer
-import io.ktor.server.netty.Netty
 import io.ktor.util.error
-import io.ktor.util.toMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
-import java.util.concurrent.TimeUnit
+import javax.inject.Inject
 
 class Skeleton(val args: Array<String>) {
+    @Inject
+    lateinit var applicationService: ApplicationService
+
     fun startServer() {
         val coreComponent = DaggerCoreComponent.create()
         val env = applicationEngineEnvironment {
             module {
-                val appComponent: AppComponent = DaggerAppComponent.builder()
+                DaggerAppComponent.builder()
                     .plus(this)
                     .plus(coreComponent)
                     .build()
-                module(appComponent)
+                    .inject(this@Skeleton)
+                module(applicationService)
             }
 
             var host = "0.0.0.0"
@@ -66,7 +64,11 @@ class Skeleton(val args: Array<String>) {
             }
         }
 
-        val server = embeddedServer(Netty, env)
+        val server = embeddedServer(GRPC, env, configure = {
+            configuration = {
+                addService(SkeletonGrpcService(applicationService))
+            }
+        })
 
         Runtime.getRuntime().addShutdownHook(object : Thread() {
             override fun run() {
@@ -88,8 +90,7 @@ class Skeleton(val args: Array<String>) {
 
 @KtorExperimentalLocationsAPI
 @Suppress("unused")
-fun Application.module(appComponent: AppComponent) {
-
+fun Application.module(applicationService: ApplicationService) {
     val LOGGER = LoggerFactory.getLogger("com.tombspawn.skeleton.Application")
 
     install(Locations) { }
@@ -157,61 +158,59 @@ fun Application.module(appComponent: AppComponent) {
 
     environment.monitor.subscribe(ApplicationStopping) {
         LOGGER.debug("Clearing data")
-        appComponent.applicationService().clear()
+        applicationService.clear()
         LOGGER.debug("Data cleared")
     }
 
-    val applicationService = appComponent.applicationService()
-
     routing {
-        get("/app/generate") {
-            val params = this.call.request.queryParameters.toMap().mapValues { values ->
-                values.value.first()
-            }.toMutableMap()
+//        get("/app/generate") {
+//            val params = this.call.request.queryParameters.toMap().mapValues { values ->
+//                values.value.first()
+//            }.toMutableMap()
+//
+//            val userAppPrefix = params[CommonConstants.APP_PREFIX]?.trim() ?: ""
+//            val successCallbackUri = params[CommonConstants.SUCCESS_CALLBACK_URI]?.trim()
+//            val failureCallbackUri = params[CommonConstants.FAILURE_CALLBACK_URI]?.trim()
+//
+//            params.remove(CommonConstants.APP_PREFIX)
+//            params.remove(CommonConstants.SUCCESS_CALLBACK_URI)
+//            params.remove(CommonConstants.FAILURE_CALLBACK_URI)
+//
+//            launch(Dispatchers.IO) {
+//                applicationService.generateApplication(params, successCallbackUri, failureCallbackUri, userAppPrefix)
+//            }
+//            call.respond(SuccessResponse("ok"))
+//        }
 
-            val userAppPrefix = params[CommonConstants.APP_PREFIX]?.trim() ?: ""
-            val successCallbackUri = params[CommonConstants.SUCCESS_CALLBACK_URI]?.trim()
-            val failureCallbackUri = params[CommonConstants.FAILURE_CALLBACK_URI]?.trim()
+//        this@routing.get<BuildVariants> { variants ->
+//            launch(Dispatchers.IO) {
+//                applicationService.fetchBuildVariants(variants.callbackUri)
+//            }
+//            call.respond(SuccessResponse("ok"))
+//        }
+//
+//        this@routing.post<App.CleanTask> { task ->
+//            launch(Dispatchers.IO) {
+//                applicationService.cleanCode(task.callbackUri)
+//            }
+//            call.respond(SuccessResponse("ok"))
+//        }
 
-            params.remove(CommonConstants.APP_PREFIX)
-            params.remove(CommonConstants.SUCCESS_CALLBACK_URI)
-            params.remove(CommonConstants.FAILURE_CALLBACK_URI)
+//        this@routing.get<References> { reference ->
+//            val branchLimit = reference.branchLimit
+//            val tagLimit = reference.tagLimit
+//            launch(Dispatchers.IO) {
+//                applicationService.getReferences(branchLimit, tagLimit)
+//            }
+//            call.respond(SuccessResponse("ok"))
+//        }
 
-            launch(Dispatchers.IO) {
-                applicationService.generateApplication(params, successCallbackUri, failureCallbackUri, userAppPrefix)
-            }
-            call.respond(SuccessResponse("ok"))
-        }
-
-        this@routing.get<BuildVariants> { variants ->
-            launch(Dispatchers.IO) {
-                applicationService.fetchBuildVariants(variants.callbackUri)
-            }
-            call.respond(SuccessResponse("ok"))
-        }
-
-        this@routing.post<App.CleanTask> { task ->
-            launch(Dispatchers.IO) {
-                applicationService.cleanCode(task.callbackUri)
-            }
-            call.respond(SuccessResponse("ok"))
-        }
-
-        this@routing.get<References> { reference ->
-            val branchLimit = reference.branchLimit
-            val tagLimit = reference.tagLimit
-            launch(Dispatchers.IO) {
-                applicationService.getReferences(reference.callbackUri, branchLimit, tagLimit)
-            }
-            call.respond(SuccessResponse("ok"))
-        }
-
-        this@routing.get<Flavours> { flavour ->
-            call.respond(SuccessResponse("ok"))
-            launch(Dispatchers.IO) {
-                applicationService.fetchProductFlavours(flavour.callbackUri)
-            }
-        }
+//        this@routing.get<Flavours> { flavour ->
+//            call.respond(SuccessResponse("ok"))
+//            launch(Dispatchers.IO) {
+//                applicationService.fetchProductFlavours(flavour.callbackUri)
+//            }
+//        }
     }
 
     applicationService.init()

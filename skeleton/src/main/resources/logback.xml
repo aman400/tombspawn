@@ -25,5 +25,6 @@
     <logger name="com.tombspawn.skeleton.git.GitClient" level="INFO"/>
     <logger name="com.tombspawn.skeleton.commandline.CommandLineClient" level="TRACE"/>
     <logger name="com.tombspawn.skeleton.extensions.GitUtils" level="TRACE"/>
+    <logger name="com.tombspawn.skeleton.git.GitService" level="TRACE"/>
 
 </configuration>

@@ -146,33 +146,15 @@ fun Routing.apkCallback(applicationService: ApplicationService) {
         call.respond(HttpStatusCode.OK, SuccessResponse("ok"))
     }
 
-    post<Apps.App.Flavours> { app ->
-        val flavours = call.receive<ListBodyRequest<String>>(typeOf<ListBodyRequest<String>>()).data
-        launch(Dispatchers.IO) {
-            applicationService.addFlavours(app.app.id, flavours)
-            applicationService.onTaskCompleted(app.app.id)
-        }
-        call.respond(HttpStatusCode.OK, SuccessResponse("ok"))
-    }
-
-    post<Apps.App.BuildVariants> { app ->
-        val buildVariants = call.receive<ListBodyRequest<String>>(typeOf<ListBodyRequest<String>>()).data
-        launch(Dispatchers.IO) {
-            applicationService.addBuildVariants(app.app.id, buildVariants)
-            applicationService.onTaskCompleted(app.app.id)
-        }
-        call.respond(HttpStatusCode.OK, SuccessResponse("ok"))
-    }
-
-    post<Apps.App.References> { app ->
-        val type = object: TypeToken<ListBodyRequest<Reference>>() {}.type
-        val refs = Gson().fromJson<ListBodyRequest<Reference>>(call.receiveText(), type).data
-        launch(Dispatchers.IO) {
-            applicationService.addRefs(app.app.id, refs)
-            applicationService.onTaskCompleted(app.app.id)
-        }
-        call.respond(HttpStatusCode.OK, SuccessResponse("ok"))
-    }
+//    post<Apps.App.References> { app ->
+//        val type = object: TypeToken<ListBodyRequest<Reference>>() {}.type
+//        val refs = Gson().fromJson<ListBodyRequest<Reference>>(call.receiveText(), type).data
+//        launch(Dispatchers.IO) {
+//            applicationService.addRefs(app.app.id, refs)
+//            applicationService.onTaskCompleted(app.app.id)
+//        }
+//        call.respond(HttpStatusCode.OK, SuccessResponse("ok"))
+//    }
 
     post<Apps.App.Clean> { app ->
         LOGGER.info(call.receiveText())

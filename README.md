@@ -1,2 +1,3 @@
-# slackdroid
-Slackbot for APK generation.
+# Tombspawn
+
+APK Distribution made easy.

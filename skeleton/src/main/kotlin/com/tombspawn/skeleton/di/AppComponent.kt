@@ -3,6 +3,7 @@ package com.tombspawn.skeleton.di
 import com.tombspawn.base.di.CoreComponent
 import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.skeleton.ApplicationService
+import com.tombspawn.skeleton.Skeleton
 import com.tombspawn.skeleton.di.qualifiers.UploadAppClient
 import dagger.BindsInstance
 import dagger.Component
@@ -17,6 +18,8 @@ interface AppComponent {
 
     @UploadAppClient
     fun uploadHttpClient(): HttpClient
+
+    fun inject(skeleton: Skeleton)
 
     @Component.Builder
     interface Builder {

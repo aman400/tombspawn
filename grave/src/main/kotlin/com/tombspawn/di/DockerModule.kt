@@ -4,14 +4,17 @@ import com.github.dockerjava.api.DockerClient
 import com.github.dockerjava.core.DefaultDockerClientConfig
 import com.github.dockerjava.core.DockerClientBuilder
 import com.github.dockerjava.netty.NettyDockerCmdExecFactory
+import com.tombspawn.base.ApplicationGrpc
 import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.network.Common
 import com.tombspawn.di.qualifiers.Debuggable
 import com.tombspawn.di.qualifiers.DockerHttpClient
+import com.tombspawn.di.qualifiers.GrpcClient
 import com.tombspawn.models.config.App
 import com.tombspawn.utils.Constants
 import dagger.Module
 import dagger.Provides
+import io.grpc.*
 import io.ktor.client.HttpClient
 import io.ktor.client.features.json.GsonSerializer
 import io.ktor.http.URLProtocol

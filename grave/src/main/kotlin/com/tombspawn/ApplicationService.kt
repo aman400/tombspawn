@@ -3,6 +3,7 @@ package com.tombspawn
 import com.google.common.base.Optional
 import com.google.gson.Gson
 import com.google.gson.JsonParser
+import com.tombspawn.base.Ref
 import com.tombspawn.base.common.ErrorResponse
 import com.tombspawn.base.common.SlackConstants
 import com.tombspawn.base.di.scopes.AppScope
@@ -100,7 +101,10 @@ class ApplicationService @Inject constructor(
                 runBlocking {
                     dockerService.appInitialized(it)
                 }
-                fetchReferences(it)
+                addRefs(appId, fetchReferences(it).map {
+                    Reference(it.name, RefType.from(it))
+                })
+                onTaskCompleted(appId)
             }
         }
     }
@@ -127,9 +131,8 @@ class ApplicationService @Inject constructor(
      *
      * @param app is the app for which references need to be fetched
      */
-    private suspend fun fetchReferences(app: App) {
-        val callbackUri = baseUri.get().path("apps", app.id, "refs").build().toString()
-        dockerService.fetchReferences(app, callbackUri)
+    private suspend fun fetchReferences(app: App): List<Ref> {
+        return dockerService.fetchReferences(app)
     }
 
     /**
@@ -143,16 +146,6 @@ class ApplicationService @Inject constructor(
     }
 
     /**
-     * Function to fetch app flavours.
-     *
-     * @param app is the application for which the flavours needs to be fetched
-     */
-    private suspend fun fetchFlavours(app: App) {
-        val callbackUri = baseUri.get().path("apps", app.id, "flavours").build().toString()
-        dockerService.fetchFlavours(app, callbackUri)
-    }
-
-    /**
      * Function to add reference(branches/tags) to redis and database
      *
      * @param appId is app to be cached
@@ -161,21 +154,6 @@ class ApplicationService @Inject constructor(
     suspend fun addRefs(appId: String, refs: List<Reference>) {
         databaseService.addRefs(refs, appId)
         cachingService.cacheAppReferences(appId, refs)
-    }
-
-    suspend fun addBuildVariants(appId: String, buildVariants: List<String>) {
-        databaseService.addBuildVariants(buildVariants, appId)
-        cachingService.cacheBuildVariants(appId, buildVariants)
-    }
-
-    suspend fun addFlavours(appId: String, flavours: List<String>) {
-        databaseService.addFlavours(flavours, appId)
-        cachingService.cacheAppFlavours(appId, flavours)
-    }
-
-    private suspend fun fetchBuildVariants(app: App) {
-        val callbackUri = baseUri.get().path(listOf("apps", app.id, "build-variants")).build().toString()
-        dockerService.fetchBuildVariants(app, callbackUri)
     }
 
     private suspend fun addVerbs() {
@@ -218,7 +196,7 @@ class ApplicationService @Inject constructor(
         channelId: String,
         appID: String,
         responseUrl: String
-    ) {
+    ) = coroutineScope {
         // Get the additional parameters
         val additionalParams = buildData[SlackConstants.TYPE_ADDITIONAL_PARAMS]?.trim()
         // Parse extra parameters into map.
@@ -255,20 +233,29 @@ class ApplicationService @Inject constructor(
             val toVerify = ApkCache(buildData)
             if(!useCache || !verifyAndUploadCachedApk(buildData, toVerify, app, callbackId)) {
                 // Generate the application
-                dockerService.generateApp(
-                    app.id,
-                    "$callbackUri/success",
-                    "$callbackUri/failure",
-                    buildData,
-                    // verify if app was generated from some queued request
-                    verify = {
-                        if(useCache) {
-                            verifyAndUploadCachedApk(buildData, toVerify, app, callbackId)
-                        } else {
-                            false
+                launch(Dispatchers.IO) {
+                    dockerService.generateApp(
+                        app,
+                        buildData,
+                        verify = {
+                            if (useCache) {
+                                verifyAndUploadCachedApk(buildData, toVerify, app, callbackId)
+                            } else {
+                                false
+                            }
                         }
+                    )?.let {
+                        uploadApk(it, buildData, channelId, false, "App.apk") {
+                            onTaskCompleted(app.id)
+                        }
+                    } ?: run {
+                        slackService.sendMessage("Unable to generate apk for request: \n${buildData.map {
+                            "${it.key} = ${it.value}"
+                        }.joinToString("\n")}", channelId, null)
+                        LOGGER.error("File is null")
+                        onTaskCompleted(app.id)
                     }
-                )
+                }
                 slackService.sendMessage(randomWaitingMessages.get()?.shuffled()
                     ?.firstOrNull() ?: "Please wait", channelId, null)
             }
@@ -320,17 +307,6 @@ class ApplicationService @Inject constructor(
         }
     }
 
-    private suspend fun getFlavours(appId: String): List<String>? {
-        return cachingService.getCachedFlavours(appId) ?: databaseService.getFlavours(appId)?.map {
-            LOGGER.debug("Flavours: Cache miss")
-            it.name
-        }.also { flavours ->
-            if (flavours != null) {
-                cachingService.cacheAppFlavours(appId, flavours)
-            }
-        }
-    }
-
     private suspend fun getReferences(appId: String): List<Reference>? {
         return cachingService.getCachedReferences(appId) ?: databaseService.getRefs(appId)?.map {
             LOGGER.debug("References: Cache miss")
@@ -338,17 +314,6 @@ class ApplicationService @Inject constructor(
         }.also { references ->
             if (references != null) {
                 cachingService.cacheAppReferences(appId, references)
-            }
-        }
-    }
-
-    private suspend fun getBuildVariants(appId: String): List<String>? {
-        return cachingService.getBuildVariants(appId) ?: databaseService.getBuildTypes(appId)?.map {
-            LOGGER.debug("Build Variants: Cache miss")
-            it.name
-        }.also { buildVariants ->
-            if (buildVariants != null) {
-                cachingService.cacheBuildVariants(appId, buildVariants)
             }
         }
     }
@@ -621,6 +586,15 @@ class ApplicationService @Inject constructor(
         params[SlackConstants.TYPE_SELECT_BRANCH]?.let { branch ->
             cachingService.cacheApk(appId, branch, ApkCache(params, fileToCache.absolutePath))
         } ?: fileToCache.parentFile.deleteRecursively()
+    }
+
+    suspend fun uploadApk(byteArray: ByteArray, params: MutableMap<String, String>,
+                          channelId: String, cacheApk: Boolean = true,
+                          fileName: String = "app.apk", onFinish: (() -> Unit)? = null) {
+        val initialComment = params.map {
+            "${it.key} = ${it.value}"
+        }.joinToString("\n")
+        slackService.uploadFile(byteArray, channelId, initialComment, onFinish, fileName)
     }
 
     suspend fun uploadApk(apkCallback: Apps.App.Callback, receivedFile: File,
