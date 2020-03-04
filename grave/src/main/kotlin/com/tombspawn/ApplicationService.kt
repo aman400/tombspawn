@@ -29,6 +29,7 @@ import com.tombspawn.models.slack.GenerateCallback
 import com.tombspawn.models.slack.SlackEvent
 import com.tombspawn.slackbot.SlackService
 import com.tombspawn.utils.Constants
+import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import io.ktor.http.URLBuilder
 import kotlinx.coroutines.*
@@ -252,8 +253,18 @@ class ApplicationService @Inject constructor(
                         }
                     } catch (exception: Exception) {
                         val message = if(exception is StatusRuntimeException) {
-                            exception.status.description ?: exception.status.cause?.let {
-                                it.message ?: it.stackTrace.joinToString("\n") { it.toString() }
+                            when(exception.status.code) {
+                                Status.Code.UNKNOWN -> {
+                                    exception.status.description ?: exception.status.cause?.let {
+                                        it.message ?: it.stackTrace.joinToString("\n") { it.toString() }
+                                    }
+                                }
+                                Status.Code.DEADLINE_EXCEEDED -> {
+                                    "App generation request timed out after deadline"
+                                }
+                                else -> {
+                                    "Something went wrong. Error: ${exception.status.code.name}.\n${exception.status}"
+                                }
                             }
                         } else {
                             exception.stackTrace.joinToString("\n") { it.toString() }
