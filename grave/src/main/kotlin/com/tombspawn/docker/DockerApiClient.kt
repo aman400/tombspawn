@@ -74,6 +74,7 @@ class DockerApiClient @Inject constructor(
     suspend fun fetchReferences(app: App): List<Ref> = suspendCancellableCoroutine { continuation ->
         Common.createGrpcChannel(app.id, Constants.Common.DEFAULT_PORT).let { channel ->
             ApplicationGrpc.newStub(channel)
+                .withDeadlineAfter(10, TimeUnit.MINUTES)
                 .fetchReferences(
                     ReferencesRequest.newBuilder()
                         .setBranchLimit(-1)
@@ -100,14 +101,14 @@ class DockerApiClient @Inject constructor(
     suspend fun cleanApp(app: App): Boolean = suspendCancellableCoroutine { continuation ->
         Common.createGrpcChannel(app.id, Constants.Common.DEFAULT_PORT).also { channel ->
             ApplicationGrpc.newStub(channel)
+                .withDeadlineAfter(10, TimeUnit.MINUTES)
                 .clean(CleanRequest.newBuilder().build(), object : StreamObserver<CleanResponse> {
                     override fun onNext(value: CleanResponse?) {
                         continuation.resume(true)
                     }
 
                     override fun onError(t: Throwable?) {
-                        LOGGER.error("Unable to clean application with id ${app.id}", t)
-                        continuation.resume(false)
+                        continuation.resumeWithException(t ?: Exception("Unable to clean app"))
                     }
 
                     override fun onCompleted() {

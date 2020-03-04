@@ -374,43 +374,6 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
         }
     }
 
-    suspend fun sendShowCreateApiDialog(triggerId: String) {
-        val verbElements = databaseService.getVerbs().map { verb ->
-            Element.Option(verb, verb)
-        }
-
-        val dialog = dialog {
-            callbackId = Constants.Slack.CALLBACK_CREATE_API
-            title = "Create API"
-            submitLabel = "Submit"
-            notifyOnCancel = false
-            elements {
-                verbElements.let { verbs ->
-                    +element {
-                        type = ElementType.SELECT
-                        label = "Select verb"
-                        name = Constants.Slack.TYPE_SELECT_VERB
-                        options = verbs.toMutableList()
-                    }
-                }
-
-                +element {
-                    type = ElementType.TEXT_AREA
-                    label = "Expected Response"
-                    name = Constants.Slack.TYPE_SELECT_RESPONSE
-                    optional = false
-                    hint = "Type your expected response here."
-                    maxLength = 3000
-                }
-            }
-        }
-
-        withContext(Dispatchers.IO) {
-            slackClient.openActionDialog(dialog, slack.botToken, triggerId)
-        }
-
-    }
-
     suspend fun subscribeSlackEvent(slackEvent: SlackEvent) {
         slackEvent.event?.let { event ->
             if (!databaseService.userExists(event.user)) {

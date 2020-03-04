@@ -181,7 +181,5 @@ fun Application.module(applicationService: ApplicationService) {
         subscribe(applicationService)
         slackAction(applicationService)
         githubWebhook(applicationService)
-        mockApi(applicationService)
-        createApi(applicationService)
     }
 }

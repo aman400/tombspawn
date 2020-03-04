@@ -29,8 +29,6 @@ import com.tombspawn.models.slack.GenerateCallback
 import com.tombspawn.models.slack.SlackEvent
 import com.tombspawn.slackbot.SlackService
 import com.tombspawn.utils.Constants
-import io.grpc.Status
-import io.grpc.StatusException
 import io.grpc.StatusRuntimeException
 import io.ktor.http.URLBuilder
 import kotlinx.coroutines.*
@@ -82,7 +80,6 @@ class ApplicationService @Inject constructor(
             dockerService.createContainer(app, common.basePort + index, callbackUri)
         }
 
-        addVerbs()
         updateUserData()
     }
 
@@ -96,6 +93,11 @@ class ApplicationService @Inject constructor(
         return databaseService.addApps(apps)
     }
 
+    /**
+     * Fetch data for first time initialized container.
+     *
+     * @param appId is the id of the application
+     */
     suspend fun fetchAppData(appId: String) {
         apps.firstOrNull {
             appId == it.id
@@ -156,20 +158,6 @@ class ApplicationService @Inject constructor(
     private suspend fun addRefs(appId: String, refs: List<Reference>) {
         databaseService.addRefs(refs, appId)
         cachingService.cacheAppReferences(appId, refs)
-    }
-
-    private suspend fun addVerbs() {
-        databaseService.addVerbs(
-            listOf(
-                Constants.Common.GET,
-                Constants.Common.PUT,
-                Constants.Common.POST,
-                Constants.Common.DELETE,
-                Constants.Common.PATCH,
-                Constants.Common.HEAD,
-                Constants.Common.OPTIONS
-            )
-        )
     }
 
     private suspend fun updateUserData() = coroutineScope {
@@ -385,14 +373,6 @@ class ApplicationService @Inject constructor(
                 }
             }
             Event.EventType.MESSAGE_ACTION -> {
-                when (slackEvent.callbackId) {
-                    SlackConstants.TYPE_CREATE_MOCK_API -> {
-                        slackService.sendShowCreateApiDialog(slackEvent.triggerId!!)
-                    }
-                    else -> {
-
-                    }
-                }
             }
             Event.EventType.DIALOG_SUBMISSION -> {
                 onDialogSubmitted(slackEvent)
@@ -415,38 +395,11 @@ class ApplicationService @Inject constructor(
                     slackService.sendSubscribeToBranch(slackEvent, app, branch!!, channelId!!)
                 }
             }
-            slackEvent.callbackId == Constants.Slack.CALLBACK_CREATE_API -> {
-                createApiDialogResponse(slackEvent)
-            }
             slackEvent.callbackId?.startsWith(Constants.Slack.CALLBACK_GENERATE_APK) == true -> {
                 generateAppDialogResponse(slackEvent)
             }
             else -> {
 
-            }
-        }
-    }
-
-    private suspend fun createApiDialogResponse(slackEvent: SlackEvent) = coroutineScope {
-        val verb = slackEvent.dialogResponse?.get(Constants.Slack.TYPE_SELECT_VERB)
-        val response = slackEvent.dialogResponse?.get(Constants.Slack.TYPE_SELECT_RESPONSE)
-
-        val id = UUID.randomUUID().toString().replace("-", "", true)
-
-        launch(Dispatchers.IO) {
-            try {
-                JsonParser.parseString(response).asJsonObject
-                databaseService.addApi(id, verb!!, response!!)
-
-                slackService.sendMessage(
-                    slackEvent.responseUrl!!,
-                    RequestData(response = "Your `$verb` call is ready with url `${common.baseUrl}api/mock/$id`")
-                )
-            } catch (exception: Exception) {
-                slackService.sendMessage(
-                    slackEvent.responseUrl!!,
-                    RequestData(response = "Invalid JSON")
-                )
             }
         }
     }
@@ -584,14 +537,6 @@ class ApplicationService @Inject constructor(
         slackService.subscribeSlackEvent(slackEvent)
     }
 
-    suspend fun getApi(apiId: String, verb: String): Api? {
-        return databaseService.getApi(apiId, verb)
-    }
-
-    suspend fun sendShowCreateApiDialog(triggerId: String) {
-        slackService.sendShowCreateApiDialog(triggerId)
-    }
-
     fun clear() {
         apps.forEach {
             dockerService.killContainer(it)
@@ -662,12 +607,15 @@ class ApplicationService @Inject constructor(
         }
     }
 
-    private suspend fun reportFailure(app: App, channelId: String?, details: String?) {
+    private suspend fun reportFailure(app: App, channelId: String?, details: String?) = coroutineScope {
         channelId?.let {
             slackService.sendMessage(details ?: "Something went wrong", channelId, null)
         }
-        cleanApp(app)
         onTaskCompleted(app.id)
+        launch(Dispatchers.IO) {
+            cleanApp(app)
+            onTaskCompleted(app.id)
+        }
     }
 
     companion object {

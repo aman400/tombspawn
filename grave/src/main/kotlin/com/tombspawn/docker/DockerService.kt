@@ -235,13 +235,23 @@ class DockerService @Inject constructor(
 
     suspend fun fetchReferences(app: App) = suspendCancellableCoroutine<List<Ref>> { continuation ->
         sendChannel.offer(QueueAddAction(app.id) {
-            continuation.resume(dockerClient.fetchReferences(app))
+            try {
+                continuation.resume(dockerClient.fetchReferences(app))
+            } catch (exception: Exception) {
+                LOGGER.error("Unable to clean application with id ${app.id}", exception)
+                continuation.resume(listOf())
+            }
         })
     }
 
     suspend fun cleanApp(app: App): Boolean = suspendCancellableCoroutine { continuation ->
         sendChannel.offer(QueueAddAction(app.id) {
-            continuation.resume(dockerClient.cleanApp(app))
+            try {
+                continuation.resume(dockerClient.cleanApp(app))
+            } catch (exception: Exception) {
+                LOGGER.error("Unable to clean application with id ${app.id}", exception)
+                continuation.resume(false)
+            }
         })
     }
 
