@@ -4,8 +4,8 @@ import com.google.common.base.Optional
 import com.google.gson.Gson
 import com.google.gson.JsonParser
 import com.tombspawn.base.Ref
-import com.tombspawn.base.common.ErrorResponse
 import com.tombspawn.base.common.SlackConstants
+import com.tombspawn.base.common.exhaustive
 import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.extensions.toMap
 import com.tombspawn.data.*
@@ -29,6 +29,9 @@ import com.tombspawn.models.slack.GenerateCallback
 import com.tombspawn.models.slack.SlackEvent
 import com.tombspawn.slackbot.SlackService
 import com.tombspawn.utils.Constants
+import io.grpc.Status
+import io.grpc.StatusException
+import io.grpc.StatusRuntimeException
 import io.ktor.http.URLBuilder
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
@@ -140,9 +143,8 @@ class ApplicationService @Inject constructor(
      *
      * @param app is app container to clean.
      */
-    private suspend fun cleanApp(app: App) {
-        val callbackUri = baseUri.get().path("apps", app.id, "clean").build().toString()
-        dockerService.cleanApp(app, callbackUri)
+    private suspend fun cleanApp(app: App): Boolean {
+        return dockerService.cleanApp(app)
     }
 
     /**
@@ -151,7 +153,7 @@ class ApplicationService @Inject constructor(
      * @param appId is app to be cached
      * @param refs is the list of references to be cached to redis and database
      */
-    suspend fun addRefs(appId: String, refs: List<Reference>) {
+    private suspend fun addRefs(appId: String, refs: List<Reference>) {
         databaseService.addRefs(refs, appId)
         cachingService.cacheAppReferences(appId, refs)
     }
@@ -234,26 +236,42 @@ class ApplicationService @Inject constructor(
             if(!useCache || !verifyAndUploadCachedApk(buildData, toVerify, app, callbackId)) {
                 // Generate the application
                 launch(Dispatchers.IO) {
-                    dockerService.generateApp(
-                        app,
-                        buildData,
-                        verify = {
-                            if (useCache) {
-                                verifyAndUploadCachedApk(buildData, toVerify, app, callbackId)
-                            } else {
-                                false
+                    try {
+                        dockerService.generateApp(
+                            app,
+                            buildData,
+                            verify = {
+                                if (useCache) {
+                                    verifyAndUploadCachedApk(buildData, toVerify, app, callbackId)
+                                } else {
+                                    false
+                                }
                             }
+                        ).takeIf {
+                            it.data != null && !it.data.isEmpty
+                        }?.let { response ->
+                            // Upload apk to slack
+                            uploadApk(response.data.toByteArray(), buildData.apply {
+                                putAll(response.responseParamsMap)
+                            }, channelId, false, response.fileName ?: "App.apk") {
+                                onTaskCompleted(app.id)
+                            }
+                        } ?: run {
+                            LOGGER.error("File is null")
+                            reportFailure(app, channelId, "Unable to generate apk for request: \n${buildData.map {
+                                "${it.key} = ${it.value}"
+                            }.joinToString("\n")}")
                         }
-                    )?.let {
-                        uploadApk(it, buildData, channelId, false, "App.apk") {
-                            onTaskCompleted(app.id)
+                    } catch (exception: Exception) {
+                        val message = if(exception is StatusRuntimeException) {
+                            exception.status.description ?: exception.status.cause?.let {
+                                it.message ?: it.stackTrace.joinToString("\n") { it.toString() }
+                            }
+                        } else {
+                            exception.stackTrace.joinToString("\n") { it.toString() }
                         }
-                    } ?: run {
-                        slackService.sendMessage("Unable to generate apk for request: \n${buildData.map {
-                            "${it.key} = ${it.value}"
-                        }.joinToString("\n")}", channelId, null)
-                        LOGGER.error("File is null")
-                        onTaskCompleted(app.id)
+                        LOGGER.error(message, exception)
+                        reportFailure(app, channelId, message)
                     }
                 }
                 slackService.sendMessage(randomWaitingMessages.get()?.shuffled()
@@ -588,9 +606,9 @@ class ApplicationService @Inject constructor(
         } ?: fileToCache.parentFile.deleteRecursively()
     }
 
-    suspend fun uploadApk(byteArray: ByteArray, params: MutableMap<String, String>,
-                          channelId: String, cacheApk: Boolean = true,
-                          fileName: String = "app.apk", onFinish: (() -> Unit)? = null) {
+    private suspend fun uploadApk(byteArray: ByteArray, params: MutableMap<String, String>,
+                                  channelId: String, cacheApk: Boolean = true,
+                                  fileName: String = "app.apk", onFinish: (() -> Unit)? = null) {
         val initialComment = params.map {
             "${it.key} = ${it.value}"
         }.joinToString("\n")
@@ -644,19 +662,12 @@ class ApplicationService @Inject constructor(
         }
     }
 
-    suspend fun reportFailure(apkCallback: Apps.App.Callback, errorResponse: ErrorResponse) {
-        val callback = cachingService.getAppCallbackCache(apkCallback.callbackId)
-        cachingService.clearAppCallback(apkCallback.callbackId)
-        callback?.channelId?.let { channelId ->
-            slackService.sendMessage(errorResponse.details ?: "Something went wrong", channelId, null)
+    private suspend fun reportFailure(app: App, channelId: String?, details: String?) {
+        channelId?.let {
+            slackService.sendMessage(details ?: "Something went wrong", channelId, null)
         }
-        GlobalScope.launch {
-            apps.firstOrNull {
-                apkCallback.app.id == it.id
-            }?.let {
-                cleanApp(it)
-            }
-        }
+        cleanApp(app)
+        onTaskCompleted(app.id)
     }
 
     companion object {

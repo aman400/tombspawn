@@ -2,7 +2,6 @@ package com.tombspawn
 
 import com.tombspawn.base.config.JsonApplicationConfig
 import com.tombspawn.base.di.DaggerCoreComponent
-import com.tombspawn.di.AppComponent
 import com.tombspawn.di.DaggerAppComponent
 import com.tombspawn.models.config.ServerConf
 import com.tombspawn.network.githubWebhook
@@ -29,7 +28,6 @@ import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import java.io.File
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 class Grave(val args: Array<String>) {

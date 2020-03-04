@@ -163,54 +163,6 @@ fun Application.module(applicationService: ApplicationService) {
     }
 
     routing {
-//        get("/app/generate") {
-//            val params = this.call.request.queryParameters.toMap().mapValues { values ->
-//                values.value.first()
-//            }.toMutableMap()
-//
-//            val userAppPrefix = params[CommonConstants.APP_PREFIX]?.trim() ?: ""
-//            val successCallbackUri = params[CommonConstants.SUCCESS_CALLBACK_URI]?.trim()
-//            val failureCallbackUri = params[CommonConstants.FAILURE_CALLBACK_URI]?.trim()
-//
-//            params.remove(CommonConstants.APP_PREFIX)
-//            params.remove(CommonConstants.SUCCESS_CALLBACK_URI)
-//            params.remove(CommonConstants.FAILURE_CALLBACK_URI)
-//
-//            launch(Dispatchers.IO) {
-//                applicationService.generateApplication(params, successCallbackUri, failureCallbackUri, userAppPrefix)
-//            }
-//            call.respond(SuccessResponse("ok"))
-//        }
-
-//        this@routing.get<BuildVariants> { variants ->
-//            launch(Dispatchers.IO) {
-//                applicationService.fetchBuildVariants(variants.callbackUri)
-//            }
-//            call.respond(SuccessResponse("ok"))
-//        }
-//
-//        this@routing.post<App.CleanTask> { task ->
-//            launch(Dispatchers.IO) {
-//                applicationService.cleanCode(task.callbackUri)
-//            }
-//            call.respond(SuccessResponse("ok"))
-//        }
-
-//        this@routing.get<References> { reference ->
-//            val branchLimit = reference.branchLimit
-//            val tagLimit = reference.tagLimit
-//            launch(Dispatchers.IO) {
-//                applicationService.getReferences(branchLimit, tagLimit)
-//            }
-//            call.respond(SuccessResponse("ok"))
-//        }
-
-//        this@routing.get<Flavours> { flavour ->
-//            call.respond(SuccessResponse("ok"))
-//            launch(Dispatchers.IO) {
-//                applicationService.fetchProductFlavours(flavour.callbackUri)
-//            }
-//        }
     }
 
     applicationService.init()

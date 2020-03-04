@@ -5,28 +5,44 @@ import com.tombspawn.base.*
 import com.tombspawn.base.common.Failure
 import com.tombspawn.base.common.Success
 import com.tombspawn.base.common.exhaustive
+import io.grpc.Status
+import io.grpc.StatusException
+import io.grpc.StatusRuntimeException
 import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 
-class SkeletonGrpcService(private val applicationService: ApplicationService): ApplicationGrpc.ApplicationImplBase() {
+class SkeletonGrpcService(private val applicationService: ApplicationService) : ApplicationGrpc.ApplicationImplBase() {
 
     private val LOGGER = LoggerFactory.getLogger("com.tombspawn.skeleton.SkeletonGrpcService")
 
+    @ExperimentalStdlibApi
     override fun generateApp(request: GenerateAppRequest?, responseObserver: StreamObserver<GenerateAppResponse>?) {
         request?.buildParamsMap?.let { params ->
             runBlocking {
-                applicationService.generateApplication(params.toMutableMap(), {
-                    it.readBytes().toList().chunked(500 * 1024).forEach {
+                applicationService.generateApplication(params.toMutableMap(), { file, params ->
+                    file.readBytes().toList().chunked(500 * 1024).forEach { chunk ->
                         LOGGER.debug("Uploading next chunk")
                         responseObserver?.onNext(
                             GenerateAppResponse.newBuilder()
-                                .setData(ByteString.copyFrom(it.toByteArray())).build()
+                                .setData(ByteString.copyFrom(chunk.toByteArray()))
+                                .build()
                         )
                     }
+                    responseObserver?.onNext(
+                        GenerateAppResponse.newBuilder()
+                            .setFileName(file.name)
+                            .putAllResponseParams(params)
+                            .build()
+                    )
                     responseObserver?.onCompleted()
-                }, { throwable ->
-                    responseObserver?.onError(throwable)
+                }, { message, throwable ->
+                    val exception = StatusRuntimeException(
+                        Status.UNKNOWN
+                            .withDescription(message)
+                            .withCause(throwable)
+                    )
+                    responseObserver?.onError(exception)
                 })
             }
         }
@@ -45,7 +61,7 @@ class SkeletonGrpcService(private val applicationService: ApplicationService): A
 
     override fun clean(request: CleanRequest?, responseObserver: StreamObserver<CleanResponse>?) {
         runBlocking {
-            when(val response = applicationService.cleanCode()) {
+            when (val response = applicationService.cleanCode()) {
                 is Success -> {
                     responseObserver?.onNext(CleanResponse.newBuilder().build())
                     responseObserver?.onCompleted()

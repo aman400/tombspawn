@@ -3,7 +3,6 @@ package com.tombspawn.skeleton
 import com.tombspawn.base.Ref
 import com.tombspawn.base.common.*
 import com.tombspawn.skeleton.app.AppClient
-import com.tombspawn.skeleton.di.qualifiers.FileUploadDir
 import com.tombspawn.skeleton.di.qualifiers.InitCallbackUri
 import com.tombspawn.skeleton.exception.AppNotGeneratedException
 import com.tombspawn.skeleton.git.GitService
@@ -24,8 +23,6 @@ class ApplicationService @Inject constructor(
     private val gitService: GitService,
     private val gradleService: GradleService,
     private val appClient: AppClient,
-    @FileUploadDir
-    private val fileUploadDir: String,
     @InitCallbackUri
     private val initCallbackUri: String,
     private val app: App
@@ -109,17 +106,20 @@ class ApplicationService @Inject constructor(
         return gradleService.cleanCode()
     }
 
+    @ExperimentalStdlibApi
     suspend fun generateApplication(
         parameters: MutableMap<String, String> = mutableMapOf(),
-        onSuccess: ((file: File) -> Unit),
-        onFailure: ((throwable: Throwable) -> Unit)
+        onSuccess: ((file: File, extraData: Map<String, String?>) -> Unit),
+        onFailure: ((message: String?, throwable: Throwable?) -> Unit)
     ) = coroutineScope {
+        // find the selected gradle task
         app.gradleTasks?.firstOrNull {
             it.id == parameters[SlackConstants.TYPE_SELECT_BUILD_TYPE]
         }?.let { gradleTask ->
             val branch = parameters[SlackConstants.TYPE_SELECT_BRANCH]
             val lastTask = gradleTask.tasks.size - 1
             val jobs: MutableList<Job> = mutableListOf()
+            // Run all the gradle subtasks defined for a given taskId
             gradleTask.tasks.forEachIndexed { index: Int, task: String ->
                 jobs.add(gradleService.executeTask(task, parameters, {
                     if (index == 0) {
@@ -140,6 +140,7 @@ class ApplicationService @Inject constructor(
                         true
                     }
                 }, { response ->
+                    // Perform all the exit operations for a given task
                     if (index == lastTask) {
                         when (response) {
                             is Success -> {
@@ -150,45 +151,50 @@ class ApplicationService @Inject constructor(
                                     LOGGER.error("Unable to resolve directory paths", exception)
                                     null
                                 }
+                                // find the apk in the output directory
                                 if (outputDir?.exists() == true && outputDir.isDirectory) {
                                     FileUtils.iterateFiles(outputDir, arrayOf("apk"), true)
                                         .takeIf {
                                             it.hasNext()
                                         }?.next()?.let { file ->
-                                        if (file.exists()) {
-                                            gitService.fetchLogs()?.let {
-                                                parameters[CommonConstants.COMMIT_MESSAGE] = it.shortMessage
-                                                parameters[CommonConstants.COMMIT_ID] = it.id.name
-                                                it.authorIdent?.let { author ->
-                                                    parameters[CommonConstants.COMMIT_AUTHOR] =
-                                                        "${author.name}<${author.emailAddress}> ${HUMAN_DATE_FORMAT.format(
-                                                            author.getWhen()
-                                                        )}"
+                                            if (file.exists()) {
+                                                // get last commit logs from git.
+                                                val params = buildMap<String, String?> {
+                                                    gitService.fetchLogs()?.also {
+                                                        put(CommonConstants.COMMIT_MESSAGE, it.shortMessage)
+                                                        put(CommonConstants.COMMIT_ID, it.id.name)
+                                                        put(
+                                                            CommonConstants.COMMIT_AUTHOR,
+                                                            it.authorIdent?.let { author ->
+                                                                "${author.name}<${author.emailAddress}> ${HUMAN_DATE_FORMAT.format(
+                                                                    author.getWhen()
+                                                                )}"
+                                                            })
+                                                    }
                                                 }
+                                                LOGGER.info("APK File generated")
+                                                onSuccess(file, params)
+                                                true
+                                            } else {
+                                                LOGGER.error("Apk file cannot be located in output directory")
+                                                onFailure("Apk file cannot be located in output directory", null)
+                                                false
                                             }
-
-                                            LOGGER.info("APK File generated")
-                                            onSuccess(file)
-                                            true
-                                        } else {
-                                            LOGGER.error("File cannot be located in directory")
-                                            onFailure(AppNotGeneratedException("File cannot be located in directory"))
-                                            false
-                                        }
-                                    } ?: run {
-                                        LOGGER.error("Apk not found")
-                                        onFailure(AppNotGeneratedException("Apk not found"))
+                                        } ?: run {
+                                        LOGGER.error("Apk not found in output directory")
+                                        onFailure("Apk not found in output directory", null)
                                         false
                                     }
                                 } else {
-                                    LOGGER.error("Directory not found")
-                                    onFailure(AppNotGeneratedException("Directory not found"))
+                                    // Output directory
+                                    LOGGER.error("Output directory not found")
+                                    onFailure("Output directory not found", null)
                                     false
                                 }
                             }
                             is Failure -> {
                                 LOGGER.error("Failed to execute task ${response.error}", response.throwable)
-                                onFailure(AppNotGeneratedException("Failed to execute task ${response.error}"))
+                                onFailure("Failed to execute task ${response.error ?: response.throwable?.message}", response.throwable)
                                 false
                             }
                         }
@@ -197,11 +203,12 @@ class ApplicationService @Inject constructor(
                     }
                 }))
             }
+            // Await for completion of all jobs
             jobs.forEach {
                 it.join()
             }
         } ?: run {
-            onFailure(AppNotGeneratedException("No gradle task specified"))
+            onFailure("No gradle task specified", null)
         }
     }
 

@@ -6,119 +6,114 @@ import com.github.dockerjava.api.model.*
 import com.github.dockerjava.core.command.BuildImageResultCallback
 import com.github.dockerjava.core.command.EventsResultCallback
 import com.github.dockerjava.core.command.LogContainerResultCallback
-import com.google.gson.JsonObject
 import com.google.protobuf.ByteString
 import com.tombspawn.base.*
-import com.tombspawn.base.common.*
 import com.tombspawn.base.di.scopes.AppScope
-import com.tombspawn.base.extensions.await
 import com.tombspawn.base.network.Common
-import com.tombspawn.base.network.withRetry
-import com.tombspawn.di.qualifiers.DockerHttpClient
 import com.tombspawn.models.config.App
 import com.tombspawn.utils.Constants
 import io.grpc.stub.StreamObserver
-import io.ktor.client.HttpClient
-import io.ktor.client.request.request
-import io.ktor.client.statement.HttpResponse
-import io.ktor.http.HttpMethod
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
+import kotlin.coroutines.resumeWithException
 
 @AppScope
 class DockerApiClient @Inject constructor(
-    private val dockerClient: DockerClient,
-    @DockerHttpClient private val dockerHttpClients: MutableMap<String, HttpClient>
+    private val dockerClient: DockerClient
 ) {
     companion object {
         private val LOGGER = LoggerFactory.getLogger("com.tombspawn.docker.DockerApiClient")
     }
 
-    suspend fun generateApp(app: App, vararg params: Pair<String, String>): ByteString? =
+    suspend fun generateApp(app: App, vararg params: Pair<String, String>): GenerateAppResponse =
         suspendCancellableCoroutine { continuation ->
-            Common.createGrpcChannel(app.id, Constants.Common.DEFAULT_PORT).let { channel ->
-                var byteData = ByteString.EMPTY
-                ApplicationGrpc.newStub(channel).generateApp(GenerateAppRequest
-                    .newBuilder()
-                    .putAllBuildParams(params.toMap())
-                    .build(), object : StreamObserver<GenerateAppResponse> {
-                    override fun onNext(value: GenerateAppResponse?) {
-                        LOGGER.debug("On application bytes received")
-                        value?.data?.let {
-                            byteData = byteData.concat(it)
-                            ByteString.copyFrom(it.toByteArray())
-                        }
-                    }
+            Common.createGrpcChannel(app.id, Constants.Common.DEFAULT_PORT)
+                .also { channel ->
+                    val appResponseBuilder = GenerateAppResponse.newBuilder()
+                    var byteData = ByteString.EMPTY
+                    ApplicationGrpc.newStub(channel)
+                        .withDeadlineAfter(30, TimeUnit.MINUTES)
+                        .generateApp(GenerateAppRequest
+                            .newBuilder()
+                            .putAllBuildParams(params.toMap())
+                            .build(), object : StreamObserver<GenerateAppResponse> {
+                            override fun onNext(value: GenerateAppResponse?) {
+                                LOGGER.debug("On application bytes received")
+                                value?.data?.let {
+                                    byteData = byteData.concat(it)
+                                    ByteString.copyFrom(it.toByteArray())
+                                }
+                                value?.fileName?.let {
+                                    appResponseBuilder.setFileName(it)
+                                }
+                                value?.responseParamsMap?.let {
+                                    appResponseBuilder.putAllResponseParams(it)
+                                }
+                            }
 
-                    override fun onError(t: Throwable?) {
-                        LOGGER.error("Unable to transfer application bytes", t)
-                        continuation.resume(null)
-                    }
+                            override fun onError(t: Throwable?) {
+                                LOGGER.error("Unable to generate application", t)
+                                continuation.resumeWithException(t ?: Exception("Unable to generate application"))
+                            }
 
-                    override fun onCompleted() {
-                        LOGGER.debug("On application data transfer complete")
-                        continuation.resume(byteData)
-                        channel.shutdown()
-                    }
-                })
-            }
+                            override fun onCompleted() {
+                                LOGGER.debug("On application data transfer complete")
+                                appResponseBuilder.data = byteData
+                                continuation.resume(appResponseBuilder.build())
+                                channel.shutdown()
+                            }
+                        })
+                }
         }
 
-    suspend fun fetchReferences(app: App): List<Ref> = coroutineScope {
+    suspend fun fetchReferences(app: App): List<Ref> = suspendCancellableCoroutine { continuation ->
         Common.createGrpcChannel(app.id, Constants.Common.DEFAULT_PORT).let { channel ->
-            val refs: List<Ref> = try {
-                ApplicationGrpc.newBlockingStub(channel)
-                    .fetchReferences(
-                        ReferencesRequest.newBuilder()
-                            .setBranchLimit(-1)
-                            .setTagLimit(app.tagCount)
-                            .build()
-                    ).refList
-            } catch (exception: Exception) {
-                LOGGER.error("Unable to fetch references", exception)
-                listOf()
-            }
-            channel.shutdown()
-            return@coroutineScope refs
+            ApplicationGrpc.newStub(channel)
+                .fetchReferences(
+                    ReferencesRequest.newBuilder()
+                        .setBranchLimit(-1)
+                        .setTagLimit(app.tagCount)
+                        .build(), object : StreamObserver<ReferencesResponse> {
+                        override fun onNext(value: ReferencesResponse?) {
+                            value?.refList?.let {
+                                continuation.resume(it)
+                            } ?: continuation.resume(listOf())
+                        }
 
+                        override fun onError(t: Throwable?) {
+                            LOGGER.error("Unable to fetch references", t)
+                            continuation.resume(listOf())
+                        }
+
+                        override fun onCompleted() {
+                            channel.shutdown()
+                        }
+                    })
         }
     }
 
-    suspend fun cleanApp(app: App, callbackUri: String): JsonObject? = coroutineScope {
-        dockerHttpClients[app.id]?.let { client ->
-            withRetry(20, 10000, -1) {
-                val call = client.request<HttpResponse> {
-                    method = HttpMethod.Post
-                    url {
-                        encodedPath = "/app/clean"
-                        parameters.append(CommonConstants.CALLBACK_URI, callbackUri)
+    suspend fun cleanApp(app: App): Boolean = suspendCancellableCoroutine { continuation ->
+        Common.createGrpcChannel(app.id, Constants.Common.DEFAULT_PORT).also { channel ->
+            ApplicationGrpc.newStub(channel)
+                .clean(CleanRequest.newBuilder().build(), object : StreamObserver<CleanResponse> {
+                    override fun onNext(value: CleanResponse?) {
+                        continuation.resume(true)
                     }
-                }
-                call.await<JsonObject>()
-            }.let { response ->
-                when (response) {
-                    is CallSuccess -> {
-                        response.data
+
+                    override fun onError(t: Throwable?) {
+                        LOGGER.error("Unable to clean application with id ${app.id}", t)
+                        continuation.resume(false)
                     }
-                    is CallFailure -> {
-                        LOGGER.error(response.errorBody)
-                        null
+
+                    override fun onCompleted() {
+                        channel.shutdown()
                     }
-                    is ServerFailure -> {
-                        LOGGER.error(response.errorBody, response.throwable)
-                        null
-                    }
-                    is CallError -> {
-                        LOGGER.error("Unable to clean app", response.throwable)
-                        null
-                    }
-                }
-            }
+                })
         }
     }
 

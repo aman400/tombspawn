@@ -1,7 +1,7 @@
 object Versions {
     const val jgitVersion = "5.6.0.201912101111-r"
     const val junitVersion = "4.12"
-    const val kotlin = "1.3.61"
+    const val kotlin = "1.3.70"
     const val ktorVersion = "1.3.0"
     const val shadowJar = "5.2.0"
     const val daggerVersion = "2.25.4"

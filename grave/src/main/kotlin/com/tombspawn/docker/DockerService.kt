@@ -2,6 +2,7 @@ package com.tombspawn.docker
 
 import com.github.dockerjava.api.model.*
 import com.google.gson.Gson
+import com.tombspawn.base.GenerateAppResponse
 import com.tombspawn.base.Ref
 import com.tombspawn.base.common.exhaustive
 import com.tombspawn.base.di.scopes.AppScope
@@ -20,6 +21,7 @@ import org.slf4j.LoggerFactory
 import java.io.*
 import javax.inject.Inject
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 @AppScope
 class DockerService @Inject constructor(
@@ -178,9 +180,11 @@ class DockerService @Inject constructor(
             val appPath = "/app/git/${app.id}/"
             app.dir = appPath
 
+            val serverConfig = ServerConf("http", "0.0.0.0", Constants.Common.DEFAULT_PORT, debug)
             val request = gson.toJson(
                 AppContainerRequest(
-                    ServerConf("http", "0.0.0.0", Constants.Common.DEFAULT_PORT, debug),
+                    serverConfig,
+                    AppContainerRequest.KtorConfig(serverConfig),
                     app, common, credentialProvider, callbackUri
                 ), AppContainerRequest::class.java
             )
@@ -235,9 +239,9 @@ class DockerService @Inject constructor(
         })
     }
 
-    suspend fun cleanApp(app: App, callbackUri: String) {
+    suspend fun cleanApp(app: App): Boolean = suspendCancellableCoroutine { continuation ->
         sendChannel.offer(QueueAddAction(app.id) {
-            dockerClient.cleanApp(app, callbackUri)
+            continuation.resume(dockerClient.cleanApp(app))
         })
     }
 
@@ -252,16 +256,20 @@ class DockerService @Inject constructor(
         app: App,
         buildData: Map<String, String>,
         verify: (suspend () -> Boolean)? = null
-    ) = suspendCancellableCoroutine<ByteArray?> { continuation ->
+    ) = suspendCancellableCoroutine<GenerateAppResponse> { continuation ->
         sendChannel.offer(QueueAddAction(app.id) {
-            return@QueueAddAction if(verify?.invoke() == false) {
-                continuation.resume(dockerClient.generateApp(
-                    app, *buildData.map {
-                        Pair(it.key, it.value)
-                    }.toTypedArray()
-                )?.toByteArray())
-            } else {
-                continuation.resume(null)
+            if(verify?.invoke() == false) {
+                try {
+                    continuation.resume(
+                        dockerClient.generateApp(
+                            app, *buildData.map {
+                                Pair(it.key, it.value)
+                            }.toTypedArray()
+                        )
+                    )
+                } catch (exception: Exception) {
+                    continuation.resumeWithException(exception)
+                }
             }
         })
     }
