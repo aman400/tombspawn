@@ -69,7 +69,6 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
                     }
                 )
             }
-
             try {
                 when (val response = slackClient.uploadFile(formData)) {
                     is CallSuccess -> {
@@ -85,18 +84,38 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
                         }
                     }
                     is CallFailure -> {
+                        sendMessage(
+                            "Unable to upload file",
+                            channelId,
+                            null
+                        )
                         LOGGER.error("File Not delivered")
                         LOGGER.error(response.errorBody, response.throwable)
                     }
                     is ServerFailure -> {
+                        sendMessage(
+                            "Unable to upload file",
+                            channelId,
+                            null
+                        )
                         LOGGER.error("Call failed, unable to deliver APK ${response.errorBody}", response.throwable)
                     }
                     is CallError -> {
+                        sendMessage(
+                            "Unable to upload file",
+                            channelId,
+                            null
+                        )
                         LOGGER.error("File not delivered", response.throwable)
                     }
                 }
                 onFinish?.invoke()
             } catch (exception: Exception) {
+                sendMessage(
+                    "Unable to upload file",
+                    channelId,
+                    null
+                )
                 LOGGER.error("Unable to push apk to Slack.", exception)
                 onFinish?.invoke()
             }

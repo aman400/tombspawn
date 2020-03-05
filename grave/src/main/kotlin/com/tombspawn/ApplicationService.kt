@@ -1,11 +1,10 @@
 package com.tombspawn
 
+import com.google.common.annotations.VisibleForTesting
 import com.google.common.base.Optional
 import com.google.gson.Gson
-import com.google.gson.JsonParser
 import com.tombspawn.base.Ref
 import com.tombspawn.base.common.SlackConstants
-import com.tombspawn.base.common.exhaustive
 import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.extensions.toMap
 import com.tombspawn.data.*
@@ -35,7 +34,7 @@ import io.ktor.http.URLBuilder
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
 import java.io.File
-import java.util.*
+import java.io.FileOutputStream
 import javax.inject.Inject
 import javax.inject.Provider
 
@@ -206,23 +205,10 @@ class ApplicationService @Inject constructor(
         apps.firstOrNull {
             it.id == appID
         }?.let { app ->
-            // Unique callback id
-            val callbackId = System.nanoTime().toString()
-            // Base url for callback
-            val callbackUri = baseUri.get().path("apps", app.id, "callback", callbackId).build().toString()
-
             val useCache: Boolean = app.gradleTasks?.firstOrNull {
                 it.id == buildData[SlackConstants.TYPE_SELECT_BUILD_TYPE]
             }?.useCache ?: true
-
-            // Save the application generation cache.
-            cachingService.saveAppCallbackCache(callbackId, responseUrl, channelId, useCache)
-            LOGGER.debug("CallbackUri: %s", callbackUri)
-
-            LOGGER.debug(if(useCache) "Using cache" else "Skipping cache")
-
-            val toVerify = ApkCache(buildData)
-            if(!useCache || !verifyAndUploadCachedApk(buildData, toVerify, app, callbackId)) {
+            if(!useCache || !verifyAndUploadCachedApk(buildData, app, channelId, responseUrl)) {
                 // Generate the application
                 launch(Dispatchers.IO) {
                     try {
@@ -231,7 +217,7 @@ class ApplicationService @Inject constructor(
                             buildData,
                             verify = {
                                 if (useCache) {
-                                    verifyAndUploadCachedApk(buildData, toVerify, app, callbackId)
+                                    verifyAndUploadCachedApk(buildData, app, channelId, responseUrl)
                                 } else {
                                     false
                                 }
@@ -239,10 +225,23 @@ class ApplicationService @Inject constructor(
                         ).takeIf {
                             it.data != null && !it.data.isEmpty
                         }?.let { response ->
+                            buildData.putAll(response.responseParamsMap)
+                            val appData = response.data.toByteArray()
                             // Upload apk to slack
-                            uploadApk(response.data.toByteArray(), buildData.apply {
-                                putAll(response.responseParamsMap)
-                            }, channelId, false, response.fileName ?: "App.apk") {
+                            launch(Dispatchers.IO) {
+                                if(useCache) {
+                                    val file = File(uploadDir, response.fileName.let {
+                                        "${app.id}-${System.nanoTime()}-${it ?: "App.apk"}"
+                                    }).also {
+                                        it.writeBytes(appData)
+                                    }
+                                    verifyAndCacheApp(file, app.id, buildData)
+                                    LOGGER.debug("Caching ${file.absolutePath} to disk")
+                                } else {
+                                    LOGGER.debug("Skipping cache for file")
+                                }
+                            }
+                            uploadApk(appData, buildData, channelId, response.fileName ?: "App.apk") {
                                 onTaskCompleted(app.id)
                             }
                         } ?: run {
@@ -279,8 +278,9 @@ class ApplicationService @Inject constructor(
         }
     }
 
-    private suspend fun verifyAndUploadCachedApk(buildData: MutableMap<String, String>,
-                                                 apkCache: ApkCache, app: App, callbackId: String) = coroutineScope {
+    private suspend fun verifyAndUploadCachedApk(buildData: MutableMap<String, String>, app: App,
+                                                 channelId: String, responseUrl: String) = coroutineScope {
+        val apkCache = ApkCache(buildData)
         val cache = buildData[SlackConstants.TYPE_SELECT_BRANCH]?.let {
             cachingService.getApkCache(app.id, it)
         }?.firstOrNull {
@@ -290,13 +290,7 @@ class ApplicationService @Inject constructor(
         }
         if (cache?.second?.exists() == true) {
             launch(Dispatchers.IO) {
-                uploadApk(
-                    Apps.App.Callback(Apps.App(app.id), callbackId),
-                    cache.second!!,
-                    cache.first.params.toMutableMap(),
-                    // Do not cache the apk again
-                    false
-                )
+                uploadFile(cache.second!!, responseUrl, channelId, buildData.toMutableMap())
             }
             return@coroutineScope true
         } else {
@@ -470,7 +464,7 @@ class ApplicationService @Inject constructor(
             cachingService.deleteApkCache(appId, branch)
             appList.forEach {
                 try {
-                    if(it.pathOnDisk != null && File(it.pathOnDisk).parentFile.deleteRecursively()) {
+                    if(it.pathOnDisk != null && File(it.pathOnDisk).deleteRecursively()) {
                         LOGGER.info("Deleted file ${it.pathOnDisk}")
                     }
                 } catch (exception: Exception) {
@@ -556,62 +550,48 @@ class ApplicationService @Inject constructor(
         cachingService.close()
     }
 
-    private fun verifyAndCacheApp(appId: String, params: Map<String, String>, fileToCache: File) {
-        params[SlackConstants.TYPE_SELECT_BRANCH]?.let { branch ->
-            cachingService.cacheApk(appId, branch, ApkCache(params, fileToCache.absolutePath))
-        } ?: fileToCache.parentFile.deleteRecursively()
+    private fun verifyAndCacheApp(fileToCache: File, appId: String, params: Map<String, String>) {
+        takeIf {
+            params.containsKey(SlackConstants.TYPE_SELECT_BRANCH) && fileToCache.exists()
+        }?.let {
+            cachingService.cacheApk(appId, params[SlackConstants.TYPE_SELECT_BRANCH] ?: error("Branch is missing"),
+                ApkCache(params, fileToCache.absolutePath))
+        } ?: fileToCache.deleteRecursively()
     }
 
-    private suspend fun uploadApk(byteArray: ByteArray, params: MutableMap<String, String>,
-                                  channelId: String, cacheApk: Boolean = true,
-                                  fileName: String = "app.apk", onFinish: (() -> Unit)? = null) {
+    suspend fun uploadApk(
+        byteArray: ByteArray, params: MutableMap<String, String>,
+        channelId: String, fileName: String = "app.apk",
+        onFinish: (() -> Unit)? = null
+    ) {
         val initialComment = params.map {
             "${it.key} = ${it.value}"
         }.joinToString("\n")
         slackService.uploadFile(byteArray, channelId, initialComment, onFinish, fileName)
     }
 
-    suspend fun uploadApk(apkCallback: Apps.App.Callback, receivedFile: File,
-                          params: MutableMap<String, String>, cacheApk: Boolean) {
-        val callback = cachingService.getAppCallbackCache(apkCallback.callbackId)
-        cachingService.clearAppCallback(apkCallback.callbackId)
+    private suspend fun uploadFile(receivedFile: File, responseUrl: String?, channelId: String?,
+                                   params: MutableMap<String, String>) {
         if (receivedFile.exists()) {
             LOGGER.debug("Params: %s", params)
             val data = params.map {
                 "${it.key} = ${it.value}"
             }.joinToString("\n")
-            callback?.channelId?.let { channelId ->
+            channelId?.let {
                 LOGGER.info("Apk Cache hit")
-                slackService.uploadFile(receivedFile, channelId, data) {
-                    if(callback.useCache) {
-                        if (cacheApk) {
-                            verifyAndCacheApp(apkCallback.app.id, params, receivedFile)
-                        }
-                    } else {
-                        receivedFile.parentFile.deleteRecursively()
-                    }
-                }
-            } ?: run {
-                if(callback?.useCache == true) {
-                    if (cacheApk) {
-                        verifyAndCacheApp(apkCallback.app.id, params, receivedFile)
-                    }
-                } else {
-                    receivedFile.parentFile.deleteRecursively()
-                }
-                LOGGER.error("Channel id is null, Unable to upload file")
+                slackService.uploadFile(receivedFile, channelId, data)
             }
         } else {
             LOGGER.error("APK Generated but file not found in the folder")
-            if (callback?.responseUrl != null) {
+            if (responseUrl != null) {
                 slackService.sendMessage(
-                    callback.responseUrl,
+                    responseUrl,
                     RequestData(
                         response = "Something went wrong. Unable to generate the APK"
                     )
                 )
             } else {
-                callback?.channelId?.let { channelId ->
+                channelId?.let {
                     slackService.sendMessage("Something went wrong. Unable to generate the APK", channelId, null)
                 }
             }
@@ -630,6 +610,6 @@ class ApplicationService @Inject constructor(
     }
 
     companion object {
-        private val LOGGER = LoggerFactory.getLogger(ApplicationService::class.java)
+        private val LOGGER = LoggerFactory.getLogger("com.tombspawn.ApplicationService")
     }
 }

@@ -57,6 +57,7 @@ class DockerApiClient @Inject constructor(
                             }
 
                             override fun onError(t: Throwable?) {
+                                byteData = ByteString.EMPTY
                                 LOGGER.error("Unable to generate application", t)
                                 continuation.resumeWithException(t ?: Exception("Unable to generate application"))
                             }
