@@ -68,7 +68,6 @@ fun Routing.buildApp(applicationService: ApplicationService) {
 
         val channelId = params["channel_id"]
         val text = params["text"]
-        val responseUrl = params["response_url"]
         val triggerId = params["trigger_id"]
 
         params.forEach { key, list ->
@@ -78,7 +77,7 @@ fun Routing.buildApp(applicationService: ApplicationService) {
         call.respond(HttpStatusCode.OK)
         GlobalScope.launch(Dispatchers.IO) {
             text?.trim()?.toMap()?.let { buildData ->
-                applicationService.generateApk(buildData, channelId!!, command.appID, responseUrl!!)
+                applicationService.generateApk(buildData, channelId!!, command.appID)
             } ?: run {
                 LOGGER.warn("Command options not set. These options can be set using '/build-fleet BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'")
                 applicationService.showGenerateApkDialog(command.appID, triggerId!!)

@@ -31,4 +31,8 @@ class ApkCache constructor(val params: Map<String, String>, val pathOnDisk: Stri
         result = 31 * result + params.hashCode()
         return result
     }
+
+    override fun toString(): String {
+        return "[Params($params), pathOnDisk($pathOnDisk), paramsToExclude($paramExcludeList) ]"
+    }
 }

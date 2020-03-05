@@ -1,28 +1,29 @@
 package com.tombspawn
 
-import com.google.common.annotations.VisibleForTesting
 import com.google.common.base.Optional
 import com.google.gson.Gson
 import com.tombspawn.base.Ref
 import com.tombspawn.base.common.SlackConstants
 import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.extensions.toMap
-import com.tombspawn.data.*
+import com.tombspawn.data.CachingService
+import com.tombspawn.data.DatabaseService
+import com.tombspawn.data.Refs
+import com.tombspawn.data.Subscriptions
 import com.tombspawn.data.cache.models.ApkCache
 import com.tombspawn.di.qualifiers.ApplicationBaseUri
 import com.tombspawn.di.qualifiers.Debuggable
 import com.tombspawn.di.qualifiers.UploadDir
 import com.tombspawn.di.qualifiers.WaitingMessages
 import com.tombspawn.docker.DockerService
+import com.tombspawn.models.AppResponse
 import com.tombspawn.models.Reference
-import com.tombspawn.models.RequestData
 import com.tombspawn.models.config.App
 import com.tombspawn.models.config.Common
 import com.tombspawn.models.config.ServerConf
 import com.tombspawn.models.config.Slack
 import com.tombspawn.models.github.Payload
 import com.tombspawn.models.github.RefType
-import com.tombspawn.models.locations.Apps
 import com.tombspawn.models.slack.Event
 import com.tombspawn.models.slack.GenerateCallback
 import com.tombspawn.models.slack.SlackEvent
@@ -34,9 +35,9 @@ import io.ktor.http.URLBuilder
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
 import java.io.File
-import java.io.FileOutputStream
 import javax.inject.Inject
 import javax.inject.Provider
+import kotlin.coroutines.resume
 
 @AppScope
 class ApplicationService @Inject constructor(
@@ -121,7 +122,7 @@ class ApplicationService @Inject constructor(
         launch(Dispatchers.IO) {
             try {
                 uploadDir.let {
-                    if(it.exists()) {
+                    if (it.exists()) {
                         it.deleteRecursively()
                     }
                 }
@@ -184,8 +185,7 @@ class ApplicationService @Inject constructor(
     suspend fun generateApk(
         buildData: MutableMap<String, String>,
         channelId: String,
-        appID: String,
-        responseUrl: String
+        appID: String
     ) = coroutineScope {
         // Get the additional parameters
         val additionalParams = buildData[SlackConstants.TYPE_ADDITIONAL_PARAMS]?.trim()
@@ -208,7 +208,13 @@ class ApplicationService @Inject constructor(
             val useCache: Boolean = app.gradleTasks?.firstOrNull {
                 it.id == buildData[SlackConstants.TYPE_SELECT_BUILD_TYPE]
             }?.useCache ?: true
-            if(!useCache || !verifyAndUploadCachedApk(buildData, app, channelId, responseUrl)) {
+            LOGGER.debug(if(useCache) "Using Cache" else "Skipping cache")
+            val cachedFile = if(useCache) {
+                 getCachedApk(buildData, app)
+            } else {
+                null
+            }
+            if (cachedFile == null) {
                 // Generate the application
                 launch(Dispatchers.IO) {
                     try {
@@ -216,20 +222,24 @@ class ApplicationService @Inject constructor(
                             app,
                             buildData,
                             verify = {
-                                if (useCache) {
-                                    verifyAndUploadCachedApk(buildData, app, channelId, responseUrl)
+                                if(useCache) {
+                                    getCachedApk(buildData, app)
                                 } else {
-                                    false
+                                    null
                                 }
                             }
                         ).takeIf {
-                            it.data != null && !it.data.isEmpty
+                            it.data != null && it.data.isNotEmpty()
                         }?.let { response ->
-                            buildData.putAll(response.responseParamsMap)
-                            val appData = response.data.toByteArray()
+                            response.params.forEach { (key, value) ->
+                                if(!value.isNullOrEmpty()) {
+                                    buildData[key] = value
+                                }
+                            }
+                            val appData = response.data!!
                             // Upload apk to slack
                             launch(Dispatchers.IO) {
-                                if(useCache) {
+                                if (useCache) {
                                     val file = File(uploadDir, response.fileName.let {
                                         "${app.id}-${System.nanoTime()}-${it ?: "App.apk"}"
                                     }).also {
@@ -251,8 +261,8 @@ class ApplicationService @Inject constructor(
                             }.joinToString("\n")}")
                         }
                     } catch (exception: Exception) {
-                        val message = if(exception is StatusRuntimeException) {
-                            when(exception.status.code) {
+                        val message = if (exception is StatusRuntimeException) {
+                            when (exception.status.code) {
                                 Status.Code.UNKNOWN -> {
                                     exception.status.description ?: exception.status.cause?.let {
                                         it.message ?: it.stackTrace.joinToString("\n") { it.toString() }
@@ -272,29 +282,37 @@ class ApplicationService @Inject constructor(
                         reportFailure(app, channelId, message)
                     }
                 }
-                slackService.sendMessage(randomWaitingMessages.get()?.shuffled()
-                    ?.firstOrNull() ?: "Please wait", channelId, null)
+                slackService.sendMessage(
+                    randomWaitingMessages.get()?.shuffled()
+                        ?.firstOrNull() ?: "Please wait", channelId, null
+                )
+            } else {
+                uploadApk(cachedFile.data!!, cachedFile.params, channelId, cachedFile.fileName ?: "App.apk")
             }
         }
     }
 
-    private suspend fun verifyAndUploadCachedApk(buildData: MutableMap<String, String>, app: App,
-                                                 channelId: String, responseUrl: String) = coroutineScope {
+    private suspend fun getCachedApk(
+        buildData: MutableMap<String, String>, app: App
+    ): AppResponse? = suspendCancellableCoroutine { continuation ->
         val apkCache = ApkCache(buildData)
+        LOGGER.trace("Fetching from cache")
         val cache = buildData[SlackConstants.TYPE_SELECT_BRANCH]?.let {
             cachingService.getApkCache(app.id, it)
         }?.firstOrNull {
+            LOGGER.trace("Matching: \n$it\n&\n$apkCache")
             it == apkCache
         }?.let {
+            LOGGER.trace("Match found: \n$it")
             Pair(it, it.pathOnDisk?.let { File(it) })
         }
+
         if (cache?.second?.exists() == true) {
-            launch(Dispatchers.IO) {
-                uploadFile(cache.second!!, responseUrl, channelId, buildData.toMutableMap())
-            }
-            return@coroutineScope true
+            LOGGER.trace("file exists")
+            continuation.resume(AppResponse(cache.second!!.readBytes(), cache.first.params, cache.second!!.name))
         } else {
-            return@coroutineScope false
+            LOGGER.trace("file not found")
+            continuation.resume(null)
         }
     }
 
@@ -427,10 +445,7 @@ class ApplicationService @Inject constructor(
                 }?.mapValues { map -> map.value as String }?.toMutableMap()
 
                 launch(Dispatchers.IO) {
-                    generateApk(
-                        buildData ?: mutableMapOf(), slackEvent.channel?.id ?: "general",
-                        app.id, slackEvent.responseUrl ?: ""
-                    )
+                    generateApk(buildData ?: mutableMapOf(), slackEvent.channel?.id ?: "general", app.id)
                 }
             }
         }
@@ -464,7 +479,7 @@ class ApplicationService @Inject constructor(
             cachingService.deleteApkCache(appId, branch)
             appList.forEach {
                 try {
-                    if(it.pathOnDisk != null && File(it.pathOnDisk).deleteRecursively()) {
+                    if (it.pathOnDisk != null && File(it.pathOnDisk).deleteRecursively()) {
                         LOGGER.info("Deleted file ${it.pathOnDisk}")
                     }
                 } catch (exception: Exception) {
@@ -554,13 +569,15 @@ class ApplicationService @Inject constructor(
         takeIf {
             params.containsKey(SlackConstants.TYPE_SELECT_BRANCH) && fileToCache.exists()
         }?.let {
-            cachingService.cacheApk(appId, params[SlackConstants.TYPE_SELECT_BRANCH] ?: error("Branch is missing"),
-                ApkCache(params, fileToCache.absolutePath))
+            cachingService.cacheApk(
+                appId, params[SlackConstants.TYPE_SELECT_BRANCH] ?: error("Branch is missing"),
+                ApkCache(params, fileToCache.absolutePath)
+            )
         } ?: fileToCache.deleteRecursively()
     }
 
     suspend fun uploadApk(
-        byteArray: ByteArray, params: MutableMap<String, String>,
+        byteArray: ByteArray, params: Map<String, String?>,
         channelId: String, fileName: String = "app.apk",
         onFinish: (() -> Unit)? = null
     ) {
@@ -568,34 +585,6 @@ class ApplicationService @Inject constructor(
             "${it.key} = ${it.value}"
         }.joinToString("\n")
         slackService.uploadFile(byteArray, channelId, initialComment, onFinish, fileName)
-    }
-
-    private suspend fun uploadFile(receivedFile: File, responseUrl: String?, channelId: String?,
-                                   params: MutableMap<String, String>) {
-        if (receivedFile.exists()) {
-            LOGGER.debug("Params: %s", params)
-            val data = params.map {
-                "${it.key} = ${it.value}"
-            }.joinToString("\n")
-            channelId?.let {
-                LOGGER.info("Apk Cache hit")
-                slackService.uploadFile(receivedFile, channelId, data)
-            }
-        } else {
-            LOGGER.error("APK Generated but file not found in the folder")
-            if (responseUrl != null) {
-                slackService.sendMessage(
-                    responseUrl,
-                    RequestData(
-                        response = "Something went wrong. Unable to generate the APK"
-                    )
-                )
-            } else {
-                channelId?.let {
-                    slackService.sendMessage("Something went wrong. Unable to generate the APK", channelId, null)
-                }
-            }
-        }
     }
 
     private suspend fun reportFailure(app: App, channelId: String?, details: String?) = coroutineScope {

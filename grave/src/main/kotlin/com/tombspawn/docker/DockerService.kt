@@ -9,6 +9,7 @@ import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.di.qualifiers.Debuggable
 import com.tombspawn.git.CredentialProvider
 import com.tombspawn.models.AppContainerRequest
+import com.tombspawn.models.AppResponse
 import com.tombspawn.models.config.App
 import com.tombspawn.models.config.Common
 import com.tombspawn.models.config.ServerConf
@@ -265,21 +266,26 @@ class DockerService @Inject constructor(
     suspend fun generateApp(
         app: App,
         buildData: Map<String, String>,
-        verify: (suspend () -> Boolean)? = null
-    ) = suspendCancellableCoroutine<GenerateAppResponse> { continuation ->
+        verify: (suspend () -> AppResponse?)? = null
+    ) = suspendCancellableCoroutine<AppResponse> { continuation ->
         sendChannel.offer(QueueAddAction(app.id) {
-            if(verify?.invoke() == false) {
+            val cache = verify?.invoke()
+            if(cache == null) {
                 try {
                     continuation.resume(
                         dockerClient.generateApp(
                             app, *buildData.map {
                                 Pair(it.key, it.value)
                             }.toTypedArray()
-                        )
+                        ).let {
+                            AppResponse(it.data.toByteArray(), it.responseParamsMap, it.fileName)
+                        }
                     )
                 } catch (exception: Exception) {
                     continuation.resumeWithException(exception)
                 }
+            } else {
+                continuation.resume(cache)
             }
         })
     }
