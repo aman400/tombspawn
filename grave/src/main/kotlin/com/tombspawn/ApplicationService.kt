@@ -283,7 +283,7 @@ class ApplicationService @Inject constructor(
                     }
                 }
                 slackService.sendMessage(
-                    randomWaitingMessages.get()?.shuffled()
+                    randomWaitingMessages.orNull()?.shuffled()
                         ?.firstOrNull() ?: "Please wait", channelId, null
                 )
             } else {

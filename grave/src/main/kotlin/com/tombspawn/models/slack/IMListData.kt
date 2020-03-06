@@ -27,8 +27,6 @@ data class IMListData(
         val isOrgShared: Boolean?,
         @SerializedName("is_user_deleted")
         val isUserDeleted: Boolean?,
-        @SerializedName("priority")
-        val priority: Int?,
         @SerializedName("user")
         val user: String?
     )
