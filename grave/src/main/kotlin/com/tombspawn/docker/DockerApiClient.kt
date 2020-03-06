@@ -37,7 +37,7 @@ class DockerApiClient @Inject constructor(
                     val appResponseBuilder = GenerateAppResponse.newBuilder()
                     var byteData = ByteString.EMPTY
                     ApplicationGrpc.newStub(channel)
-                        .withDeadlineAfter(30, TimeUnit.MINUTES)
+                        .withDeadlineAfter(45, TimeUnit.MINUTES)
                         .generateApp(GenerateAppRequest
                             .newBuilder()
                             .putAllBuildParams(params.toMap())
@@ -75,7 +75,7 @@ class DockerApiClient @Inject constructor(
     suspend fun fetchReferences(app: App): List<Ref> = suspendCancellableCoroutine { continuation ->
         Common.createGrpcChannel(app.id, Constants.Common.DEFAULT_PORT).let { channel ->
             ApplicationGrpc.newStub(channel)
-                .withDeadlineAfter(10, TimeUnit.MINUTES)
+                .withDeadlineAfter(20, TimeUnit.MINUTES)
                 .fetchReferences(
                     ReferencesRequest.newBuilder()
                         .setBranchLimit(-1)
@@ -102,7 +102,7 @@ class DockerApiClient @Inject constructor(
     suspend fun cleanApp(app: App): Boolean = suspendCancellableCoroutine { continuation ->
         Common.createGrpcChannel(app.id, Constants.Common.DEFAULT_PORT).also { channel ->
             ApplicationGrpc.newStub(channel)
-                .withDeadlineAfter(10, TimeUnit.MINUTES)
+                .withDeadlineAfter(20, TimeUnit.MINUTES)
                 .clean(CleanRequest.newBuilder().build(), object : StreamObserver<CleanResponse> {
                     override fun onNext(value: CleanResponse?) {
                         continuation.resume(true)
