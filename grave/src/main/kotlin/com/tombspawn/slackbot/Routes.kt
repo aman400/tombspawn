@@ -2,15 +2,9 @@
 
 package com.tombspawn.slackbot
 
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import com.tombspawn.ApplicationService
-import com.tombspawn.base.common.ErrorResponse
-import com.tombspawn.base.common.ListBodyRequest
 import com.tombspawn.base.common.SuccessResponse
-import com.tombspawn.base.extensions.copyToSuspend
 import com.tombspawn.base.extensions.toMap
-import com.tombspawn.models.Reference
 import com.tombspawn.models.locations.Apps
 import com.tombspawn.models.locations.Slack
 import com.tombspawn.models.slack.Event
@@ -18,20 +12,16 @@ import com.tombspawn.models.slack.SlackEvent
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
-import io.ktor.http.content.PartData
-import io.ktor.http.content.forEachPart
-import io.ktor.http.content.streamProvider
-import io.ktor.locations.get
 import io.ktor.locations.post
-import io.ktor.request.*
+import io.ktor.request.receive
+import io.ktor.request.receiveParameters
+import io.ktor.request.receiveText
 import io.ktor.response.respond
 import io.ktor.routing.Routing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
-import java.io.File
-import kotlin.reflect.typeOf
 
 private val LOGGER = LoggerFactory.getLogger("com.tombspawn.slackbot.SlackRoutes")
 
@@ -78,7 +68,6 @@ fun Routing.buildApp(applicationService: ApplicationService) {
 
         val channelId = params["channel_id"]
         val text = params["text"]
-        val responseUrl = params["response_url"]
         val triggerId = params["trigger_id"]
 
         params.forEach { key, list ->
@@ -88,7 +77,7 @@ fun Routing.buildApp(applicationService: ApplicationService) {
         call.respond(HttpStatusCode.OK)
         GlobalScope.launch(Dispatchers.IO) {
             text?.trim()?.toMap()?.let { buildData ->
-                applicationService.generateApk(buildData, channelId!!, command.appID, responseUrl!!)
+                applicationService.generateApk(buildData, channelId!!, command.appID)
             } ?: run {
                 LOGGER.warn("Command options not set. These options can be set using '/build-fleet BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'")
                 applicationService.showGenerateApkDialog(command.appID, triggerId!!)
@@ -100,76 +89,9 @@ fun Routing.buildApp(applicationService: ApplicationService) {
 
 @ExperimentalStdlibApi
 fun Routing.apkCallback(applicationService: ApplicationService) {
-    post<Apps.App.Callback.Success> { callback ->
-        var title = ""
-        var receivedFile: File? = null
-        val multipart = call.receiveMultipart()
-        val otherData = mutableMapOf<String, String>()
-        multipart.forEachPart { part ->
-            when (part) {
-                is PartData.FormItem -> {
-                    if (part.name == "title") {
-                        title = part.value
-                    } else {
-                        part.takeIf {
-                            part.name != null
-                        }?.let {
-                            otherData[part.name!!] = part.value
-                        }
-                    }
-                }
-                is PartData.FileItem -> {
-                    val directory = File(applicationService.uploadDir, callback.callback.callbackId)
-                    if(!directory.exists()) {
-                        directory.mkdirs()
-                    }
-                    val file = File(directory, "${part.originalFileName}")
-                    part.streamProvider()
-                        .use { input -> file.outputStream().buffered().use { output -> input.copyToSuspend(output) } }
-                    receivedFile = file
-                }
-            }
-
-            part.dispose()
-            receivedFile?.let {
-                applicationService.uploadApk(callback.callback, it, otherData, true)
-            }
-        }
-        applicationService.onTaskCompleted(callback.callback.app.id)
-        call.respond("{\"message\": \"ok\"}")
-    }
-
     post<Apps.App.Init> { app ->
         launch(Dispatchers.IO) {
             applicationService.fetchAppData(app.app.id)
-        }
-        call.respond(HttpStatusCode.OK, SuccessResponse("ok"))
-    }
-
-    post<Apps.App.Flavours> { app ->
-        val flavours = call.receive<ListBodyRequest<String>>(typeOf<ListBodyRequest<String>>()).data
-        launch(Dispatchers.IO) {
-            applicationService.addFlavours(app.app.id, flavours)
-            applicationService.onTaskCompleted(app.app.id)
-        }
-        call.respond(HttpStatusCode.OK, SuccessResponse("ok"))
-    }
-
-    post<Apps.App.BuildVariants> { app ->
-        val buildVariants = call.receive<ListBodyRequest<String>>(typeOf<ListBodyRequest<String>>()).data
-        launch(Dispatchers.IO) {
-            applicationService.addBuildVariants(app.app.id, buildVariants)
-            applicationService.onTaskCompleted(app.app.id)
-        }
-        call.respond(HttpStatusCode.OK, SuccessResponse("ok"))
-    }
-
-    post<Apps.App.References> { app ->
-        val type = object: TypeToken<ListBodyRequest<Reference>>() {}.type
-        val refs = Gson().fromJson<ListBodyRequest<Reference>>(call.receiveText(), type).data
-        launch(Dispatchers.IO) {
-            applicationService.addRefs(app.app.id, refs)
-            applicationService.onTaskCompleted(app.app.id)
         }
         call.respond(HttpStatusCode.OK, SuccessResponse("ok"))
     }
@@ -180,19 +102,5 @@ fun Routing.apkCallback(applicationService: ApplicationService) {
             applicationService.onTaskCompleted(app.app.id)
         }
         call.respond(HttpStatusCode.OK, SuccessResponse("ok"))
-    }
-
-    post<Apps.App.Callback.Failure> { callback ->
-        val errorResponse = call.receive<ErrorResponse>()
-        applicationService.reportFailure(callback.callback, errorResponse)
-        applicationService.onTaskCompleted(callback.callback.app.id)
-        call.respond(HttpStatusCode.OK, SuccessResponse("ok"))
-    }
-
-    get<Apps.App.CreateApp> { app ->
-//        launch (Dispatchers.IO) {
-//            applicationService.generateAndUploadApk(app.app.id)
-//        }
-        call.respond(SuccessResponse("ok"))
     }
 }

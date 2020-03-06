@@ -3,7 +3,9 @@
 package com.tombspawn.slackbot
 
 import com.tombspawn.models.locations.Slack
+import com.tombspawn.models.slack.Action
 import com.tombspawn.models.slack.SlackEvent
+import com.tombspawn.models.slack.action
 import com.tombspawn.models.slack.attachment
 import com.tombspawn.utils.Constants
 import io.ktor.application.call
@@ -15,8 +17,6 @@ import io.ktor.routing.Routing
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import com.tombspawn.models.slack.Action
-import com.tombspawn.models.slack.action
 import org.slf4j.LoggerFactory
 
 private val LOGGER = LoggerFactory.getLogger("com.tombspawn.slackbot.StandupRoutes")

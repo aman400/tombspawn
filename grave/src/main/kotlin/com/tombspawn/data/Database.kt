@@ -2,9 +2,9 @@ package com.tombspawn.data
 
 import com.tombspawn.models.github.RefType
 import io.ktor.auth.Principal
-import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
+import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.ReferenceOption
 
@@ -63,57 +63,6 @@ class Ref(id: EntityID<Int>) : IntEntity(id) {
     var deleted by Refs.deleted
     var appId by App referencedOn Refs.appId
     var type by Refs.type
-}
-
-object BuildTypes : IntIdTable() {
-    val name = varchar("name", 100)
-    val appId = reference("app_id", Apps, ReferenceOption.CASCADE, ReferenceOption.RESTRICT)
-    override val primaryKey: PrimaryKey =  PrimaryKey(id, name, appId)
-}
-
-class BuildType(id: EntityID<Int>) : IntEntity(id) {
-    companion object : IntEntityClass<BuildType>(BuildTypes)
-
-    var name by BuildTypes.name
-    var appId by App referencedOn BuildTypes.appId
-}
-
-object Flavours : IntIdTable() {
-    val name = varchar("name", 100)
-    val appId = reference("app_id", Apps, ReferenceOption.CASCADE, ReferenceOption.RESTRICT)
-    override val primaryKey: PrimaryKey =  PrimaryKey(id, name, appId)
-}
-
-class Flavour(id: EntityID<Int>) : IntEntity(id) {
-    companion object : IntEntityClass<Flavour>(Flavours)
-
-    var name by Flavours.name
-    var appId by App referencedOn Flavours.appId
-}
-
-object Verbs : IntIdTable() {
-    val name = varchar("name", 20)
-}
-
-class Verb(id: EntityID<Int>) : IntEntity(id) {
-    companion object : IntEntityClass<Verb>(Verbs)
-
-    var name by Verbs.name
-}
-
-object Apis : IntIdTable() {
-    val apiId = varchar("api_id", 100).uniqueIndex()
-    val verb = reference("verb", Verbs, ReferenceOption.CASCADE, ReferenceOption.RESTRICT)
-    val response = text("response")
-    override val primaryKey: PrimaryKey =  PrimaryKey(id, apiId, verb)
-}
-
-class Api(id: EntityID<Int>) : IntEntity(id) {
-    companion object : IntEntityClass<Api>(Apis)
-
-    var apiId by Apis.apiId
-    var verb by Verb referencedOn Apis.verb
-    var response by Apis.response
 }
 
 object Subscriptions : IntIdTable() {

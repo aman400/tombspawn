@@ -9,7 +9,6 @@ import com.tombspawn.base.annotations.DoNotSerialize
 import dagger.Module
 import dagger.Provides
 import io.ktor.client.features.json.GsonSerializer
-import javax.inject.Singleton
 
 @Module
 object CoreModule {

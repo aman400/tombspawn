@@ -128,6 +128,6 @@ class AppModule {
     @Provides
     @AppScope
     fun provideServerConf(config: JsonApplicationConfig): Optional<ServerConf> {
-        return Optional.fromNullable(config.propertyOrNull("server")?.getAs(ServerConf::class.java))
+        return Optional.fromNullable(config.propertyOrNull("ktor.deployment")?.getAs(ServerConf::class.java))
     }
 }

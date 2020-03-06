@@ -4,6 +4,8 @@ package com.tombspawn.base.network
 
 import com.tombspawn.base.common.*
 import com.tombspawn.base.di.Constants
+import io.grpc.ManagedChannel
+import io.grpc.ManagedChannelBuilder
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.apache.Apache
 import io.ktor.client.features.defaultRequest
@@ -19,8 +21,6 @@ import org.slf4j.LoggerFactory
 private val LOGGER = LoggerFactory.getLogger("com.tombspawn.base.network.CommonUtils")
 
 object Common {
-    @JvmStatic
-    @JvmOverloads
     fun createHttpClient(gsonSerializer: GsonSerializer, hostName: String? = null,
                          scheme: URLProtocol? = URLProtocol.HTTPS, startPath: String? = null,
                          connectionTimeout: Int = 60_000, socketConnectionTimeout: Int = 60_000,
@@ -60,6 +60,14 @@ object Common {
                 }
             }
         }
+    }
+
+    fun createGrpcChannel(host: String, port: Int): ManagedChannel {
+        return ManagedChannelBuilder
+            .forAddress(host, port)
+            .enableRetry()
+            .usePlaintext()
+            .build()
     }
 }
 

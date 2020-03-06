@@ -14,7 +14,6 @@ import com.tombspawn.models.config.App
 import com.tombspawn.models.config.Common
 import com.tombspawn.models.config.ServerConf
 import com.tombspawn.models.config.Slack
-import com.tombspawn.models.locations.Apps
 import com.tombspawn.models.redis.ApkCallbackCache
 import com.tombspawn.slackbot.SlackService
 import com.tombspawn.utils.Constants
@@ -28,11 +27,6 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.mockito.Mockito
 import org.mockito.Mockito.mock
-import org.mockito.invocation.InvocationOnMock
-import org.mockito.stubbing.Answer
-import java.io.File
-import java.io.FileOutputStream
-import java.util.*
 import javax.inject.Inject
 import javax.inject.Provider
 
@@ -77,9 +71,6 @@ class TestApplicationService {
     fun testCache() {
         runBlocking {
             val buildData = mutableMapOf(SlackConstants.TYPE_SELECT_BRANCH to "b", "c" to "d")
-            Mockito.`when`(cachingService.getAppCallbackCache("1")).thenAnswer {
-                ApkCallbackCache("1", "http://test.com", "1")
-            }
             Mockito.`when`(slackService.uploadFile(anyObject(), anyObject(), anyObject(), anyObject())).then {
                 @Suppress("UNCHECKED_CAST")
                 (it.arguments[3] as? (() -> Unit))?.invoke()
@@ -92,7 +83,7 @@ class TestApplicationService {
                         Assert.assertEquals("File paths are not equal", file.absolutePath, it)
                     }
                 }
-                applicationService.uploadApk(Apps.App.Callback(Apps.App("test"), "1"), file, buildData, true)
+                applicationService.uploadApk(file.readBytes(), buildData, "1", "app.apk", null)
             }
         }
     }

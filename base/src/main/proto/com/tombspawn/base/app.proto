@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.tombspawn.base";
+option java_outer_classname = "AppProto";
+option objc_class_prefix = "APP";
+
+package tombspawn;
+
+service Application {
+    rpc generateApp (GenerateAppRequest) returns (stream GenerateAppResponse) {}
+
+    rpc fetchReferences (ReferencesRequest) returns (ReferencesResponse) {}
+
+    rpc clean (CleanRequest) returns (CleanResponse) {}
+}
+
+message GenerateAppRequest {
+    string callbackId = 1;
+    map<string, string> buildParams = 2;
+}
+
+message GenerateAppResponse {
+    bytes data = 1;
+    string fileName = 2;
+    map<string, string> responseParams = 3;
+}
+
+message CleanRequest {}
+
+message CleanResponse {}
+
+message ReferencesRequest {
+    int32 branchLimit = 1;
+    int32 tagLimit = 2;
+}
+
+message ReferencesResponse {
+    repeated Ref ref = 1;
+}
+
+message Ref {
+    string name = 1;
+    enum Type {
+        BRANCH = 0;
+        TAG = 1;
+        REPOSITORY = 2;
+    };
+    Type type = 2;
+}

@@ -46,23 +46,29 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
             FileInputStream(file).use {
                 it.read(buf)
             }
+            uploadFile(buf, channelId, initialComment, onFinish, file.name)
+        }
+    }
+
+    suspend fun uploadFile(fileData: ByteArray, channelId: String,
+                           initialComment: String, onFinish: (() -> Unit)? = null, fileName: String) {
+        withContext(Dispatchers.IO) {
             val formData = formData {
                 append("token", slack.botToken)
-                append("title", file.nameWithoutExtension)
-                append("filename", file.name)
+                append("title", fileName)
+                append("filename", fileName)
                 append("filetype", "auto")
                 append("channels", channelId)
                 append("initial_comment", initialComment)
                 append(
                     "file",
-                    buf,
+                    fileData,
                     Headers.build {
                         append(HttpHeaders.ContentType, ContentType.Application.OctetStream)
-                        append(HttpHeaders.ContentDisposition, "filename=${file.name}")
+                        append(HttpHeaders.ContentDisposition, "filename=${fileName}")
                     }
                 )
             }
-
             try {
                 when (val response = slackClient.uploadFile(formData)) {
                     is CallSuccess -> {
@@ -78,18 +84,38 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
                         }
                     }
                     is CallFailure -> {
+                        sendMessage(
+                            "Unable to upload file",
+                            channelId,
+                            null
+                        )
                         LOGGER.error("File Not delivered")
                         LOGGER.error(response.errorBody, response.throwable)
                     }
                     is ServerFailure -> {
+                        sendMessage(
+                            "Unable to upload file",
+                            channelId,
+                            null
+                        )
                         LOGGER.error("Call failed, unable to deliver APK ${response.errorBody}", response.throwable)
                     }
                     is CallError -> {
+                        sendMessage(
+                            "Unable to upload file",
+                            channelId,
+                            null
+                        )
                         LOGGER.error("File not delivered", response.throwable)
                     }
                 }
                 onFinish?.invoke()
             } catch (exception: Exception) {
+                sendMessage(
+                    "Unable to upload file",
+                    channelId,
+                    null
+                )
                 LOGGER.error("Unable to push apk to Slack.", exception)
                 onFinish?.invoke()
             }
@@ -365,43 +391,6 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
         slackEvent.dialogResponse?.forEach { map ->
             LOGGER.debug("${map.key}, ${map.value}")
         }
-    }
-
-    suspend fun sendShowCreateApiDialog(triggerId: String) {
-        val verbElements = databaseService.getVerbs().map { verb ->
-            Element.Option(verb, verb)
-        }
-
-        val dialog = dialog {
-            callbackId = Constants.Slack.CALLBACK_CREATE_API
-            title = "Create API"
-            submitLabel = "Submit"
-            notifyOnCancel = false
-            elements {
-                verbElements.let { verbs ->
-                    +element {
-                        type = ElementType.SELECT
-                        label = "Select verb"
-                        name = Constants.Slack.TYPE_SELECT_VERB
-                        options = verbs.toMutableList()
-                    }
-                }
-
-                +element {
-                    type = ElementType.TEXT_AREA
-                    label = "Expected Response"
-                    name = Constants.Slack.TYPE_SELECT_RESPONSE
-                    optional = false
-                    hint = "Type your expected response here."
-                    maxLength = 3000
-                }
-            }
-        }
-
-        withContext(Dispatchers.IO) {
-            slackClient.openActionDialog(dialog, slack.botToken, triggerId)
-        }
-
     }
 
     suspend fun subscribeSlackEvent(slackEvent: SlackEvent) {

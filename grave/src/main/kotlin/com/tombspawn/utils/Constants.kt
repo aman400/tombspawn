@@ -11,14 +11,6 @@ class Constants {
         const val DEFAULT_REDIS_HOST = "redis://127.0.0.1"
 
         const val APP_CONSUMER = "consumer"
-
-        const val GET = "GET"
-        const val PUT = "PUT"
-        const val POST = "POST"
-        const val DELETE = "DELETE"
-        const val PATCH = "PATCH"
-        const val HEAD = "HEAD"
-        const val OPTIONS = "OPTIONS"
     }
 
     object Slack {
@@ -28,7 +20,6 @@ class Constants {
 
         const val CALLBACK_GENERATE_APK = "generate_apk_"
         const val CALLBACK_CONFIRM_GENERATE_APK = "confirm_generate_apk_"
-        const val CALLBACK_CREATE_API = "create_api"
 
         const val TOKEN = "token"
         const val CHANNEL = "channel"

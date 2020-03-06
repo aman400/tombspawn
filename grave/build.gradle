@@ -69,6 +69,10 @@ dependencies {
 
     implementation project(":base")
 
+    implementation GRPC.netty
+    implementation GRPC.protobuf
+    implementation GRPC.stub
+
     api Dagger.lib
     kapt Dagger.annotationProcessor
     api Dagger.assistedInjectLib
