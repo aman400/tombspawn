@@ -1,10 +1,8 @@
 package com.tombspawn.skeleton
 
-import com.tombspawn.base.common.SuccessResponse
 import com.tombspawn.base.config.JsonApplicationConfig
 import com.tombspawn.base.di.DaggerCoreComponent
 import com.tombspawn.skeleton.di.DaggerAppComponent
-import com.tombspawn.skeleton.locations.References
 import com.tombspawn.skeleton.models.config.ServerConf
 import io.ktor.application.*
 import io.ktor.features.*
@@ -12,17 +10,13 @@ import io.ktor.gson.gson
 import io.ktor.http.HttpStatusCode
 import io.ktor.locations.KtorExperimentalLocationsAPI
 import io.ktor.locations.Locations
-import io.ktor.locations.get
 import io.ktor.request.path
 import io.ktor.response.respond
-import io.ktor.routing.get
 import io.ktor.routing.routing
 import io.ktor.server.engine.applicationEngineEnvironment
 import io.ktor.server.engine.connector
 import io.ktor.server.engine.embeddedServer
 import io.ktor.util.error
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import javax.inject.Inject

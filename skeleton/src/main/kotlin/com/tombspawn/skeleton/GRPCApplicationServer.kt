@@ -2,7 +2,6 @@ package com.tombspawn.skeleton
 
 import io.grpc.Server
 import io.grpc.ServerBuilder
-import io.ktor.application.Application
 import io.ktor.application.ApplicationStopPreparing
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.ApplicationEngineEnvironment

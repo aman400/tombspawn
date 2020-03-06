@@ -4,7 +4,6 @@ import com.tombspawn.base.Ref
 import com.tombspawn.base.common.*
 import com.tombspawn.skeleton.app.AppClient
 import com.tombspawn.skeleton.di.qualifiers.InitCallbackUri
-import com.tombspawn.skeleton.exception.AppNotGeneratedException
 import com.tombspawn.skeleton.git.GitService
 import com.tombspawn.skeleton.gradle.GradleService
 import com.tombspawn.skeleton.models.App

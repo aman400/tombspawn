@@ -1,7 +1,6 @@
 package com.tombspawn.skeleton.gradle
 
 import com.tombspawn.base.common.CommandResponse
-import com.tombspawn.skeleton.models.Reference
 import kotlinx.coroutines.CompletableDeferred
 import javax.inject.Inject
 

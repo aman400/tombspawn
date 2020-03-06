@@ -6,12 +6,8 @@ import com.tombspawn.base.common.Failure
 import com.tombspawn.base.common.Success
 import com.tombspawn.base.common.exhaustive
 import io.grpc.Status
-import io.grpc.StatusException
 import io.grpc.StatusRuntimeException
 import io.grpc.stub.StreamObserver
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 
