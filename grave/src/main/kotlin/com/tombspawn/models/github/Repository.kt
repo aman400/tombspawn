@@ -1,8 +1,6 @@
 package com.tombspawn.models.github
 
 import com.google.gson.annotations.SerializedName
-import com.tombspawn.models.github.License
-import com.tombspawn.models.github.Owner
 
 data class Repository(
 

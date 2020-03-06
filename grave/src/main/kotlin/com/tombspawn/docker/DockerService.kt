@@ -2,7 +2,6 @@ package com.tombspawn.docker
 
 import com.github.dockerjava.api.model.*
 import com.google.gson.Gson
-import com.tombspawn.base.GenerateAppResponse
 import com.tombspawn.base.Ref
 import com.tombspawn.base.common.exhaustive
 import com.tombspawn.base.di.scopes.AppScope
@@ -19,7 +18,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.channels.actor
 import org.slf4j.LoggerFactory
-import java.io.*
+import java.io.File
+import java.io.FileWriter
 import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException

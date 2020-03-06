@@ -7,7 +7,6 @@ import com.tombspawn.data.cache.models.ApkCache
 import com.tombspawn.di.qualifiers.ApkCacheMap
 import com.tombspawn.di.qualifiers.AppCacheMap
 import com.tombspawn.models.Reference
-import com.tombspawn.models.redis.ApkCallbackCache
 import org.slf4j.LoggerFactory
 import javax.inject.Inject
 

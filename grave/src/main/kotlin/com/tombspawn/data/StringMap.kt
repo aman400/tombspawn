@@ -2,9 +2,7 @@ package com.tombspawn.data
 
 import org.redisson.api.LocalCachedMapOptions
 import org.redisson.api.RLocalCachedMap
-import org.redisson.api.RMap
 import org.redisson.api.RedissonClient
-import org.redisson.client.codec.Codec
 import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
 
