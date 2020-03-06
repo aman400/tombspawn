@@ -54,7 +54,7 @@ class Grave(val args: Array<String>) {
                 File(fileName).bufferedReader().use {
                     val text = it.readText()
                     config = JsonApplicationConfig(coreComponent.gson(), text).also { jsonConf ->
-                        jsonConf.propertyOrNull("server")?.getAs(ServerConf::class.java)?.let { conf ->
+                        jsonConf.propertyOrNull("ktor.deployment")?.getAs(ServerConf::class.java)?.let { conf ->
                             conf.host?.let {
                                 host = it
                             }

@@ -184,7 +184,6 @@ class DockerService @Inject constructor(
             val serverConfig = ServerConf("http", "0.0.0.0", Constants.Common.DEFAULT_PORT, debug)
             val request = gson.toJson(
                 AppContainerRequest(
-                    serverConfig,
                     AppContainerRequest.KtorConfig(serverConfig),
                     app, common, credentialProvider, callbackUri
                 ), AppContainerRequest::class.java

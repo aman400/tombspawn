@@ -47,7 +47,7 @@ class Skeleton(val args: Array<String>) {
             var port = 8080
             args.takeIf { it.isNotEmpty() }?.first()?.let {
                 config = JsonApplicationConfig(coreComponent.gson(), it).also { jsonConf ->
-                    jsonConf.propertyOrNull("server")?.getAs(ServerConf::class.java)?.let { conf ->
+                    jsonConf.propertyOrNull("ktor.deployment")?.getAs(ServerConf::class.java)?.let { conf ->
                         conf.host?.let {
                             host = it
                         }

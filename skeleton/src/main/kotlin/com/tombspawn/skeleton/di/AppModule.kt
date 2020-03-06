@@ -44,7 +44,7 @@ object AppModule {
     @AppScope
     @Debuggable
     fun isDebuggable(config: JsonApplicationConfig): Boolean {
-        return config.propertyOrNull("server")
+        return config.propertyOrNull("ktor.deployment")
             ?.getAs(ServerConf::class.java)?.debug == true
     }
 
