@@ -311,7 +311,6 @@ class DockerService @Inject constructor(
         }.entries.shuffled().firstOrNull()
     }
 
-    @UseExperimental(InternalCoroutinesApi::class)
     suspend fun startQueueExecution() {
         while (true) {
             delay(3000)
