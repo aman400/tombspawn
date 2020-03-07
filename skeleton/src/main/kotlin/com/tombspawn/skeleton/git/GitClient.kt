@@ -261,7 +261,7 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
                 if (localBranch != null) {
                     git.checkout().setName(localBranch).call()
                     LOGGER.info("Checked out to branch $ref")
-                    pullLatestCode(ref, dir).await()
+                    pullLatestCodeAsync(ref, dir).await()
                 } else {
                     val localTag = git.tagList().call().firstOrNull { tag ->
                         tag.name.endsWith(ref, true)
@@ -306,7 +306,7 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
         } ?: false
     }
 
-    suspend fun pullLatestCode(branch: String, dir: String): Deferred<Boolean> = coroutineScope {
+    suspend fun pullLatestCodeAsync(branch: String, dir: String): Deferred<Boolean> = coroutineScope {
         async {
             return@async Git(initRepository(dir)).use {git ->
                 if (git.pull().setRemoteBranchName(branch)

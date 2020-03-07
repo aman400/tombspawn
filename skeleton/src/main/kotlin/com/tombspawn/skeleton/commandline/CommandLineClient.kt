@@ -45,14 +45,18 @@ fun CoroutineScope.getCommandExecutor(): SendChannel<Command> {
                             LOGGER.info("${command.command} Command successfully executed")
                             if(command is Processable) {
                                 LOGGER.trace("Post-processing successful command")
-                                command.onPostProcess(Success(response))
+                                runBlocking {
+                                    command.onPostProcess(Success(response))
+                                }
                             }
                             command.listener?.complete(Success(response))
                         } else {
                             LOGGER.info("${command.command} Command failed to execute")
                             if(command is Processable) {
                                 LOGGER.trace("Post-processing failed command")
-                                command.onPostProcess(Failure(errorText))
+                                runBlocking {
+                                    command.onPostProcess(Failure(errorText))
+                                }
                             }
                             command.listener?.complete(Failure(errorText))
                         }
@@ -60,7 +64,9 @@ fun CoroutineScope.getCommandExecutor(): SendChannel<Command> {
                         LOGGER.error("Exception executing command", exception)
                         if(command is Processable) {
                             LOGGER.trace("Post-processing failed command")
-                            command.onPostProcess(Failure("Command failed with exception", exception))
+                            runBlocking {
+                                command.onPostProcess(Failure("Command failed with exception", exception))
+                            }
                         }
                         command.listener?.complete(Failure(null, exception))
                     }

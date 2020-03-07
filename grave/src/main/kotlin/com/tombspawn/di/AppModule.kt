@@ -1,14 +1,12 @@
 package com.tombspawn.di
 
 import com.google.common.base.Optional
+import com.google.gson.reflect.TypeToken
 import com.tombspawn.base.config.JsonApplicationConfig
 import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.network.Common.createHttpClient
 import com.tombspawn.data.DatabaseService
-import com.tombspawn.di.qualifiers.ApplicationBaseUri
-import com.tombspawn.di.qualifiers.Debuggable
-import com.tombspawn.di.qualifiers.SlackHttpClient
-import com.tombspawn.di.qualifiers.UploadDir
+import com.tombspawn.di.qualifiers.*
 import com.tombspawn.git.CredentialProvider
 import com.tombspawn.models.config.*
 import com.tombspawn.utils.Constants
@@ -84,6 +82,18 @@ class AppModule {
 
     @Provides
     @AppScope
+    @WaitingMessages
+    fun provideWaitingMessages(config: JsonApplicationConfig): Optional<List<String>> {
+        val messages: List<String>? = config.propertyOrNull("waiting_messages")
+            ?.getAs<List<String>>(object : TypeToken<List<String>>() {}.type).takeIf {
+                !it.isNullOrEmpty()
+            }
+        return Optional.fromNullable(messages)
+
+    }
+
+    @Provides
+    @AppScope
     @Debuggable
     fun provideIsDebug(serverConf: Optional<ServerConf>): Boolean {
         return serverConf.get()?.debug ?: false
@@ -118,6 +128,6 @@ class AppModule {
     @Provides
     @AppScope
     fun provideServerConf(config: JsonApplicationConfig): Optional<ServerConf> {
-        return Optional.fromNullable(config.propertyOrNull("server")?.getAs(ServerConf::class.java))
+        return Optional.fromNullable(config.propertyOrNull("ktor.deployment")?.getAs(ServerConf::class.java))
     }
 }

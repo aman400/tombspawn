@@ -2,38 +2,42 @@ package com.tombspawn
 
 import com.google.common.base.Optional
 import com.google.gson.Gson
-import com.google.gson.JsonParser
-import com.tombspawn.base.common.ErrorResponse
+import com.tombspawn.base.Ref
 import com.tombspawn.base.common.SlackConstants
 import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.extensions.toMap
-import com.tombspawn.data.*
+import com.tombspawn.data.CachingService
+import com.tombspawn.data.DatabaseService
+import com.tombspawn.data.Refs
+import com.tombspawn.data.Subscriptions
 import com.tombspawn.data.cache.models.ApkCache
 import com.tombspawn.di.qualifiers.ApplicationBaseUri
 import com.tombspawn.di.qualifiers.Debuggable
 import com.tombspawn.di.qualifiers.UploadDir
+import com.tombspawn.di.qualifiers.WaitingMessages
 import com.tombspawn.docker.DockerService
+import com.tombspawn.models.AppResponse
 import com.tombspawn.models.Reference
-import com.tombspawn.models.RequestData
 import com.tombspawn.models.config.App
 import com.tombspawn.models.config.Common
 import com.tombspawn.models.config.ServerConf
 import com.tombspawn.models.config.Slack
 import com.tombspawn.models.github.Payload
 import com.tombspawn.models.github.RefType
-import com.tombspawn.models.locations.Apps
 import com.tombspawn.models.slack.Event
 import com.tombspawn.models.slack.GenerateCallback
 import com.tombspawn.models.slack.SlackEvent
 import com.tombspawn.slackbot.SlackService
 import com.tombspawn.utils.Constants
+import io.grpc.Status
+import io.grpc.StatusRuntimeException
 import io.ktor.http.URLBuilder
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
 import java.io.File
-import java.util.*
 import javax.inject.Inject
 import javax.inject.Provider
+import kotlin.coroutines.resume
 
 @AppScope
 class ApplicationService @Inject constructor(
@@ -51,28 +55,10 @@ class ApplicationService @Inject constructor(
     val debug: Boolean,
     val config: Optional<ServerConf>,
     @ApplicationBaseUri
-    val baseUri: Provider<URLBuilder>
+    val baseUri: Provider<URLBuilder>,
+    @WaitingMessages
+    private val randomWaitingMessages: Optional<List<String>>
 ) {
-
-    private val randomWaitingMessages = listOf(
-        "Try Holding your Breath!!",
-        "Hold your horses!!",
-        "Creating Randomly Generated Feature",
-        "Doing Something You Don't Wanna Know About",
-        "Doing The Impossible",
-        "Don't Panic",
-        "Ensuring Everything Works Perfektly",
-        "Generating Plans for Faster-Than-Light Travel",
-        "Hitting Your Keyboard Won't Make This Faster",
-        "Loading, Don't Wait If You Don't Want To",
-        "You usually have to wait for that which is worth waiting for",
-        "The waiting time, my brothers, Is the hardest time of all",
-        "Waiting is a trap. There will always be reasons to wait",
-        "Don't Wait! Start on your dreams",
-        "How much of human life is lost in waiting.",
-        "If you wait for App, App comes. If you don't wait for App, App still comes.",
-        "All things come to him who waits - provided he knows what he is waiting for."
-    )
 
     fun onTaskCompleted(id: String) {
         dockerService.onTaskCompleted(id)
@@ -90,15 +76,11 @@ class ApplicationService @Inject constructor(
         launch(Dispatchers.Default) {
             dockerService.startQueueExecution()
         }
-        launch {
-            cleanAppCacheFiles()
-        }
         apps.forEachIndexed { index, app ->
             val callbackUri = baseUri.get().path("apps", app.id, "init").build().toString()
             dockerService.createContainer(app, common.basePort + index, callbackUri)
         }
 
-        addVerbs()
         updateUserData()
     }
 
@@ -112,6 +94,11 @@ class ApplicationService @Inject constructor(
         return databaseService.addApps(apps)
     }
 
+    /**
+     * Fetch data for first time initialized container.
+     *
+     * @param appId is the id of the application
+     */
     suspend fun fetchAppData(appId: String) {
         apps.firstOrNull {
             appId == it.id
@@ -120,7 +107,10 @@ class ApplicationService @Inject constructor(
                 runBlocking {
                     dockerService.appInitialized(it)
                 }
-                fetchReferences(it)
+                addRefs(appId, fetchReferences(it).map {
+                    Reference(it.name, RefType.from(it))
+                })
+                onTaskCompleted(appId)
             }
         }
     }
@@ -132,7 +122,7 @@ class ApplicationService @Inject constructor(
         launch(Dispatchers.IO) {
             try {
                 uploadDir.let {
-                    if(it.exists()) {
+                    if (it.exists()) {
                         it.deleteRecursively()
                     }
                 }
@@ -147,9 +137,8 @@ class ApplicationService @Inject constructor(
      *
      * @param app is the app for which references need to be fetched
      */
-    private suspend fun fetchReferences(app: App) {
-        val callbackUri = baseUri.get().path("apps", app.id, "refs").build().toString()
-        dockerService.fetchReferences(app, callbackUri)
+    private suspend fun fetchReferences(app: App): List<Ref> {
+        return dockerService.fetchReferences(app)
     }
 
     /**
@@ -157,19 +146,8 @@ class ApplicationService @Inject constructor(
      *
      * @param app is app container to clean.
      */
-    private suspend fun cleanApp(app: App) {
-        val callbackUri = baseUri.get().path("apps", app.id, "clean").build().toString()
-        dockerService.cleanApp(app, callbackUri)
-    }
-
-    /**
-     * Function to fetch app flavours.
-     *
-     * @param app is the application for which the flavours needs to be fetched
-     */
-    private suspend fun fetchFlavours(app: App) {
-        val callbackUri = baseUri.get().path("apps", app.id, "flavours").build().toString()
-        dockerService.fetchFlavours(app, callbackUri)
+    private suspend fun cleanApp(app: App): Boolean {
+        return dockerService.cleanApp(app)
     }
 
     /**
@@ -178,38 +156,9 @@ class ApplicationService @Inject constructor(
      * @param appId is app to be cached
      * @param refs is the list of references to be cached to redis and database
      */
-    suspend fun addRefs(appId: String, refs: List<Reference>) {
+    private suspend fun addRefs(appId: String, refs: List<Reference>) {
         databaseService.addRefs(refs, appId)
         cachingService.cacheAppReferences(appId, refs)
-    }
-
-    suspend fun addBuildVariants(appId: String, buildVariants: List<String>) {
-        databaseService.addBuildVariants(buildVariants, appId)
-        cachingService.cacheBuildVariants(appId, buildVariants)
-    }
-
-    suspend fun addFlavours(appId: String, flavours: List<String>) {
-        databaseService.addFlavours(flavours, appId)
-        cachingService.cacheAppFlavours(appId, flavours)
-    }
-
-    private suspend fun fetchBuildVariants(app: App) {
-        val callbackUri = baseUri.get().path(listOf("apps", app.id, "build-variants")).build().toString()
-        dockerService.fetchBuildVariants(app, callbackUri)
-    }
-
-    private suspend fun addVerbs() {
-        databaseService.addVerbs(
-            listOf(
-                Constants.Common.GET,
-                Constants.Common.PUT,
-                Constants.Common.POST,
-                Constants.Common.DELETE,
-                Constants.Common.PATCH,
-                Constants.Common.HEAD,
-                Constants.Common.OPTIONS
-            )
-        )
     }
 
     private suspend fun updateUserData() = coroutineScope {
@@ -236,9 +185,8 @@ class ApplicationService @Inject constructor(
     suspend fun generateApk(
         buildData: MutableMap<String, String>,
         channelId: String,
-        appID: String,
-        responseUrl: String
-    ) {
+        appID: String
+    ) = coroutineScope {
         // Get the additional parameters
         val additionalParams = buildData[SlackConstants.TYPE_ADDITIONAL_PARAMS]?.trim()
         // Parse extra parameters into map.
@@ -257,65 +205,114 @@ class ApplicationService @Inject constructor(
         apps.firstOrNull {
             it.id == appID
         }?.let { app ->
-            // Unique callback id
-            val callbackId = System.nanoTime().toString()
-            // Base url for callback
-            val callbackUri = baseUri.get().path("apps", app.id, "callback", callbackId).build().toString()
-
             val useCache: Boolean = app.gradleTasks?.firstOrNull {
                 it.id == buildData[SlackConstants.TYPE_SELECT_BUILD_TYPE]
             }?.useCache ?: true
-
-            // Save the application generation cache.
-            cachingService.saveAppCallbackCache(callbackId, responseUrl, channelId, useCache)
-            LOGGER.debug("CallbackUri: %s", callbackUri)
-
-            LOGGER.debug(if(useCache) "Using cache" else "Skipping cache")
-
-            val toVerify = ApkCache(buildData)
-            if(!useCache || !verifyAndUploadCachedApk(buildData, toVerify, app, callbackId)) {
+            LOGGER.debug(if(useCache) "Using Cache" else "Skipping cache")
+            val cachedFile = if(useCache) {
+                 getCachedApk(buildData, app)
+            } else {
+                null
+            }
+            if (cachedFile == null) {
                 // Generate the application
-                dockerService.generateApp(
-                    app.id,
-                    "$callbackUri/success",
-                    "$callbackUri/failure",
-                    buildData,
-                    // verify if app was generated from some queued request
-                    verify = {
-                        if(useCache) {
-                            verifyAndUploadCachedApk(buildData, toVerify, app, callbackId)
-                        } else {
-                            false
+                launch(Dispatchers.IO) {
+                    try {
+                        dockerService.generateApp(
+                            app,
+                            buildData,
+                            verify = {
+                                if(useCache) {
+                                    getCachedApk(buildData, app)
+                                } else {
+                                    null
+                                }
+                            }
+                        ).takeIf {
+                            it.data != null && it.data.isNotEmpty()
+                        }?.let { response ->
+                            response.params.forEach { (key, value) ->
+                                if(!value.isNullOrEmpty()) {
+                                    buildData[key] = value
+                                }
+                            }
+                            val appData = response.data!!
+                            // Upload apk to slack
+                            launch(Dispatchers.IO) {
+                                if (useCache) {
+                                    val file = File(uploadDir, response.fileName.let {
+                                        "${app.id}-${System.nanoTime()}-${it ?: "App.apk"}"
+                                    }).also {
+                                        it.writeBytes(appData)
+                                    }
+                                    verifyAndCacheApp(file, app.id, buildData)
+                                    LOGGER.debug("Caching ${file.absolutePath} to disk")
+                                } else {
+                                    LOGGER.debug("Skipping cache for file")
+                                }
+                            }
+                            uploadApk(appData, buildData, channelId, response.fileName ?: "App.apk") {
+                                onTaskCompleted(app.id)
+                            }
+                        } ?: run {
+                            LOGGER.error("File is null")
+                            reportFailure(app, channelId, "Unable to generate apk for request: \n${buildData.map {
+                                "${it.key} = ${it.value}"
+                            }.joinToString("\n")}")
                         }
+                    } catch (exception: Exception) {
+                        val message = if (exception is StatusRuntimeException) {
+                            when (exception.status.code) {
+                                Status.Code.UNKNOWN -> {
+                                    exception.status.description ?: exception.status.cause?.let {
+                                        it.message ?: it.stackTrace.joinToString("\n") { it.toString() }
+                                    }
+                                }
+                                Status.Code.DEADLINE_EXCEEDED -> {
+                                    "App generation request timed out after deadline"
+                                }
+                                else -> {
+                                    "Something went wrong. Error: ${exception.status.code.name}.\n${exception.status}"
+                                }
+                            }
+                        } else {
+                            exception.stackTrace.joinToString("\n") { it.toString() }
+                        }
+                        LOGGER.error(message, exception)
+                        reportFailure(app, channelId, message)
                     }
+                }
+                slackService.sendMessage(
+                    randomWaitingMessages.orNull()?.shuffled()
+                        ?.firstOrNull() ?: "Please wait", channelId, null
                 )
-                slackService.sendMessage(randomWaitingMessages.shuffled().first(), channelId, null)
+            } else {
+                uploadApk(cachedFile.data!!, cachedFile.params, channelId, cachedFile.fileName ?: "App.apk")
             }
         }
     }
 
-    private suspend fun verifyAndUploadCachedApk(buildData: MutableMap<String, String>,
-                                                 apkCache: ApkCache, app: App, callbackId: String) = coroutineScope {
+    private suspend fun getCachedApk(
+        buildData: MutableMap<String, String>, app: App
+    ): AppResponse? = suspendCancellableCoroutine { continuation ->
+        val apkCache = ApkCache(buildData)
+        LOGGER.trace("Fetching from cache")
         val cache = buildData[SlackConstants.TYPE_SELECT_BRANCH]?.let {
             cachingService.getApkCache(app.id, it)
         }?.firstOrNull {
+            LOGGER.trace("Matching: \n$it\n&\n$apkCache")
             it == apkCache
         }?.let {
+            LOGGER.trace("Match found: \n$it")
             Pair(it, it.pathOnDisk?.let { File(it) })
         }
+
         if (cache?.second?.exists() == true) {
-            launch(Dispatchers.IO) {
-                uploadApk(
-                    Apps.App.Callback(Apps.App(app.id), callbackId),
-                    cache.second!!,
-                    cache.first.params.toMutableMap(),
-                    // Do not cache the apk again
-                    false
-                )
-            }
-            return@coroutineScope true
+            LOGGER.trace("file exists")
+            continuation.resume(AppResponse(cache.second!!.readBytes(), cache.first.params, cache.second!!.name))
         } else {
-            return@coroutineScope false
+            LOGGER.trace("file not found")
+            continuation.resume(null)
         }
     }
 
@@ -339,17 +336,6 @@ class ApplicationService @Inject constructor(
         }
     }
 
-    private suspend fun getFlavours(appId: String): List<String>? {
-        return cachingService.getCachedFlavours(appId) ?: databaseService.getFlavours(appId)?.map {
-            LOGGER.debug("Flavours: Cache miss")
-            it.name
-        }.also { flavours ->
-            if (flavours != null) {
-                cachingService.cacheAppFlavours(appId, flavours)
-            }
-        }
-    }
-
     private suspend fun getReferences(appId: String): List<Reference>? {
         return cachingService.getCachedReferences(appId) ?: databaseService.getRefs(appId)?.map {
             LOGGER.debug("References: Cache miss")
@@ -357,17 +343,6 @@ class ApplicationService @Inject constructor(
         }.also { references ->
             if (references != null) {
                 cachingService.cacheAppReferences(appId, references)
-            }
-        }
-    }
-
-    private suspend fun getBuildVariants(appId: String): List<String>? {
-        return cachingService.getBuildVariants(appId) ?: databaseService.getBuildTypes(appId)?.map {
-            LOGGER.debug("Build Variants: Cache miss")
-            it.name
-        }.also { buildVariants ->
-            if (buildVariants != null) {
-                cachingService.cacheBuildVariants(appId, buildVariants)
             }
         }
     }
@@ -421,14 +396,6 @@ class ApplicationService @Inject constructor(
                 }
             }
             Event.EventType.MESSAGE_ACTION -> {
-                when (slackEvent.callbackId) {
-                    SlackConstants.TYPE_CREATE_MOCK_API -> {
-                        slackService.sendShowCreateApiDialog(slackEvent.triggerId!!)
-                    }
-                    else -> {
-
-                    }
-                }
             }
             Event.EventType.DIALOG_SUBMISSION -> {
                 onDialogSubmitted(slackEvent)
@@ -451,38 +418,11 @@ class ApplicationService @Inject constructor(
                     slackService.sendSubscribeToBranch(slackEvent, app, branch!!, channelId!!)
                 }
             }
-            slackEvent.callbackId == Constants.Slack.CALLBACK_CREATE_API -> {
-                createApiDialogResponse(slackEvent)
-            }
             slackEvent.callbackId?.startsWith(Constants.Slack.CALLBACK_GENERATE_APK) == true -> {
                 generateAppDialogResponse(slackEvent)
             }
             else -> {
 
-            }
-        }
-    }
-
-    private suspend fun createApiDialogResponse(slackEvent: SlackEvent) = coroutineScope {
-        val verb = slackEvent.dialogResponse?.get(Constants.Slack.TYPE_SELECT_VERB)
-        val response = slackEvent.dialogResponse?.get(Constants.Slack.TYPE_SELECT_RESPONSE)
-
-        val id = UUID.randomUUID().toString().replace("-", "", true)
-
-        launch(Dispatchers.IO) {
-            try {
-                JsonParser.parseString(response).asJsonObject
-                databaseService.addApi(id, verb!!, response!!)
-
-                slackService.sendMessage(
-                    slackEvent.responseUrl!!,
-                    RequestData(response = "Your `$verb` call is ready with url `${common.baseUrl}api/mock/$id`")
-                )
-            } catch (exception: Exception) {
-                slackService.sendMessage(
-                    slackEvent.responseUrl!!,
-                    RequestData(response = "Invalid JSON")
-                )
             }
         }
     }
@@ -505,10 +445,7 @@ class ApplicationService @Inject constructor(
                 }?.mapValues { map -> map.value as String }?.toMutableMap()
 
                 launch(Dispatchers.IO) {
-                    generateApk(
-                        buildData ?: mutableMapOf(), slackEvent.channel?.id ?: "general",
-                        app.id, slackEvent.responseUrl ?: ""
-                    )
+                    generateApk(buildData ?: mutableMapOf(), slackEvent.channel?.id ?: "general", app.id)
                 }
             }
         }
@@ -542,7 +479,7 @@ class ApplicationService @Inject constructor(
             cachingService.deleteApkCache(appId, branch)
             appList.forEach {
                 try {
-                    if(it.pathOnDisk != null && File(it.pathOnDisk).parentFile.deleteRecursively()) {
+                    if (it.pathOnDisk != null && File(it.pathOnDisk).deleteRecursively()) {
                         LOGGER.info("Deleted file ${it.pathOnDisk}")
                     }
                 } catch (exception: Exception) {
@@ -620,14 +557,6 @@ class ApplicationService @Inject constructor(
         slackService.subscribeSlackEvent(slackEvent)
     }
 
-    suspend fun getApi(apiId: String, verb: String): Api? {
-        return databaseService.getApi(apiId, verb)
-    }
-
-    suspend fun sendShowCreateApiDialog(triggerId: String) {
-        slackService.sendShowCreateApiDialog(triggerId)
-    }
-
     fun clear() {
         apps.forEach {
             dockerService.killContainer(it)
@@ -636,75 +565,40 @@ class ApplicationService @Inject constructor(
         cachingService.close()
     }
 
-    private fun verifyAndCacheApp(appId: String, params: Map<String, String>, fileToCache: File) {
-        params[SlackConstants.TYPE_SELECT_BRANCH]?.let { branch ->
-            cachingService.cacheApk(appId, branch, ApkCache(params, fileToCache.absolutePath))
-        } ?: fileToCache.parentFile.deleteRecursively()
+    private fun verifyAndCacheApp(fileToCache: File, appId: String, params: Map<String, String>) {
+        takeIf {
+            params.containsKey(SlackConstants.TYPE_SELECT_BRANCH) && fileToCache.exists()
+        }?.let {
+            cachingService.cacheApk(
+                appId, params[SlackConstants.TYPE_SELECT_BRANCH] ?: error("Branch is missing"),
+                ApkCache(params, fileToCache.absolutePath)
+            )
+        } ?: fileToCache.deleteRecursively()
     }
 
-    suspend fun uploadApk(apkCallback: Apps.App.Callback, receivedFile: File,
-                          params: MutableMap<String, String>, cacheApk: Boolean) {
-        val callback = cachingService.getAppCallbackCache(apkCallback.callbackId)
-        cachingService.clearAppCallback(apkCallback.callbackId)
-        if (receivedFile.exists()) {
-            LOGGER.debug("Params: %s", params)
-            val data = params.map {
-                "${it.key} = ${it.value}"
-            }.joinToString("\n")
-            callback?.channelId?.let { channelId ->
-                LOGGER.info("Apk Cache hit")
-                slackService.uploadFile(receivedFile, channelId, data) {
-                    if(callback.useCache) {
-                        if (cacheApk) {
-                            verifyAndCacheApp(apkCallback.app.id, params, receivedFile)
-                        }
-                    } else {
-                        receivedFile.parentFile.deleteRecursively()
-                    }
-                }
-            } ?: run {
-                if(callback?.useCache == true) {
-                    if (cacheApk) {
-                        verifyAndCacheApp(apkCallback.app.id, params, receivedFile)
-                    }
-                } else {
-                    receivedFile.parentFile.deleteRecursively()
-                }
-                LOGGER.error("Channel id is null, Unable to upload file")
-            }
-        } else {
-            LOGGER.error("APK Generated but file not found in the folder")
-            if (callback?.responseUrl != null) {
-                slackService.sendMessage(
-                    callback.responseUrl,
-                    RequestData(
-                        response = "Something went wrong. Unable to generate the APK"
-                    )
-                )
-            } else {
-                callback?.channelId?.let { channelId ->
-                    slackService.sendMessage("Something went wrong. Unable to generate the APK", channelId, null)
-                }
-            }
-        }
+    suspend fun uploadApk(
+        byteArray: ByteArray, params: Map<String, String?>,
+        channelId: String, fileName: String = "app.apk",
+        onFinish: (() -> Unit)? = null
+    ) {
+        val initialComment = params.map {
+            "${it.key} = ${it.value}"
+        }.joinToString("\n")
+        slackService.uploadFile(byteArray, channelId, initialComment, onFinish, fileName)
     }
 
-    suspend fun reportFailure(apkCallback: Apps.App.Callback, errorResponse: ErrorResponse) {
-        val callback = cachingService.getAppCallbackCache(apkCallback.callbackId)
-        cachingService.clearAppCallback(apkCallback.callbackId)
-        callback?.channelId?.let { channelId ->
-            slackService.sendMessage(errorResponse.details ?: "Something went wrong", channelId, null)
+    private suspend fun reportFailure(app: App, channelId: String?, details: String?) = coroutineScope {
+        channelId?.let {
+            slackService.sendMessage(details ?: "Something went wrong", channelId, null)
         }
-        GlobalScope.launch {
-            apps.firstOrNull {
-                apkCallback.app.id == it.id
-            }?.let {
-                cleanApp(it)
-            }
+        onTaskCompleted(app.id)
+        launch(Dispatchers.IO) {
+            cleanApp(app)
+            onTaskCompleted(app.id)
         }
     }
 
     companion object {
-        private val LOGGER = LoggerFactory.getLogger(ApplicationService::class.java)
+        private val LOGGER = LoggerFactory.getLogger("com.tombspawn.ApplicationService")
     }
 }

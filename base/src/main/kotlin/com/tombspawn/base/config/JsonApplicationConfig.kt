@@ -1,12 +1,10 @@
 package com.tombspawn.base.config
 
 import com.google.gson.Gson
-import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
 import io.ktor.config.ApplicationConfig
-import io.ktor.config.ApplicationConfigValue
 
 class JsonApplicationConfig: ApplicationConfig {
     private val gson: Gson
@@ -21,36 +19,30 @@ class JsonApplicationConfig: ApplicationConfig {
     }
 
     override fun config(path: String): JsonApplicationConfig {
-        return if(config.isJsonObject && config.asJsonObject.has(path)) {
-            JsonApplicationConfig(gson, config.asJsonObject.get(path))
-        } else {
-            JsonApplicationConfig(gson, JsonObject())
-        }
+        return config.findElementInPath(path)?.let {
+            JsonApplicationConfig(gson, it)
+        } ?: JsonApplicationConfig(gson, JsonObject())
     }
 
     override fun configList(path: String): List<JsonApplicationConfig> {
-        return if(config.isJsonObject && config.asJsonObject.has(path) && config.asJsonObject.get(path).isJsonArray) {
-            config.asJsonObject.get(path).asJsonArray.map {
+        return config.findElementInPath(path)?.takeIf {
+            it.isJsonArray
+        }?.let {
+            it.asJsonArray.map {
                 JsonApplicationConfig(gson, it)
             }
-        } else {
-            listOf(JsonApplicationConfig(gson, config))
-        }
+        } ?: listOf(JsonApplicationConfig(gson, config))
     }
 
     override fun property(path: String): JsonApplicationConfigValue {
-        return if(config.isJsonObject && config.asJsonObject.has(path)) {
-            JsonApplicationConfigValue(gson, config.asJsonObject.get(path))
-        } else {
-            JsonApplicationConfigValue(gson, JsonObject())
-        }
+        return config.findElementInPath(path)?.let {
+            JsonApplicationConfigValue(gson, it)
+        } ?: JsonApplicationConfigValue(gson, JsonObject())
     }
 
     override fun propertyOrNull(path: String): JsonApplicationConfigValue? {
-        return if(config.isJsonObject && config.asJsonObject.has(path)) {
-            JsonApplicationConfigValue(gson, config.asJsonObject.get(path))
-        } else {
-            null
+        return config.findElementInPath(path)?.let {
+            JsonApplicationConfigValue(gson, it)
         }
     }
 
@@ -61,4 +53,18 @@ class JsonApplicationConfig: ApplicationConfig {
     fun <T> getAs(typeToken: TypeToken<T>): T? {
         return gson.fromJson(config, typeToken.type)
     }
+}
+
+private fun JsonElement.findElementInPath(path: String): JsonElement? {
+    var pointer = this
+    val pathIterator = path.split(".").iterator()
+    while(pathIterator.hasNext()) {
+        val nextPath = pathIterator.next().trim()
+        if(pointer.isJsonObject && pointer.asJsonObject.has(nextPath)) {
+            pointer = pointer.asJsonObject.get(nextPath)
+        } else {
+            return null
+        }
+    }
+    return pointer
 }

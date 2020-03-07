@@ -2,7 +2,6 @@ package com.tombspawn.base.di
 
 import com.google.gson.Gson
 import dagger.Component
-import dagger.Subcomponent
 import io.ktor.client.features.json.GsonSerializer
 
 @Component(modules = [CoreModule::class])

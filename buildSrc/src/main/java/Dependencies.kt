@@ -1,12 +1,13 @@
 object Versions {
     const val jgitVersion = "5.6.0.201912101111-r"
     const val junitVersion = "4.12"
-    const val kotlin = "1.3.61"
+    const val kotlin = "1.3.70"
     const val ktorVersion = "1.3.0"
     const val shadowJar = "5.2.0"
     const val daggerVersion = "2.25.4"
     const val exposed = "0.20.3"
     const val mockito = "3.2.4"
+    const val grpc = "1.27.1"
 }
 
 object Classpaths {
@@ -77,6 +78,12 @@ object Ktor {
     const val jwt = "io.ktor:ktor-auth-jwt:${Versions.ktorVersion}"
     const val jvmLogging = "io.ktor:ktor-client-logging-jvm:${Versions.ktorVersion}"
     const val curl = "io.ktor:ktor-client-curl:${Versions.ktorVersion}"
+}
+
+object GRPC {
+    const val netty = "io.grpc:grpc-netty-shaded:${Versions.grpc}"
+    const val protobuf = "io.grpc:grpc-protobuf:${Versions.grpc}"
+    const val stub = "io.grpc:grpc-stub:${Versions.grpc}"
 }
 
 object Testing {

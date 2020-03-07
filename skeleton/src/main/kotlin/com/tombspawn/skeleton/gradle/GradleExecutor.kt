@@ -4,7 +4,8 @@ import com.tombspawn.base.common.*
 import com.tombspawn.skeleton.di.qualifiers.AppDir
 import com.tombspawn.skeleton.di.qualifiers.GradlePath
 import com.tombspawn.skeleton.git.CredentialProvider
-import com.tombspawn.skeleton.models.*
+import com.tombspawn.skeleton.models.RefType
+import com.tombspawn.skeleton.models.Reference
 import com.tombspawn.skeleton.utils.Constants
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.SendChannel

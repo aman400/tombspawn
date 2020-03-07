@@ -5,6 +5,7 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import io.ktor.config.ApplicationConfigValue
+import java.lang.reflect.Type
 
 class JsonApplicationConfigValue(private val gson: Gson, private val config: JsonElement) : ApplicationConfigValue {
     override fun getList(): List<String> {
@@ -29,5 +30,9 @@ class JsonApplicationConfigValue(private val gson: Gson, private val config: Jso
 
     fun <T> getAs(clazz: Class<out T>): T {
         return gson.fromJson(config, clazz)
+    }
+
+    fun <T> getAs(type: Type): T {
+        return gson.fromJson(config, type)
     }
 }
