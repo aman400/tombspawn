@@ -29,7 +29,8 @@ class DBUser(id: EntityID<Int>) : IntEntity(id), Principal {
 }
 
 object UserTypes : IntIdTable() {
-    val type = varchar("type", 20).uniqueIndex()
+    val type = varchar("type", 20)
+    override val primaryKey = PrimaryKey(id, type)
 }
 
 class UserType(id: EntityID<Int>) : IntEntity(id) {

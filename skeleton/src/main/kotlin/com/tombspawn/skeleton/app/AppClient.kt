@@ -18,7 +18,7 @@ class AppClient @Inject constructor(@UploadAppClient private val uploadHttpClien
                 method = HttpMethod.Post
                 body = SuccessResponse(if (success) "success" else "failed")
                 headers.append(HttpHeaders.ContentType, ContentType.Application.Json)
-            }.await()
+            }.await<JsonObject>()
         }
     }
 }

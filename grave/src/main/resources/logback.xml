@@ -25,4 +25,7 @@
     <logger name="com.tombspawn.Grave" level="TRACE"/>
     <logger name="com.tombspawn.grave.Application" level="TRACE"/>
     <logger name="com.tombspawn.ApplicationService" level="TRACE"/>
+    <logger name="com.tombspawn.base.network.CommonUtils" level="TRACE"/>
+    <logger name="com.tombspawn.slackbot.SlackClient" level="TRACE"/>
+
 </configuration>

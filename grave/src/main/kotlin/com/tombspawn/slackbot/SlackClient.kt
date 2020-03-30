@@ -33,7 +33,7 @@ class SlackClient @Inject constructor(
     private val slack: Slack,
     val gson: Gson
 ) {
-    private val LOGGER = LoggerFactory.getLogger("com.application.slack.client")
+    private val LOGGER = LoggerFactory.getLogger("com.tombspawn.slackbot.SlackClient")
 
     @Throws(Exception::class)
     suspend fun fetchBotData(botToken: String): BotInfo.Self? = coroutineScope {

@@ -3,10 +3,7 @@ package com.tombspawn.skeleton
 import io.grpc.Server
 import io.grpc.ServerBuilder
 import io.ktor.application.ApplicationStopPreparing
-import io.ktor.server.engine.ApplicationEngine
-import io.ktor.server.engine.ApplicationEngineEnvironment
-import io.ktor.server.engine.ApplicationEngineFactory
-import io.ktor.server.engine.BaseApplicationEngine
+import io.ktor.server.engine.*
 import java.util.concurrent.TimeUnit
 
 object GRPC : ApplicationEngineFactory<GRPCApplicationEngine, GRPCApplicationEngine.Configuration> {
@@ -18,6 +15,7 @@ object GRPC : ApplicationEngineFactory<GRPCApplicationEngine, GRPCApplicationEng
     }
 }
 
+@OptIn(EngineAPI::class)
 class GRPCApplicationEngine constructor(
     environment: ApplicationEngineEnvironment,
     configure: Configuration.() -> Unit = {}

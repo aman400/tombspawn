@@ -4,6 +4,7 @@ package com.tombspawn.skeleton.commandline
 import com.tombspawn.base.common.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.channels.actor
@@ -14,6 +15,7 @@ import java.io.IOException
 
 private val LOGGER = LoggerFactory.getLogger("com.tombspawn.skeleton.commandline.CommandLineClient")
 
+@ExperimentalCoroutinesApi
 fun CoroutineScope.getCommandExecutor(): SendChannel<Command> {
     return actor(Dispatchers.IO, capacity = Channel.UNLIMITED) {
         consumeEach { command ->

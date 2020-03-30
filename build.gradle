@@ -63,4 +63,11 @@ allprojects {
         maven { url 'https://dl.bintray.com/kotlin/ktor' }
         maven { url "https://jitpack.io" }
     }
+
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
+        kotlinOptions {
+            jvmTarget = '1.8'
+            freeCompilerArgs += '-Xopt-in=kotlin.RequiresOptIn'
+        }
+    }
 }

@@ -8,8 +8,6 @@ data class App constructor(
     var id: String,
     @SerializedName("name")
     var name: String?,
-    @SerializedName("app_url")
-    var appUrl: String?,
     @SerializedName("repo_id")
     var repoId: String?,
     @SerializedName("dir")

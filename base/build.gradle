@@ -51,7 +51,7 @@ dependencies {
     api platform('org.jetbrains.kotlin:kotlin-bom')
 
     // Use the Kotlin JDK 8 standard library.
-    api 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
+    api Kotlin.stdlib
     api Ktor.gson
     api Ktor.ktorGson
     api Ktor.jvmLogging

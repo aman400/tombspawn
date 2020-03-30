@@ -1,13 +1,13 @@
 object Versions {
-    const val jgitVersion = "5.6.0.201912101111-r"
+    const val jgitVersion = "5.7.0.202003110725-r"
     const val junitVersion = "4.12"
     const val kotlin = "1.3.70"
-    const val ktorVersion = "1.3.0"
+    const val ktorVersion = "1.3.2"
     const val shadowJar = "5.2.0"
-    const val daggerVersion = "2.25.4"
-    const val exposed = "0.20.3"
+    const val daggerVersion = "2.27"
+    const val exposed = "0.22.1"
     const val mockito = "3.2.4"
-    const val grpc = "1.27.1"
+    const val grpc = "1.28.0"
 }
 
 object Classpaths {
@@ -37,12 +37,12 @@ object Log {
 }
 
 object Docker {
-    const val lib = "com.github.docker-java:docker-java:3.2.0-rc2"
+    const val lib = "com.github.docker-java:docker-java:3.2.1"
 }
 
 object Database {
-    const val mysql = "mysql:mysql-connector-java:8.0.18"
-    const val pool = "com.zaxxer:HikariCP:3.4.1"
+    const val mysql = "mysql:mysql-connector-java:8.0.19"
+    const val pool = "com.zaxxer:HikariCP:3.4.2"
     const val redis = "org.redisson:redisson:3.12.0"
 }
 
