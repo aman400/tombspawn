@@ -143,7 +143,7 @@ class ApplicationService @Inject constructor(
                     if (index == lastTask) {
                         when (response) {
                             is Success -> {
-                                val paths = Paths.get(app.dir!!)
+                                val paths = Paths.get(app.appDir!!)
                                 val outputDir = try {
                                     paths.resolve(gradleTask.outputDir).toFile()
                                 } catch (exception: Exception) {

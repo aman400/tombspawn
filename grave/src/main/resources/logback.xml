@@ -20,7 +20,7 @@
     <logger name="Exposed" level="ERROR"/>
     <logger name="com.tombspawn.base.network.Common" level="TRACE"/>
     <logger name="com.tombspawn.docker.DockerApiClient" level="TRACE"/>
-    <logger name="com.tombspawn.docker.DockerService" level="DEBUG"/>
+    <logger name="com.tombspawn.docker.DockerService" level="TRACE"/>
     <logger name="com.tombspawn.data.CachingService" level="TRACE"/>
     <logger name="com.tombspawn.Grave" level="TRACE"/>
     <logger name="com.tombspawn.grave.Application" level="TRACE"/>

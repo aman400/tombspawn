@@ -10,8 +10,10 @@ data class App constructor(
     var name: String?,
     @SerializedName("repo_id")
     var repoId: String?,
-    @SerializedName("dir")
-    var dir: String? = null,
+    @SerializedName("clone_dir")
+    var cloneDir: String? = null,
+    @SerializedName("app_dir")
+    var appDir: String? = null,
     @SerializedName("remote_uri")
     var uri: String? = null,
     @SerializedName("gradle_tasks")

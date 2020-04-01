@@ -178,8 +178,11 @@ class DockerService @Inject constructor(
             val gitApps = dockerClient.createVolume("git")
             val appVolumeBind = Bind(gitApps, Volume("/app/git/"))
 
-            val appPath = "/app/git/${app.id}/"
-            app.dir = appPath
+            app.cloneDir = "/app/git/${app.id}/"
+            if(app.appDir.isNullOrEmpty()) {
+                app.appDir = app.cloneDir
+            }
+            LOGGER.info("App dir ${app.appDir}, Clone dir ${app.cloneDir}")
 
             val serverConfig = ServerConf("http", "0.0.0.0", Constants.Common.DEFAULT_PORT, debug)
             val request = gson.toJson(

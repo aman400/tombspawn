@@ -8,7 +8,8 @@ data class App constructor(
     @SerializedName("id") val id: String,
     @SerializedName("name") val name: String?,
     @SerializedName("repo_id") val repoId: String?,
-    @SerializedName("dir") var dir: String? = null,
+    @SerializedName("app_dir") var appDir: String? = null,
+    @SerializedName("clone_dir") var cloneDir: String? = null,
     @SerializedName("remote_uri") val uri: String? = null,
     @SerializedName("memory") val memory: Long? = null,
     @SerializedName("swap") val swap: Long? = null,
@@ -18,10 +19,14 @@ data class App constructor(
     @SerializedName("files") val fileMappings: List<FileMapping>? = null,
     @SerializedName("gradle_tasks") val gradleTasks: List<GradleTask>? = null,
     @SerializedName("build_params") val elements: List<Element>? = null,
-    @SerializedName("tag_count") private val _tagCount: Int? = null
+    @SerializedName("tag_count") private val _tagCount: Int? = null,
+    @SerializedName("branch_count") private val _branchCount: Int? = null
 ) {
     val tagCount: Int
-        get() = _tagCount ?: 5
+        get() = _tagCount?.coerceAtMost(100) ?: -1
+
+    val branchCount: Int
+        get() = _branchCount?.coerceAtMost(100) ?: -1
 
     data class FileMapping(
         @SerializedName("name") val name: String,

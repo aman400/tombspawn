@@ -78,7 +78,7 @@ class DockerApiClient @Inject constructor(
                 .withDeadlineAfter(20, TimeUnit.MINUTES)
                 .fetchReferences(
                     ReferencesRequest.newBuilder()
-                        .setBranchLimit(-1)
+                        .setBranchLimit(app.branchCount)
                         .setTagLimit(app.tagCount)
                         .build(), object : StreamObserver<ReferencesResponse> {
                         override fun onNext(value: ReferencesResponse?) {
