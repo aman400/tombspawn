@@ -39,7 +39,7 @@ object Common {
                             LOGGER.debug(message)
                         }
                     }
-                    level = LogLevel.ALL
+                    level = LogLevel.HEADERS
                 } else {
                     level = LogLevel.NONE
                 }

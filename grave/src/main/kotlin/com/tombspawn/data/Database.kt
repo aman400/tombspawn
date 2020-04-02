@@ -12,11 +12,10 @@ import org.jetbrains.exposed.sql.ReferenceOption
 object Users : IntIdTable() {
     val name = varchar("name", 100).nullable()
     val email = varchar("email", 50).nullable()
-    val slackId = varchar("slack_id", 50)
+    val slackId = varchar("slack_id", 50).index(isUnique = true)
     val imId = varchar("im_id", 100).nullable()
     val userType =
         reference("user_type", UserTypes, onDelete = ReferenceOption.CASCADE, onUpdate = ReferenceOption.RESTRICT)
-    override val primaryKey: PrimaryKey = PrimaryKey(id, slackId)
 }
 
 class DBUser(id: EntityID<Int>) : IntEntity(id), Principal {
@@ -30,8 +29,7 @@ class DBUser(id: EntityID<Int>) : IntEntity(id), Principal {
 }
 
 object UserTypes : IntIdTable() {
-    val type = varchar("type", 20)
-    override val primaryKey = PrimaryKey(id, type)
+    val type = varchar("type", 20).uniqueIndex()
 }
 
 class UserType(id: EntityID<Int>) : IntEntity(id) {
