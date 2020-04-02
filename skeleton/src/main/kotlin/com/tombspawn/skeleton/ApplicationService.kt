@@ -5,7 +5,7 @@ import com.tombspawn.base.common.*
 import com.tombspawn.skeleton.app.AppClient
 import com.tombspawn.skeleton.di.qualifiers.InitCallbackUri
 import com.tombspawn.skeleton.git.GitService
-import com.tombspawn.skeleton.gradle.GradleService
+import com.tombspawn.skeleton.gradle.CommandService
 import com.tombspawn.skeleton.models.App
 import kotlinx.coroutines.*
 import org.apache.commons.io.FileUtils
@@ -20,7 +20,7 @@ import kotlin.coroutines.CoroutineContext
 
 class ApplicationService @Inject constructor(
     private val gitService: GitService,
-    private val gradleService: GradleService,
+    private val gradleService: CommandService,
     private val appClient: AppClient,
     @InitCallbackUri
     private val initCallbackUri: String,
@@ -102,7 +102,7 @@ class ApplicationService @Inject constructor(
     }
 
     suspend fun cleanCode(): CommandResponse {
-        return gradleService.cleanCode()
+        return gradleService.cleanCode("clean")
     }
 
     @ExperimentalStdlibApi

@@ -107,12 +107,16 @@ class ApplicationService @Inject constructor(
                 runBlocking {
                     dockerService.appInitialized(it)
                 }
-                addRefs(appId, fetchReferences(it).map {
-                    Reference(it.name, RefType.from(it))
-                })
-                onTaskCompleted(appId)
+                fetchAndUpdateReferences(it)
             }
         }
+    }
+
+    private suspend fun fetchAndUpdateReferences(app: App) = withContext(Dispatchers.IO) {
+        addRefs(app.id, fetchReferences(app).map {
+            Reference(it.name, RefType.from(it))
+        })
+        onTaskCompleted(app.id)
     }
 
     /**
@@ -321,7 +325,8 @@ class ApplicationService @Inject constructor(
             appId == it.id
         }?.let { app ->
             LOGGER.warn("Command options not set. These options can be set using '/build-fleet BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'")
-            val branchList = getReferences(app.id)
+            // Limit the list to 100. Slack limitation.
+            val branchList = getReferences(app.id)?.take(100)
             val buildTypesList = app.gradleTasks?.map {
                 it.id
             }
@@ -516,11 +521,13 @@ class ApplicationService @Inject constructor(
                             payload.ref?.let { ref ->
                                 databaseService.addRef(app.id, Reference(ref, RefType.BRANCH))
                                 updateCachedRefs(app)
+                                fetchAndUpdateReferences(app)
                             }
                         } else if (payload.refType == RefType.TAG) {
                             payload.ref?.let { ref ->
                                 databaseService.addRef(app.id, Reference(ref, RefType.TAG))
                                 updateCachedRefs(app)
+                                fetchAndUpdateReferences(app)
                             }
                         }
                     }
@@ -533,6 +540,7 @@ class ApplicationService @Inject constructor(
                                 updateCachedRefs(app)
                                 // Delete cached APKs
                                 deleteApks(app.id, ref)
+                                fetchAndUpdateReferences(app)
                             }
                         } else if (payload.refType == RefType.TAG) {
                             payload.ref?.let { ref ->
@@ -540,6 +548,7 @@ class ApplicationService @Inject constructor(
                                 updateCachedRefs(app)
                                 // Delete cached APKs
                                 deleteApks(app.id, ref)
+                                fetchAndUpdateReferences(app)
                             }
                         }
                     }

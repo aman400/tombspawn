@@ -23,7 +23,7 @@ data class App constructor(
     @SerializedName("branch_count") private val _branchCount: Int? = null
 ) {
     val tagCount: Int
-        get() = _tagCount?.coerceAtMost(100) ?: -1
+        get() = _tagCount?.coerceAtMost((100 - branchCount).coerceAtLeast(0)) ?: -1
 
     val branchCount: Int
         get() = _branchCount?.coerceAtMost(100) ?: -1

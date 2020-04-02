@@ -10,7 +10,7 @@ import dagger.Component
 import io.ktor.application.Application
 import io.ktor.client.HttpClient
 
-@Component(modules = [AppModule::class, CommandLineModule::class], dependencies = [CoreComponent::class])
+@Component(modules = [AppModule::class, CommandLineModule::class, ServiceModule::class], dependencies = [CoreComponent::class])
 @AppScope
 interface AppComponent {
 
