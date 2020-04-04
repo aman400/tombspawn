@@ -33,10 +33,12 @@ class GradleExecutor @Inject constructor(
     override suspend fun executeTask(
         task: String,
         parameters: MutableMap<String, String>?,
+        timeout: Long,
         onPreProcess: suspend () -> Boolean,
-        onPostProcess: suspend (response: CommandResponse) -> Boolean
+        onPostProcess: suspend (response: CommandResponse) -> Boolean,
+        executionDir: String?
     ): CompletableDeferred<CommandResponse> {
-        val executionDirectory = File(appDir)
+        val executionDirectory = File(executionDir ?: appDir)
         var executableCommand = "$gradlePath $task"
 
         parameters?.filter {
@@ -49,6 +51,7 @@ class GradleExecutor @Inject constructor(
         val buildId = UUID.randomUUID().toString()
         val request = ExecuteTaskCommand(
             executableCommand, executionDirectory,
+            timeoutAmount = timeout,
             id = buildId, listener = CompletableDeferred(), preProcess = onPreProcess, postProcess = onPostProcess
         )
         requestExecutor.send(request)

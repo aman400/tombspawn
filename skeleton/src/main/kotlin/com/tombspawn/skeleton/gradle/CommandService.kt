@@ -10,9 +10,10 @@ class CommandService @Inject constructor(private val commandExecutor: CommandExe
     }
 
     suspend fun executeTask(
-        task: String, parameters: MutableMap<String, String>?, onPreProcess: suspend () -> Boolean,
-        onPostProcess: suspend (response: CommandResponse) -> Boolean
+        task: String, parameters: MutableMap<String, String>?, timeout: Long,
+        onPreProcess: suspend () -> Boolean, onPostProcess: suspend (response: CommandResponse) -> Boolean,
+        executionDir: String? = null
     ): CompletableDeferred<CommandResponse> {
-        return commandExecutor.executeTask(task, parameters, onPreProcess, onPostProcess)
+        return commandExecutor.executeTask(task, parameters, timeout, onPreProcess, onPostProcess, executionDir)
     }
 }

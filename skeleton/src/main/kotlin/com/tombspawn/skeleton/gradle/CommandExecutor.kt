@@ -1,14 +1,14 @@
 package com.tombspawn.skeleton.gradle
 
 import com.tombspawn.base.common.CommandResponse
-import com.tombspawn.skeleton.models.Reference
 import kotlinx.coroutines.CompletableDeferred
 
 interface CommandExecutor {
 
     suspend fun cleanCode(task: String): CommandResponse
     suspend fun executeTask(
-        task: String, parameters: MutableMap<String, String>?, onPreProcess: suspend () -> Boolean,
-        onPostProcess: suspend (response: CommandResponse) -> Boolean
+        task: String, parameters: MutableMap<String, String>?, timeout: Long,
+        onPreProcess: suspend () -> Boolean, onPostProcess: suspend (response: CommandResponse) -> Boolean,
+        executionDir: String? = null
     ): CompletableDeferred<CommandResponse>
 }

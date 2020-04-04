@@ -120,7 +120,7 @@ class ApplicationService @Inject constructor(
             val jobs: MutableList<Job> = mutableListOf()
             // Run all the gradle subtasks defined for a given taskId
             gradleTask.tasks.forEachIndexed { index: Int, task: String ->
-                jobs.add(gradleService.executeTask(task, parameters, {
+                jobs.add(gradleService.executeTask(task, parameters, gradleTask.timeout, {
                     if (index == 0) {
                         branch?.trim()?.let {
                             // Clean git repo to remove untracked files/folders
@@ -200,7 +200,7 @@ class ApplicationService @Inject constructor(
                     } else {
                         true
                     }
-                }))
+                }, gradleTask.executionDir))
             }
             // Await for completion of all jobs
             jobs.forEach {
