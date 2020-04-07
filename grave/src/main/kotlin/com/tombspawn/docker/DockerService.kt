@@ -17,12 +17,14 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.channels.actor
+import org.apache.commons.io.FileUtils
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.FileWriter
 import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.text.StringBuilder
 
 @AppScope
 class DockerService @Inject constructor(
@@ -128,19 +130,34 @@ class DockerService @Inject constructor(
     suspend fun createContainer(app: App, port: Int, callbackUri: String) =
         coroutineScope {
             LOGGER.debug("${System.getProperty("user.dir")}/skeleton/Dockerfile")
+            // Base docker file which installs Android SDK
+            // This base Android docker file is to separate out android SDK installation from application initialization
+            // Base AndroidDockerfile is inherited by all the skeleton docker images.
             dockerClient.createImage(
                 File("${System.getProperty("user.dir")}/skeleton/AndroidDockerfile"),
                 "android-sdk"
             )
+            val scriptsDir = File(
+                "${System.getProperty("user.dir")}/skeleton/apps/${app.id}/${com.tombspawn.base.common.Constants.APP_INIT_SCRIPTS_DIR}/")
+
+            // Skeleton application docker file
             File("${System.getProperty("user.dir")}/skeleton/Dockerfile").takeIf {
                 it.exists()
             }?.let {
                 dockerClient.createImage(it, "skeleton")
             }
+
+            app.cloneDir = "/app/git/${app.id}/${com.tombspawn.base.common.Constants.APP_DIR}"
+            if (app.appDir.isNullOrEmpty()) {
+                app.appDir = app.cloneDir
+            }
+            LOGGER.info("App dir ${app.appDir}, Clone dir ${app.cloneDir}")
+
             try {
+                // Dynamically create dockerfile for a given application config
                 File("${System.getProperty("user.dir")}/skeleton/apps/${app.id}/Dockerfile").let {
                     // Clear older Dockerfile if any
-                    if(it.exists()) {
+                    if (it.exists()) {
                         it.delete()
                     }
                     // Create all parent directories
@@ -148,20 +165,44 @@ class DockerService @Inject constructor(
                     @Suppress("BlockingMethodInNonBlockingContext")
                     // Create Dockerfile for given app
                     it.createNewFile()
-                    // Copy given files to given directories
-                    val dataToAppend = "FROM skeleton as ${app.id}\nENV HOME /root\n${app.fileMappings.takeIf {
-                        !it.isNullOrEmpty()
-                    }?.let {
-                            it.joinToString("") { mapping ->
+                    val dataToAppend = """
+                                            |FROM skeleton as ${app.id}
+                                            |ENV HOME /root
+                                            |ENV APP_DIR ${app.cloneDir}
+                                            |${app.fileMappings.takeIf { fileMappings ->
+                        !fileMappings.isNullOrEmpty()
+                    }?.let { fileMappings ->
+                        // Create a copy command for each files mentioned in the "files" config 
+                        // and replace all the path placeholders for example: $APP_DIR is replace by the application directory path
+                        fileMappings.joinToString("") { mapping ->
                             "COPY ${mapping.name} ${mapping.path}\n"
                         }
-                    } ?: ""}"
+                    } ?: ""}""".trimMargin().let {
+                        // Copy shell scripts
+                        val initScriptBuilder = StringBuilder()
+                        if(scriptsDir.exists()) {
+                            FileUtils.listFiles(
+                                scriptsDir, arrayOf("sh"), true
+                            ).forEach { file ->
+                                initScriptBuilder.appendln("RUN mkdir -p /app/git/${app.id}/${com.tombspawn.base.common.Constants.APP_INIT_SCRIPTS_DIR}/")
+                                initScriptBuilder.appendln(
+                                    "COPY ${com.tombspawn.base.common.Constants.APP_INIT_SCRIPTS_DIR}/${file.name} /app/git/${app.id}/${com.tombspawn.base.common.Constants.APP_INIT_SCRIPTS_DIR}/"
+                                )
+                            }
+                        }
+                        if (initScriptBuilder.isNotBlank()) {
+                            "$it$initScriptBuilder"
+                        } else {
+                            it
+                        }
+                    }
                     @Suppress("BlockingMethodInNonBlockingContext")
                     FileWriter(it).use { writer ->
                         writer.write(dataToAppend)
                     }
                     it
                 }.let {
+                    // create the dockerfile
                     dockerClient.createImage(it, app.id)
                 }
             } catch (exception: Exception) {
@@ -177,12 +218,6 @@ class DockerService @Inject constructor(
             // volume for cloned apps to persist them
             val gitApps = dockerClient.createVolume("git")
             val appVolumeBind = Bind(gitApps, Volume("/app/git/"))
-
-            app.cloneDir = "/app/git/${app.id}/"
-            if(app.appDir.isNullOrEmpty()) {
-                app.appDir = app.cloneDir
-            }
-            LOGGER.info("App dir ${app.appDir}, Clone dir ${app.cloneDir}")
 
             val serverConfig = ServerConf("http", "0.0.0.0", Constants.Common.DEFAULT_PORT, debug)
             val request = gson.toJson(
@@ -213,7 +248,8 @@ class DockerService @Inject constructor(
                     request,
                     "--verbose"
                 ), null, listOf(androidCache, appVolumeBind),
-                portBindings, listOf(exposedPort), app.memory, app.swap, app.cpuShares, app.env
+                portBindings, listOf(exposedPort), app.dockerConfig?.memory, app.dockerConfig?.swap,
+                app.dockerConfig?.cpuShares, app.env, systemCtls = app.dockerConfig?.systemCtls
             )?.let { containerId ->
                 if (containerMapping[app.id] == null) {
                     containerMapping[app.id] = ContainerInfo(app.id, containerId, ContainerState.CREATED)
@@ -272,7 +308,7 @@ class DockerService @Inject constructor(
     ) = suspendCancellableCoroutine<AppResponse> { continuation ->
         sendChannel.offer(QueueAddAction(app.id) {
             val cache = verify?.invoke()
-            if(cache == null) {
+            if (cache == null) {
                 try {
                     continuation.resume(
                         dockerClient.generateApp(

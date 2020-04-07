@@ -7,10 +7,13 @@ networks:
 volumes:
   mysqldb:
     name: mysqldb
+    driver: local
   redisdb:
     name: redisdb
+    driver: local
   apkCache:
     name: apkCache
+    driver: local
 
 services:
   db:

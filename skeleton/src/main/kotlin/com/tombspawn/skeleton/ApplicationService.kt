@@ -45,7 +45,7 @@ class ApplicationService @Inject constructor(
 
     private fun clone() {
         launch(Dispatchers.IO) {
-            if (gitService.clone()) {
+            if (gitService.clone() && gradleService.runInitScripts()) {
                 LOGGER.info("Making api call to $initCallbackUri")
                 when (val response = appClient.initComplete(initCallbackUri, success = true)) {
                     is CallSuccess -> {
@@ -61,6 +61,8 @@ class ApplicationService @Inject constructor(
                         LOGGER.info("Call Error $initCallbackUri", response.throwable)
                     }
                 }.exhaustive
+            } else {
+                throw IllegalStateException("Unable to initialize application")
             }
         }
     }

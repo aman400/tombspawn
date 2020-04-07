@@ -3,6 +3,7 @@ package com.tombspawn.skeleton.di
 import com.tombspawn.base.common.Command
 import com.tombspawn.skeleton.commandline.getCommandExecutor
 import com.tombspawn.skeleton.di.qualifiers.AppDir
+import com.tombspawn.skeleton.di.qualifiers.CloneDir
 import com.tombspawn.skeleton.di.qualifiers.GradlePath
 import com.tombspawn.skeleton.models.App
 import com.tombspawn.skeleton.models.config.CommonConfig
@@ -24,8 +25,13 @@ class CommandLineModule {
     @AppDir
     @Provides
     fun provideAppDir(app: App): String {
-        LOGGER.info("Setting app dir to ${app.appDir ?: app.cloneDir ?: "/"}")
         return app.appDir ?: app.cloneDir ?: "/"
+    }
+
+    @CloneDir
+    @Provides
+    fun provideCloneDir(app: App): String {
+        return app.cloneDir ?: app.appDir ?: "/"
     }
 
     @Provides

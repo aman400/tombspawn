@@ -5,6 +5,11 @@ import kotlinx.coroutines.CompletableDeferred
 import javax.inject.Inject
 
 class CommandService @Inject constructor(private val commandExecutor: CommandExecutor) {
+
+    suspend fun runInitScripts(): Boolean {
+        return commandExecutor.initApplication()
+    }
+
     suspend fun cleanCode(cleanTask: String): CommandResponse {
         return commandExecutor.cleanCode(cleanTask)
     }

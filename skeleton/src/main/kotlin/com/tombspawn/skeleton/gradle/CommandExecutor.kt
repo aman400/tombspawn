@@ -5,6 +5,7 @@ import kotlinx.coroutines.CompletableDeferred
 
 interface CommandExecutor {
 
+    suspend fun initApplication(): Boolean
     suspend fun cleanCode(task: String): CommandResponse
     suspend fun executeTask(
         task: String, parameters: MutableMap<String, String>?, timeout: Long,

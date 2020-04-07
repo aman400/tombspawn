@@ -8,7 +8,6 @@ import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.channels.actor
 import kotlinx.coroutines.channels.consumeEach
 import org.slf4j.LoggerFactory
-import java.io.IOException
 
 private val LOGGER = LoggerFactory.getLogger("com.tombspawn.skeleton.commandline.CommandLineClient")
 
@@ -35,16 +34,24 @@ fun CoroutineScope.getCommandExecutor(): SendChannel<Command> {
                             .start()
                         val successResponseBuilder = StringBuilder()
                         launch(Dispatchers.Default) {
-                            process.inputStream.bufferedReader().forEachLine {
-                                LOGGER.info(it)
-                                successResponseBuilder.append(it)
+                            try {
+                                process.inputStream.bufferedReader().forEachLine {
+                                    LOGGER.info(it)
+                                    successResponseBuilder.append(it)
+                                }
+                            } catch (exception: Exception) {
+                                LOGGER.error("Unable to attach stream", exception)
                             }
                         }
                         val errorResponseBuilder = StringBuilder()
                         launch(Dispatchers.Default) {
-                            process.errorStream.bufferedReader().forEachLine {
-                                LOGGER.info(it)
-                                errorResponseBuilder.append(it)
+                            try {
+                                process.errorStream.bufferedReader().forEachLine {
+                                    LOGGER.info(it)
+                                    errorResponseBuilder.append(it)
+                                }
+                            } catch (exception: Exception) {
+                                LOGGER.error("Unable to attach error stream", exception)
                             }
                         }
                         process.apply {
