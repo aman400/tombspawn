@@ -127,87 +127,95 @@ class DockerService @Inject constructor(
         }
     }
 
-    suspend fun createContainer(app: App, port: Int, callbackUri: String) =
-        coroutineScope {
-            LOGGER.debug("${System.getProperty("user.dir")}/skeleton/Dockerfile")
-            // Base docker file which installs Android SDK
-            // This base Android docker file is to separate out android SDK installation from application initialization
-            // Base AndroidDockerfile is inherited by all the skeleton docker images.
-            dockerClient.createImage(
-                File("${System.getProperty("user.dir")}/skeleton/AndroidDockerfile"),
-                "android-sdk"
-            )
-            val scriptsDir = File(
-                "${System.getProperty("user.dir")}/skeleton/apps/${app.id}/${com.tombspawn.base.common.Constants.APP_INIT_SCRIPTS_DIR}/")
+    private suspend fun createBaseImage() = coroutineScope {
+        LOGGER.debug("${System.getProperty("user.dir")}/skeleton/Dockerfile")
+        // Base docker file which installs Android SDK
+        // This base Android docker file is to separate out android SDK installation from application initialization
+        // Base AndroidDockerfile is inherited by all the skeleton docker images.
+        dockerClient.createImage(
+            File("${System.getProperty("user.dir")}/skeleton/AndroidDockerfile"),
+            "android-sdk"
+        )
 
-            // Skeleton application docker file
-            File("${System.getProperty("user.dir")}/skeleton/Dockerfile").takeIf {
-                it.exists()
-            }?.let {
-                dockerClient.createImage(it, "skeleton")
-            }
+        // Skeleton application docker file
+        File("${System.getProperty("user.dir")}/skeleton/Dockerfile").takeIf {
+            it.exists()
+        }?.let {
+            dockerClient.createImage(it, "skeleton")
+        }
+        Unit
+    }
 
-            app.cloneDir = "/app/git/${app.id}/${com.tombspawn.base.common.Constants.APP_DIR}"
-            if (app.appDir.isNullOrEmpty()) {
-                app.appDir = app.cloneDir
-            }
-            LOGGER.info("App dir ${app.appDir}, Clone dir ${app.cloneDir}")
+    private suspend fun createAppImage(app: App) = coroutineScope {
+        val scriptsDir = File(
+            "${System.getProperty("user.dir")}/skeleton/apps/${app.id}/${com.tombspawn.base.common.Constants.APP_INIT_SCRIPTS_DIR}/")
+        app.cloneDir = "/app/git/${app.id}/${com.tombspawn.base.common.Constants.APP_DIR}"
+        if (app.appDir.isNullOrEmpty()) {
+            app.appDir = app.cloneDir
+        }
 
-            try {
-                // Dynamically create dockerfile for a given application config
-                File("${System.getProperty("user.dir")}/skeleton/apps/${app.id}/Dockerfile").let {
-                    // Clear older Dockerfile if any
-                    if (it.exists()) {
-                        it.delete()
-                    }
-                    // Create all parent directories
-                    it.parentFile.mkdirs()
-                    @Suppress("BlockingMethodInNonBlockingContext")
-                    // Create Dockerfile for given app
-                    it.createNewFile()
-                    val dataToAppend = """
+        try {
+            // Dynamically create dockerfile for a given application config
+            File("${System.getProperty("user.dir")}/skeleton/apps/${app.id}/Dockerfile").let {
+                // Clear older Dockerfile if any
+                if (it.exists()) {
+                    it.delete()
+                }
+                // Create all parent directories
+                it.parentFile.mkdirs()
+                @Suppress("BlockingMethodInNonBlockingContext")
+                // Create Dockerfile for given app
+                it.createNewFile()
+                val dataToAppend = """
                                             |FROM skeleton as ${app.id}
                                             |ENV HOME /root
                                             |ENV APP_DIR ${app.cloneDir}
+                                            |RUN mkdir -p /app/git/${app.id}/${com.tombspawn.base.common.Constants.APP_INIT_SCRIPTS_DIR}/
+                                            |${app.dockerEnvVariables()}
                                             |${app.fileMappings.takeIf { fileMappings ->
-                        !fileMappings.isNullOrEmpty()
-                    }?.let { fileMappings ->
-                        // Create a copy command for each files mentioned in the "files" config 
-                        // and replace all the path placeholders for example: $APP_DIR is replace by the application directory path
-                        fileMappings.joinToString("") { mapping ->
-                            "COPY ${mapping.name} ${mapping.path}\n"
-                        }
-                    } ?: ""}""".trimMargin().let {
-                        // Copy shell scripts
-                        val initScriptBuilder = StringBuilder()
-                        if(scriptsDir.exists()) {
-                            FileUtils.listFiles(
-                                scriptsDir, arrayOf("sh"), true
-                            ).forEach { file ->
-                                initScriptBuilder.appendln("RUN mkdir -p /app/git/${app.id}/${com.tombspawn.base.common.Constants.APP_INIT_SCRIPTS_DIR}/")
-                                initScriptBuilder.appendln(
-                                    "COPY ${com.tombspawn.base.common.Constants.APP_INIT_SCRIPTS_DIR}/${file.name} /app/git/${app.id}/${com.tombspawn.base.common.Constants.APP_INIT_SCRIPTS_DIR}/"
-                                )
-                            }
-                        }
-                        if (initScriptBuilder.isNotBlank()) {
-                            "$it$initScriptBuilder"
-                        } else {
-                            it
+                    !fileMappings.isNullOrEmpty()
+                }?.let { fileMappings ->
+                    // Create a copy command for each files mentioned in the "files" config 
+                    // and replace all the path placeholders for example: $APP_DIR is replace by the application directory path
+                    fileMappings.joinToString("\n|") { mapping ->
+                        "COPY ${mapping.name} ${mapping.path}"
+                    }
+                } ?: ""}""".trimMargin().let {
+                    // Copy shell scripts
+                    val initScriptBuilder = StringBuilder()
+                    if(scriptsDir.exists()) {
+                        FileUtils.listFiles(
+                            scriptsDir, arrayOf("sh"), true
+                        ).forEach { file ->
+                            initScriptBuilder.appendln(
+                                "COPY ${com.tombspawn.base.common.Constants.APP_INIT_SCRIPTS_DIR}/${file.name} /app/git/${app.id}/${com.tombspawn.base.common.Constants.APP_INIT_SCRIPTS_DIR}/"
+                            )
                         }
                     }
-                    @Suppress("BlockingMethodInNonBlockingContext")
-                    FileWriter(it).use { writer ->
-                        writer.write(dataToAppend)
+                    if (initScriptBuilder.isNotBlank()) {
+                        "$it\n$initScriptBuilder"
+                    } else {
+                        it
                     }
-                    it
-                }.let {
-                    // create the dockerfile
-                    dockerClient.createImage(it, app.id)
                 }
-            } catch (exception: Exception) {
-                LOGGER.error("Unable to create image for $app", exception)
+                @Suppress("BlockingMethodInNonBlockingContext")
+                FileWriter(it).use { writer ->
+                    writer.write(dataToAppend)
+                }
+                it
+            }.let {
+                // create the dockerfile
+                dockerClient.createImage(it, app.id)
             }
+        } catch (exception: Exception) {
+            LOGGER.error("Unable to create image for $app", exception)
+        }
+    }
+
+    suspend fun createContainer(app: App, port: Int, callbackUri: String) =
+        coroutineScope {
+            createBaseImage()
+            createAppImage(app)
             // Create network for docker
             val networkId = dockerClient.createNetwork("tombspawn")
 //            val gradle = dockerClient.createVolume("gradle")
@@ -249,7 +257,7 @@ class DockerService @Inject constructor(
                     "--verbose"
                 ), null, listOf(androidCache, appVolumeBind),
                 portBindings, listOf(exposedPort), app.dockerConfig?.memory, app.dockerConfig?.swap,
-                app.dockerConfig?.cpuShares, app.env, systemCtls = app.dockerConfig?.systemCtls
+                app.dockerConfig?.cpuShares, null, systemCtls = app.dockerConfig?.systemCtls
             )?.let { containerId ->
                 if (containerMapping[app.id] == null) {
                     containerMapping[app.id] = ContainerInfo(app.id, containerId, ContainerState.CREATED)

@@ -21,6 +21,22 @@ data class App constructor(
     @SerializedName("docker_config") val dockerConfig: DockerConfig? = null
 ) {
 
+    fun dockerEnvVariables() = if(!env.isNullOrEmpty()) {
+            env.map {
+                it.split("=")
+            }.filter {
+                it.size == 2 && it[0].isNotEmpty() && it[1].isNotEmpty()
+            }.takeIf {
+                !it.isNullOrEmpty()
+            }?.map {
+                Pair(it[0], it[1])
+            }?.joinToString("\n") { (key, value) ->
+                "ENV $key $value"
+            } ?: ""
+        } else {
+            ""
+        }
+
     val tagCount: Int
         get() = _tagCount?.coerceAtMost((100 - branchCount).coerceAtLeast(0)) ?: -1
 
