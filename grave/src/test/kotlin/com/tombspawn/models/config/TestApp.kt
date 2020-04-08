@@ -6,18 +6,19 @@ import org.junit.Test
 class TestApp {
     @Test
     fun checkDockerEnvVariables() {
-        var app = App("1", "test", "w122", env = listOf("A=B", "C=D", "E=F"))
+        var app = App("1", "test", "w122", env = mapOf("A" to "B", "C" to "D", "E" to "F"))
         Assert.assertEquals("Variables are not equal", """
             |ENV A B
             |ENV C D
             |ENV E F
         """.trimMargin(), app.dockerEnvVariables())
 
-        app = App("1", "test", "w122", env = listOf("SENTRY_AUTH_TOKEN=test",
-            "SENTRY_ORG=v-9u",
-            "SENTRY_PROJECT=consumer-android",
-            "SENTRY_LOG_LEVEL=debug",
-            "PATH=/app/git/consumer:${'$'}PATH"))
+        app = App("1", "test", "w122", env = mapOf("SENTRY_AUTH_TOKEN" to "test",
+            "SENTRY_ORG" to "v-9u",
+            "SENTRY_PROJECT" to "consumer-android",
+            "SENTRY_LOG_LEVEL" to "debug",
+            "PATH" to "/app/git/consumer:${'$'}PATH")
+        )
         Assert.assertEquals("Variables are not equal", """
             |ENV SENTRY_AUTH_TOKEN test
             |ENV SENTRY_ORG v-9u
@@ -29,7 +30,7 @@ class TestApp {
         app = App("1", "test", "w122")
         Assert.assertNotNull(app.dockerEnvVariables())
 
-        app = App("1", "test", "w122", env = listOf("SENTRY_AUTH_TOKEN"))
+        app = App("1", "test", "w122", env = mapOf("SENTRY_AUTH_TOKEN" to null))
         Assert.assertEquals("", app.dockerEnvVariables())
     }
 }

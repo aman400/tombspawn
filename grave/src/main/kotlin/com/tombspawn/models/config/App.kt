@@ -12,7 +12,7 @@ data class App constructor(
     @SerializedName("clone_dir") var cloneDir: String? = null,
     @SerializedName("remote_uri") val uri: String? = null,
     @SerializedName("container_uri") val containerUri: String? = null,
-    @SerializedName("environment_variables") val env: List<String>? = null,
+    @SerializedName("environment_variables") val env: Map<String, String?>? = null,
     @SerializedName("files") val fileMappings: List<FileMapping>? = null,
     @SerializedName("gradle_tasks") val gradleTasks: List<GradleTask>? = null,
     @SerializedName("build_params") val elements: List<Element>? = null,
@@ -22,17 +22,11 @@ data class App constructor(
 ) {
 
     fun dockerEnvVariables() = if(!env.isNullOrEmpty()) {
-            env.map {
-                it.split("=")
-            }.filter {
-                it.size == 2 && it[0].isNotEmpty() && it[1].isNotEmpty()
-            }.takeIf {
-                !it.isNullOrEmpty()
-            }?.map {
-                Pair(it[0], it[1])
-            }?.joinToString("\n") { (key, value) ->
+            env.filter {(key, value) ->
+                key.isNotEmpty() && !value.isNullOrEmpty()
+            }.map { (key, value) ->
                 "ENV $key $value"
-            } ?: ""
+            }.joinToString("\n")
         } else {
             ""
         }
