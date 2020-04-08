@@ -5,7 +5,7 @@ import com.tombspawn.base.common.*
 import com.tombspawn.skeleton.app.AppClient
 import com.tombspawn.skeleton.di.qualifiers.InitCallbackUri
 import com.tombspawn.skeleton.git.GitService
-import com.tombspawn.skeleton.gradle.GradleService
+import com.tombspawn.skeleton.gradle.CommandService
 import com.tombspawn.skeleton.models.App
 import kotlinx.coroutines.*
 import org.apache.commons.io.FileUtils
@@ -20,7 +20,7 @@ import kotlin.coroutines.CoroutineContext
 
 class ApplicationService @Inject constructor(
     private val gitService: GitService,
-    private val gradleService: GradleService,
+    private val gradleService: CommandService,
     private val appClient: AppClient,
     @InitCallbackUri
     private val initCallbackUri: String,
@@ -45,7 +45,7 @@ class ApplicationService @Inject constructor(
 
     private fun clone() {
         launch(Dispatchers.IO) {
-            if (gitService.clone()) {
+            if (gitService.clone() && gradleService.runInitScripts()) {
                 LOGGER.info("Making api call to $initCallbackUri")
                 when (val response = appClient.initComplete(initCallbackUri, success = true)) {
                     is CallSuccess -> {
@@ -61,6 +61,8 @@ class ApplicationService @Inject constructor(
                         LOGGER.info("Call Error $initCallbackUri", response.throwable)
                     }
                 }.exhaustive
+            } else {
+                throw IllegalStateException("Unable to initialize application")
             }
         }
     }
@@ -102,7 +104,7 @@ class ApplicationService @Inject constructor(
     }
 
     suspend fun cleanCode(): CommandResponse {
-        return gradleService.cleanCode()
+        return gradleService.cleanCode("clean")
     }
 
     @ExperimentalStdlibApi
@@ -120,7 +122,7 @@ class ApplicationService @Inject constructor(
             val jobs: MutableList<Job> = mutableListOf()
             // Run all the gradle subtasks defined for a given taskId
             gradleTask.tasks.forEachIndexed { index: Int, task: String ->
-                jobs.add(gradleService.executeTask(task, parameters, {
+                jobs.add(gradleService.executeTask(task, parameters, gradleTask.timeout, {
                     if (index == 0) {
                         branch?.trim()?.let {
                             // Clean git repo to remove untracked files/folders
@@ -143,7 +145,7 @@ class ApplicationService @Inject constructor(
                     if (index == lastTask) {
                         when (response) {
                             is Success -> {
-                                val paths = Paths.get(app.dir!!)
+                                val paths = Paths.get(app.appDir!!)
                                 val outputDir = try {
                                     paths.resolve(gradleTask.outputDir).toFile()
                                 } catch (exception: Exception) {
@@ -200,7 +202,7 @@ class ApplicationService @Inject constructor(
                     } else {
                         true
                     }
-                }))
+                }, gradleTask.executionDir))
             }
             // Await for completion of all jobs
             jobs.forEach {

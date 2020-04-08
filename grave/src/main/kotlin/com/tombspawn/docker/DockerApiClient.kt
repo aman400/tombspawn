@@ -78,7 +78,7 @@ class DockerApiClient @Inject constructor(
                 .withDeadlineAfter(20, TimeUnit.MINUTES)
                 .fetchReferences(
                     ReferencesRequest.newBuilder()
-                        .setBranchLimit(-1)
+                        .setBranchLimit(app.branchCount)
                         .setTagLimit(app.tagCount)
                         .build(), object : StreamObserver<ReferencesResponse> {
                         override fun onNext(value: ReferencesResponse?) {
@@ -257,7 +257,7 @@ class DockerApiClient @Inject constructor(
     suspend fun createContainer(
         image: String, name: String, commands: List<String>?, volumes: List<Volume>?, volumeBinds: List<Bind>?,
         portBindings: Ports, exposedPorts: List<ExposedPort>?, memory: Long?, swapMemory: Long?, cpuShares: Int? = null,
-        env: List<String>? = null
+        env: List<String>? = null, systemCtls: Map<String, String>? = null
     ): String? {
         return coroutineScope<String?> {
             return@coroutineScope dockerClient.listContainersCmd().withShowAll(true)
@@ -286,6 +286,10 @@ class DockerApiClient @Inject constructor(
                     .withHostConfig(
                         HostConfig.newHostConfig()
                             .apply {
+                                if(!systemCtls.isNullOrEmpty()) {
+                                    withSysctls(systemCtls)
+                                    withPrivileged(true)
+                                }
                                 if (memory != null) {
                                     withMemory(memory)
                                 }

@@ -14,7 +14,6 @@ import com.tombspawn.models.config.App
 import com.tombspawn.models.config.Common
 import com.tombspawn.models.config.ServerConf
 import com.tombspawn.models.config.Slack
-import com.tombspawn.models.redis.ApkCallbackCache
 import com.tombspawn.slackbot.SlackService
 import com.tombspawn.utils.Constants
 import io.ktor.http.URLBuilder

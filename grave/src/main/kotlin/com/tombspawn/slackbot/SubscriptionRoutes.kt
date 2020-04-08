@@ -6,6 +6,7 @@ import com.tombspawn.models.locations.Slack
 import com.tombspawn.utils.Constants
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
+import io.ktor.locations.KtorExperimentalLocationsAPI
 import io.ktor.locations.post
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
@@ -14,6 +15,7 @@ import org.slf4j.LoggerFactory
 
 private val LOGGER = LoggerFactory.getLogger("com.tombspawn.slackbot.Subscription")
 
+@OptIn(KtorExperimentalLocationsAPI::class)
 fun Routing.subscribe(applicationService: ApplicationService) {
     post<Slack.Subscribe> { subscription ->
         LOGGER.debug(subscription.toString())

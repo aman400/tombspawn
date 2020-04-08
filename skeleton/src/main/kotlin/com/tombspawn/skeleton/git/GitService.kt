@@ -16,79 +16,79 @@ class GitService @Inject constructor(private val app: App, private val gitClient
     private val repoLock = ReentrantReadWriteLock()
 
     suspend fun clone(): Boolean {
-        LOGGER.trace("Write lock for clone")
+        LOGGER.trace("Write lock for clone to ${app.cloneDir}")
         return repoLock.write {
-            gitClient.clone(app.id, app.dir!!, app.uri!!)
+            gitClient.clone(app.id, app.cloneDir!!, app.uri!!)
         }
     }
 
     suspend fun fetchLogs(): RevCommit? {
-        LOGGER.trace("Read Lock for fetching local logs")
+        LOGGER.trace("Read Lock for fetching local logs from ${app.cloneDir}")
         return repoLock.read {
-            gitClient.fetchLogs(app.dir!!).await()
+            gitClient.fetchLogs(app.cloneDir!!).await()
         }
     }
 
     suspend fun fetchRemoteBranches(): FetchResult {
-        LOGGER.trace("Read Lock for fetching remote branches")
+        LOGGER.trace("Read Lock for fetching remote branches from ${app.cloneDir}")
         return repoLock.read {
-            gitClient.fetchRemoteAsync(app.dir!!).await()
+            gitClient.fetchRemoteAsync(app.cloneDir!!).await()
         }
     }
 
     suspend fun getBranches(): List<String> {
-        LOGGER.trace("Read lock to fetch branches")
+        LOGGER.trace("Read lock to fetch branches from ${app.cloneDir}")
         return repoLock.read {
-            gitClient.getBranchesAsync(app.dir!!).await()
+            gitClient.getBranchesAsync(app.cloneDir!!).await()
         }
     }
 
     suspend fun getTags(): List<String> {
-        LOGGER.trace("Read lock to fetch tags")
+        LOGGER.trace("Read lock to fetch tags from ${app.cloneDir}")
         return repoLock.read {
-            gitClient.getTagsAsync(app.dir!!).await()
+            gitClient.getTagsAsync(app.cloneDir!!).await()
         }
     }
 
     suspend fun checkout(branch: String): Boolean {
-        LOGGER.trace("Write lock for checkout")
+        LOGGER.trace("Write lock for checkout from ${app.cloneDir}")
         return repoLock.write {
-            gitClient.checkoutAsync(branch, app.dir!!).await()
+            gitClient.checkoutAsync(branch, app.cloneDir!!).await()
         }
     }
 
     suspend fun pullCode(branch: String): Boolean {
-        LOGGER.trace("Write lock to pull latest code")
+        LOGGER.trace("Write lock to pull latest code from ${app.cloneDir}")
         return repoLock.write {
-            gitClient.pullLatestCodeAsync(branch, app.dir!!).await()
+            gitClient.pullLatestCodeAsync(branch, app.cloneDir!!).await()
         }
     }
 
     suspend fun resetBranch(): Ref {
-        LOGGER.trace("Write lock to reset branch")
+        LOGGER.trace("Write lock to reset branch from ${app.cloneDir}")
         return repoLock.write {
-            gitClient.resetBranch(app.dir!!).await()
+            gitClient.resetBranch(app.cloneDir!!).await()
         }
     }
 
     suspend fun clean(): MutableSet<String> {
-        LOGGER.trace("Write lock to clean repo")
+        LOGGER.trace("Write lock to clean repo from ${app.cloneDir}")
         return repoLock.write {
-            gitClient.clean(app.dir!!).await()
+            gitClient.clean(app.cloneDir!!).await()
         }
     }
 
     suspend fun stashCode(): RevCommit? {
-        LOGGER.trace("Write lock to stash")
+        LOGGER.trace("Write lock to stash from ${app.cloneDir}")
         return repoLock.write {
-            gitClient.stashCode(app.dir!!).await()
+            gitClient.stashCode(app.cloneDir!!).await()
         }
     }
 
     suspend fun clearStash(): ObjectId? {
-        LOGGER.trace("Read lock to clear stash")
+        LOGGER.trace("Read lock to clear stash from ${app.cloneDir}")
         return repoLock.read {
-            gitClient.clearStash(app.dir!!).await()
+            gitClient.clearStash(app.cloneDir!!).await()
         }
     }
 }

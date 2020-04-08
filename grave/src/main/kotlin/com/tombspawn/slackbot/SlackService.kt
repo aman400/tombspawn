@@ -409,8 +409,6 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
                                 Constants.Slack.TYPE_SUBSCRIBE_CONSUMER -> {
                                     databaseService.getRefs(Constants.Common.APP_CONSUMER)?.filter {
                                         it.type == RefType.BRANCH
-                                    }?.forEach {
-                                        LOGGER.debug(it.name)
                                     }
                                 }
                                 Constants.Slack.TYPE_SUBSCRIBE_FLEET -> {

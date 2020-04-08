@@ -25,17 +25,6 @@ interface Processable {
     }
 }
 
-class GenerateAppCommand constructor(command: String, workingDir: File = File("."),
-                                     timeoutAmount: Long = 15, timeoutUnit: TimeUnit = TimeUnit.MINUTES,
-                                     id: String = UUID.randomUUID().toString(),
-                                     listener: CompletableDeferred<CommandResponse>? = null,
-                                     val preProcess: (suspend () -> Boolean)):
-    Request(command, workingDir, timeoutAmount, timeoutUnit, id, listener), Processable {
-    override suspend fun onPreProcess(): Boolean {
-        return this@GenerateAppCommand.preProcess()
-    }
-}
-
 class ExecuteTaskCommand constructor(command: String, workingDir: File = File("."),
                                      timeoutAmount: Long = 15, timeoutUnit: TimeUnit = TimeUnit.MINUTES,
                                      id: String = UUID.randomUUID().toString(),
