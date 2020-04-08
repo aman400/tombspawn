@@ -176,9 +176,8 @@ class DockerService @Inject constructor(
                     !fileMappings.isNullOrEmpty()
                 }?.let { fileMappings ->
                     // Create a copy command for each files mentioned in the "files" config 
-                    // and replace all the path placeholders for example: $APP_DIR is replace by the application directory path
                     fileMappings.joinToString("\n|") { mapping ->
-                        "COPY ${mapping.name} ${mapping.path}"
+                        "ADD ${mapping.name} ${mapping.path}"
                     }
                 } ?: ""}""".trimMargin().let {
                     // Copy shell scripts
@@ -224,8 +223,8 @@ class DockerService @Inject constructor(
 //            val gradleCache = Bind(gradle, Volume("/home/skeleton/.gradle/caches/"))
             val androidCache = Bind(android, Volume("/root/.android/"))
             // volume for cloned apps to persist them
-            val gitApps = dockerClient.createVolume("git")
-            val appVolumeBind = Bind(gitApps, Volume("/app/git/"))
+//            val gitApps = dockerClient.createVolume("git")
+//            val appVolumeBind = Bind(gitApps, Volume("/app/git/"))
 
             val serverConfig = ServerConf("http", "0.0.0.0", Constants.Common.DEFAULT_PORT, debug)
             val request = gson.toJson(
@@ -255,7 +254,7 @@ class DockerService @Inject constructor(
                     "application.jar",
                     request,
                     "--verbose"
-                ), null, listOf(androidCache, appVolumeBind),
+                ), null, listOf(androidCache),
                 portBindings, listOf(exposedPort), app.dockerConfig?.memory, app.dockerConfig?.swap,
                 app.dockerConfig?.cpuShares, null, systemCtls = app.dockerConfig?.systemCtls
             )?.let { containerId ->
