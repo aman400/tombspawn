@@ -37,7 +37,7 @@ fun CoroutineScope.getCommandExecutor(): SendChannel<Command> {
                             try {
                                 process.inputStream.bufferedReader().forEachLine {
                                     LOGGER.info(it)
-                                    successResponseBuilder.append(it)
+                                    successResponseBuilder.appendln(it)
                                 }
                             } catch (exception: Exception) {
                                 LOGGER.error("Unable to attach stream", exception)
@@ -48,7 +48,7 @@ fun CoroutineScope.getCommandExecutor(): SendChannel<Command> {
                             try {
                                 process.errorStream.bufferedReader().forEachLine {
                                     LOGGER.info(it)
-                                    errorResponseBuilder.append(it)
+                                    errorResponseBuilder.appendln(it)
                                 }
                             } catch (exception: Exception) {
                                 LOGGER.error("Unable to attach error stream", exception)

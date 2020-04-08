@@ -3,8 +3,7 @@ package com.tombspawn.models.config
 import com.google.gson.annotations.SerializedName
 import org.slf4j.LoggerFactory
 
-data class Common constructor(@SerializedName("base_url") val baseUrl: String?,
-                  @SerializedName("gradle_path") val gradlePath: String?,
+data class Common constructor(@SerializedName("gradle_path") val gradlePath: String?,
                   @SerializedName("base_port") private val _basePort: Int? = 11110,
                   @SerializedName("parallel_threads") private val _parallelThreads: Int? = 2) {
 
