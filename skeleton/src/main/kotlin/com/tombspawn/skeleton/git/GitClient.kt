@@ -1,5 +1,7 @@
 package com.tombspawn.skeleton.git
 
+import com.google.common.annotations.VisibleForTesting
+import com.tombspawn.base.extensions.moveToDirectory
 import com.tombspawn.skeleton.extensions.authenticate
 import com.tombspawn.skeleton.extensions.checkout
 import kotlinx.coroutines.*
@@ -55,7 +57,7 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
                     }?.forEach {
                         try {
                             LOGGER.info("Moving ${it.absolutePath} to ${tempDir.absolutePath}")
-                            FileUtils.moveFileToDirectory(it, tempDir, false)
+                            it.moveToDirectory(tempDir)
                         } catch (exception: Exception) {
                             LOGGER.error("Unable to move file ${it.absolutePath} to temp directory", exception)
                         }
@@ -117,7 +119,7 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
                         }?.forEach {
                             try {
                                 LOGGER.info("Moving ${it.absolutePath} to ${directory.absolutePath}")
-                                FileUtils.moveFileToDirectory(it, directory, false)
+                                it.moveToDirectory(directory)
                             } catch (exception: Exception) {
                                 LOGGER.error("Unable to move file ${it.absolutePath} back to original directory", exception)
                             }
