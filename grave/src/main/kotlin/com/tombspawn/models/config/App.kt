@@ -16,8 +16,8 @@ data class App constructor(
     @SerializedName("files") val fileMappings: List<FileMapping>? = null,
     @SerializedName("gradle_tasks") val gradleTasks: List<GradleTask>? = null,
     @SerializedName("build_params") val elements: List<Element>? = null,
-    @SerializedName("tag_count") private val _tagCount: Int? = null,
-    @SerializedName("branch_count") private val _branchCount: Int? = null,
+    @SerializedName("tag_config") val tagConfig: RefConfig? = null,
+    @SerializedName("branch_config") val branchConfig: RefConfig? = null,
     @SerializedName("docker_config") val dockerConfig: DockerConfig? = null
 ) {
 
@@ -32,10 +32,10 @@ data class App constructor(
         }
 
     val tagCount: Int
-        get() = _tagCount?.coerceAtMost((100 - branchCount).coerceAtLeast(0)) ?: -1
+        get() = tagConfig?.count?.coerceAtMost((100 - branchCount).coerceAtLeast(0)) ?: -1
 
     val branchCount: Int
-        get() = _branchCount?.coerceAtMost(100) ?: -1
+        get() = branchConfig?.count?.coerceAtMost(100) ?: -1
 
     data class FileMapping(
         @SerializedName("name") val name: String,
@@ -47,5 +47,12 @@ data class App constructor(
         @SerializedName("memory") val memory: Long? = null,
         @SerializedName("swap") val swap: Long? = null,
         @SerializedName("cpu_shares") val cpuShares: Int? = null
+    )
+
+    data class RefConfig(
+        @SerializedName("count")
+        val count: Int,
+        @SerializedName("regex")
+        val regex: String? = null
     )
 }

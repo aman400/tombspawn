@@ -37,6 +37,8 @@ services:
     networks:
       - tombspawn
   application:
+    env_file:
+      - scripts/remote/application.env
     container_name: application
     depends_on:
       - db
@@ -54,3 +56,4 @@ services:
       - tombspawn
     ports:
       - "63648:8080"
+      - "5005:5005"
