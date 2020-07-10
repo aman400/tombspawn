@@ -7,7 +7,6 @@ import com.tombspawn.models.slack.Element
 data class App constructor(
     @SerializedName("id") val id: String,
     @SerializedName("name") val name: String?,
-    @SerializedName("repo_id") val repoId: String?,
     @SerializedName("app_dir") var appDir: String? = null,
     @SerializedName("clone_dir") var cloneDir: String? = null,
     @SerializedName("remote_uri") val uri: String? = null,
@@ -53,6 +52,8 @@ data class App constructor(
         @SerializedName("count")
         val count: Int,
         @SerializedName("regex")
-        val regex: String? = null
+        val regex: String? = null,
+        @SerializedName("default")
+        val default: String? = null
     )
 }

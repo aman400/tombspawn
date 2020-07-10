@@ -1,11 +1,9 @@
 package com.tombspawn.skeleton.git
 
-import com.google.common.annotations.VisibleForTesting
 import com.tombspawn.base.extensions.moveToDirectory
 import com.tombspawn.skeleton.extensions.authenticate
 import com.tombspawn.skeleton.extensions.checkout
 import kotlinx.coroutines.*
-import org.apache.commons.io.FileUtils
 import org.eclipse.jgit.api.CloneCommand
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.api.ListBranchCommand
@@ -22,7 +20,7 @@ import javax.inject.Inject
 import kotlin.coroutines.resume
 
 class GitClient @Inject constructor(private val provider: CredentialProvider) {
-    suspend fun clone(appId: String, dir: String, gitUri: String) = suspendCancellableCoroutine<Boolean> { continuation ->
+    suspend fun clone(appId: String, dir: String, gitUri: String, defaultBranch: String? = null) = suspendCancellableCoroutine<Boolean> { continuation ->
         if (!try {
                 LOGGER.debug("Generating app")
                 initRepository(dir).use {
@@ -69,6 +67,14 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
             Git.cloneRepository()
                 .setURI(gitUri)
                 .setDirectory(directory)
+                .apply {
+                    defaultBranch?.let {
+                        "refs/heads/$defaultBranch"
+                    }?.let {
+                        setBranchesToClone(listOf(it))
+                        setBranch(it)
+                    }
+                }
                 .setProgressMonitor(object : ProgressMonitor {
                     override fun update(completed: Int) {
                         LOGGER.trace("Progress $completed%")

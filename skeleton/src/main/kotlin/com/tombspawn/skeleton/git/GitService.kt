@@ -18,7 +18,7 @@ class GitService @Inject constructor(private val app: App, private val gitClient
     suspend fun clone(): Boolean {
         LOGGER.trace("Write lock for clone to ${app.cloneDir}")
         return repoLock.write {
-            gitClient.clone(app.id, app.cloneDir!!, app.uri!!)
+            gitClient.clone(app.id, app.cloneDir!!, app.uri!!, app.branchConfig?.default)
         }
     }
 
