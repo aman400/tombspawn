@@ -494,9 +494,9 @@ class ApplicationService @Inject constructor(
         }
     }
 
-    suspend fun handleGithubEvent(headers: Map<String, List<String>>, payload: Payload) = coroutineScope {
+    suspend fun handleGithubEvent(appId: String, headers: Map<String, List<String>>, payload: Payload) = coroutineScope {
         apps.firstOrNull {
-            it.repoId == payload.repository?.id
+            it.id == appId
         }?.let { app ->
             when (headers[Constants.Github.HEADER_KEY_EVENT]?.first()) {
                 Constants.Github.HEADER_VALUE_EVENT_PUSH -> payload.ref?.let { ref ->
