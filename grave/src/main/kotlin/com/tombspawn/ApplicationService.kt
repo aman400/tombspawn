@@ -29,6 +29,7 @@ import com.tombspawn.models.slack.GenerateCallback
 import com.tombspawn.models.slack.SlackEvent
 import com.tombspawn.slackbot.SlackService
 import com.tombspawn.utils.Constants
+import com.tombspawn.utils.Constants.Common.SKELETON_DEBUG_PORT
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import io.ktor.http.URLBuilder
@@ -79,7 +80,7 @@ class ApplicationService @Inject constructor(
         }
         apps.forEachIndexed { index, app ->
             val callbackUri = baseUri.get().path("apps", app.id, "init").build().toString()
-            dockerService.createContainer(app, common.basePort + index, callbackUri)
+            dockerService.createContainer(app, common.basePort + index, SKELETON_DEBUG_PORT + index, callbackUri)
         }
 
         updateUserData()

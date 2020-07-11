@@ -10,12 +10,6 @@ class Slack {
         class MockApi
     }
 
-    @Location("/command/standup")
-    class Standup
-
-    @Location("/command/api/mock")
-    class MockApi
-
     @Location("/subscribe/{appID}")
     class Subscribe(val appID: String)
 
