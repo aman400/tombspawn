@@ -29,12 +29,14 @@ import com.tombspawn.models.slack.GenerateCallback
 import com.tombspawn.models.slack.SlackEvent
 import com.tombspawn.slackbot.SlackService
 import com.tombspawn.utils.Constants
+import com.tombspawn.utils.Constants.Common.SKELETON_DEBUG_PORT
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import io.ktor.http.URLBuilder
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.util.regex.Pattern
 import javax.inject.Inject
 import javax.inject.Provider
 import kotlin.coroutines.resume
@@ -78,7 +80,7 @@ class ApplicationService @Inject constructor(
         }
         apps.forEachIndexed { index, app ->
             val callbackUri = baseUri.get().path("apps", app.id, "init").build().toString()
-            dockerService.createContainer(app, common.basePort + index, callbackUri)
+            dockerService.createContainer(app, common.basePort + index, SKELETON_DEBUG_PORT + index, callbackUri)
         }
 
         updateUserData()
@@ -325,8 +327,21 @@ class ApplicationService @Inject constructor(
             appId == it.id
         }?.let { app ->
             LOGGER.warn("Command options not set. These options can be set using '/build-fleet BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'")
+            val branchPattern = if(app.branchConfig?.regex != null) {
+                Pattern.compile(app.branchConfig.regex)
+            } else null
+            val tagPattern = if(app.tagConfig?.regex != null) {
+                Pattern.compile(app.tagConfig.regex)
+            } else null
+
             // Limit the list to 100. Slack limitation.
-            val branchList = getReferences(app.id)?.take(100)
+            val branchList = getReferences(app.id)?.filter {
+                if(it.type == RefType.TAG) {
+                    tagPattern?.matcher(it.name)?.matches() ?: true
+                } else {
+                    branchPattern?.matcher(it.name)?.matches() ?: true
+                }
+            }?.take(100)
             val buildTypesList = app.gradleTasks?.map {
                 it.id
             }
@@ -494,9 +509,9 @@ class ApplicationService @Inject constructor(
         }
     }
 
-    suspend fun handleGithubEvent(headers: Map<String, List<String>>, payload: Payload) = coroutineScope {
+    suspend fun handleGithubEvent(appId: String, headers: Map<String, List<String>>, payload: Payload) = coroutineScope {
         apps.firstOrNull {
-            it.repoId == payload.repository?.id
+            it.id == appId
         }?.let { app ->
             when (headers[Constants.Github.HEADER_KEY_EVENT]?.first()) {
                 Constants.Github.HEADER_VALUE_EVENT_PUSH -> payload.ref?.let { ref ->

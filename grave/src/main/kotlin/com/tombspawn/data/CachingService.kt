@@ -8,6 +8,7 @@ import com.tombspawn.di.qualifiers.ApkCacheMap
 import com.tombspawn.di.qualifiers.AppCacheMap
 import com.tombspawn.models.Reference
 import org.slf4j.LoggerFactory
+import java.util.regex.Pattern
 import javax.inject.Inject
 
 @AppScope

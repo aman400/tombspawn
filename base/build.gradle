@@ -29,7 +29,7 @@ protobuf {
     }
     plugins {
         grpc {
-            artifact = 'io.grpc:protoc-gen-grpc-java:1.27.1'
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.29.0'
         }
     }
     generateProtoTasks {
@@ -67,4 +67,6 @@ dependencies {
     kapt Dagger.annotationProcessor
     api Dagger.assistedInjectLib
     kapt Dagger.assistedInjectProcessor
+
+    testImplementation Testing.junit
 }

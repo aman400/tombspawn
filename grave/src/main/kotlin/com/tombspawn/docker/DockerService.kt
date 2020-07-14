@@ -127,7 +127,8 @@ class DockerService @Inject constructor(
         }
     }
 
-    private suspend fun createBaseImage() = coroutineScope {
+    @Suppress("BlockingMethodInNonBlockingContext")
+    private suspend fun createBaseImage() = withContext(Dispatchers.IO) {
         LOGGER.debug("${System.getProperty("user.dir")}/skeleton/Dockerfile")
         // Base docker file which installs Android SDK
         // This base Android docker file is to separate out android SDK installation from application initialization
@@ -148,7 +149,8 @@ class DockerService @Inject constructor(
 
     private suspend fun createAppImage(app: App) = coroutineScope {
         val scriptsDir = File(
-            "${System.getProperty("user.dir")}/skeleton/apps/${app.id}/${com.tombspawn.base.common.Constants.APP_INIT_SCRIPTS_DIR}/")
+            "${System.getProperty("user.dir")}/skeleton/apps/${app.id}/${com.tombspawn.base.common.Constants.APP_INIT_SCRIPTS_DIR}/"
+        )
         app.cloneDir = "/app/git/${app.id}/${com.tombspawn.base.common.Constants.APP_DIR}"
         if (app.appDir.isNullOrEmpty()) {
             app.appDir = app.cloneDir
@@ -172,17 +174,19 @@ class DockerService @Inject constructor(
                                             |ENV APP_DIR ${app.cloneDir}
                                             |RUN mkdir -p /app/git/${app.id}/${com.tombspawn.base.common.Constants.APP_INIT_SCRIPTS_DIR}/
                                             |${app.dockerEnvVariables()}
-                                            |${app.fileMappings.takeIf { fileMappings ->
-                    !fileMappings.isNullOrEmpty()
-                }?.let { fileMappings ->
-                    // Create a copy command for each files mentioned in the "files" config 
-                    fileMappings.joinToString("\n|") { mapping ->
-                        "ADD ${mapping.name} ${mapping.path}"
-                    }
-                } ?: ""}""".trimMargin().let {
+                                            |${
+                    app.fileMappings.takeIf { fileMappings ->
+                        !fileMappings.isNullOrEmpty()
+                    }?.let { fileMappings ->
+                        // Create a copy command for each files mentioned in the "files" config 
+                        fileMappings.joinToString("\n|") { mapping ->
+                            "ADD ${mapping.name} ${mapping.path}"
+                        }
+                    } ?: ""
+                }""".trimMargin().let {
                     // Copy shell scripts
                     val initScriptBuilder = StringBuilder()
-                    if(scriptsDir.exists()) {
+                    if (scriptsDir.exists()) {
                         FileUtils.listFiles(
                             scriptsDir, arrayOf("sh"), true
                         ).forEach { file ->
@@ -211,7 +215,7 @@ class DockerService @Inject constructor(
         }
     }
 
-    suspend fun createContainer(app: App, port: Int, callbackUri: String) =
+    suspend fun createContainer(app: App, port: Int, debugPort: Int, callbackUri: String) =
         coroutineScope {
             createBaseImage()
             createAppImage(app)
@@ -235,8 +239,20 @@ class DockerService @Inject constructor(
             )
 
             val exposedPort = ExposedPort.tcp(Constants.Common.DEFAULT_PORT)
-            val portBindings = Ports()
-            portBindings.bind(exposedPort, Ports.Binding.bindPort(port))
+            // Expose debug port
+            val exposedDebugPort = ExposedPort.tcp(5005)
+            val portBindings = Ports(
+                PortBinding(Ports.Binding.bindPort(port), exposedPort),
+                // Bind Debug port
+                PortBinding(Ports.Binding.bindPort(debugPort), exposedDebugPort)
+            )
+            val environmentVariables = mutableListOf<String>().apply {
+                if (debug) {
+                    // Use this to debug skeleton application
+                    add("JAVA_TOOL_OPTIONS=-agentlib:jdwp=transport=dt_socket,address=${exposedDebugPort.port},server=y,suspend=n")
+                }
+            }
+
             dockerClient.createContainer(
                 app.id,
                 app.id, listOf(
@@ -255,8 +271,8 @@ class DockerService @Inject constructor(
                     request,
                     "--verbose"
                 ), null, listOf(androidCache),
-                portBindings, listOf(exposedPort), app.dockerConfig?.memory, app.dockerConfig?.swap,
-                app.dockerConfig?.cpuShares, null, systemCtls = app.dockerConfig?.systemCtls
+                portBindings, listOf(exposedPort, exposedDebugPort), app.dockerConfig?.memory, app.dockerConfig?.swap,
+                app.dockerConfig?.cpuShares, environmentVariables, systemCtls = app.dockerConfig?.systemCtls
             )?.let { containerId ->
                 if (containerMapping[app.id] == null) {
                     containerMapping[app.id] = ContainerInfo(app.id, containerId, ContainerState.CREATED)
