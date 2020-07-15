@@ -327,11 +327,11 @@ class ApplicationService @Inject constructor(
             appId == it.id
         }?.let { app ->
             LOGGER.warn("Command options not set. These options can be set using '/build-fleet BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'")
-            val branchPattern = if(app.branchConfig?.regex != null) {
-                Pattern.compile(app.branchConfig.regex)
+            val branchPattern = if(app.gitConfig?.branchConfig?.regex != null) {
+                Pattern.compile(app.gitConfig.branchConfig.regex)
             } else null
-            val tagPattern = if(app.tagConfig?.regex != null) {
-                Pattern.compile(app.tagConfig.regex)
+            val tagPattern = if(app.gitConfig?.tagConfig?.regex != null) {
+                Pattern.compile(app.gitConfig.tagConfig.regex)
             } else null
 
             // Limit the list to 100. Slack limitation.

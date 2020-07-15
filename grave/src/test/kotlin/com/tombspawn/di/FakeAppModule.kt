@@ -33,12 +33,6 @@ class FakeAppModule {
 
     @AppScope
     @Provides
-    fun provideGson(): Gson {
-        return Gson()
-    }
-
-    @AppScope
-    @Provides
     fun provideSlack(): Slack {
         return mock(Slack::class.java)
     }
@@ -51,8 +45,10 @@ class FakeAppModule {
 
     @AppScope
     @Provides
-    fun provideFakeAppConfig(): List<App> {
-        return listOf(App("test", "test", "1"))
+    fun provideFakeAppConfig(credentialProvider: CredentialProvider): List<App> {
+        return listOf(App("test", "test", "1",
+            gitConfig = App.GitConfig(null, null, credentialProvider))
+        )
     }
 
     @AppScope

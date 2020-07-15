@@ -9,7 +9,10 @@ import com.tombspawn.data.DatabaseService
 import com.tombspawn.data.cache.models.ApkCache
 import com.tombspawn.di.DaggerFakeCachingComponent
 import com.tombspawn.di.DaggerFakeCoreComponent
+import com.tombspawn.di.FakeAppModule
+import com.tombspawn.di.FakeCoreModule
 import com.tombspawn.docker.DockerService
+import com.tombspawn.git.CredentialProvider
 import com.tombspawn.models.config.App
 import com.tombspawn.models.config.Common
 import com.tombspawn.models.config.ServerConf
@@ -41,10 +44,13 @@ class TestApplicationService {
 
     lateinit var slackService: SlackService
 
+    @Inject
+    lateinit var credentialProvider: CredentialProvider
+
     @Before
     fun setup() {
-        val component = DaggerFakeCoreComponent.create()
-        DaggerFakeCachingComponent.factory().create(component)
+        val component = DaggerFakeCoreComponent.factory().create(FakeCoreModule(), FakeAppModule())
+        DaggerFakeCachingComponent.factory().create(component, )
             .inject(this)
         val slack = mock(Slack::class.java)
         val common = mock(Common::class.java)
@@ -54,9 +60,10 @@ class TestApplicationService {
         slackService = mock(SlackService::class.java)
 
         applicationService = ApplicationService(slack, common, gson, databaseService,
-            listOf(App("test", "test", "1")), dockerService,
-            slackService, tempFolder.newFolder("apks"), cachingService, true,
-            Optional.of(ServerConf()), Provider {
+            listOf(App("test", "test", "1",
+                gitConfig = App.GitConfig(null, null, credentialProvider))
+            ), dockerService, slackService, tempFolder.newFolder("apks"), cachingService, true,
+            Optional.of(ServerConf()), {
                 URLBuilder().apply {
                     this.protocol = URLProtocol.HTTP
                     this.host = Constants.Common.DEFAULT_HOST

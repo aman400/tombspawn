@@ -16,6 +16,7 @@ import dagger.Provides
 import io.ktor.application.Application
 import io.ktor.client.HttpClient
 import io.ktor.client.features.json.GsonSerializer
+import java.util.*
 
 @Module
 object AppModule {
@@ -50,9 +51,8 @@ object AppModule {
 
     @Provides
     @AppScope
-    fun provideCredentialProvider(config: JsonApplicationConfig): CredentialProvider {
-        return config.property("git")
-            .getAs(CredentialProvider::class.java)
+    fun provideGitConfig(app: App): Optional<App.GitConfig> {
+        return Optional.ofNullable(app.gitConfig)
     }
 
     @Provides

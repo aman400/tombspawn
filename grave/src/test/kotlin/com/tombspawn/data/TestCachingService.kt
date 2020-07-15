@@ -6,6 +6,8 @@ import com.tombspawn.common.getResourceFile
 import com.tombspawn.data.cache.models.ApkCache
 import com.tombspawn.di.DaggerFakeCachingComponent
 import com.tombspawn.di.DaggerFakeCoreComponent
+import com.tombspawn.di.FakeAppModule
+import com.tombspawn.di.FakeCoreModule
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
@@ -22,7 +24,7 @@ class TestCachingService {
     fun setup() {
         DaggerFakeCachingComponent
             .factory()
-            .create(DaggerFakeCoreComponent.create())
+            .create(DaggerFakeCoreComponent.factory().create(FakeCoreModule(), FakeAppModule()))
             .inject(this)
         createCache()
     }

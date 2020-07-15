@@ -2,6 +2,7 @@ package com.tombspawn.models.config
 
 import com.google.gson.annotations.SerializedName
 import com.tombspawn.base.common.models.GradleTask
+import com.tombspawn.git.CredentialProvider
 import com.tombspawn.models.slack.Element
 
 data class App constructor(
@@ -15,11 +16,9 @@ data class App constructor(
     @SerializedName("files") val fileMappings: List<FileMapping>? = null,
     @SerializedName("gradle_tasks") val gradleTasks: List<GradleTask>? = null,
     @SerializedName("build_params") val elements: List<Element>? = null,
-    @SerializedName("tag_config") val tagConfig: RefConfig? = null,
-    @SerializedName("branch_config") val branchConfig: RefConfig? = null,
-    @SerializedName("docker_config") val dockerConfig: DockerConfig? = null
+    @SerializedName("docker_config") val dockerConfig: DockerConfig? = null,
+    @SerializedName("git_config") val gitConfig: GitConfig? = null
 ) {
-
     fun dockerEnvVariables() = if(!env.isNullOrEmpty()) {
             env.filter {(key, value) ->
                 key.isNotEmpty() && !value.isNullOrEmpty()
@@ -31,10 +30,16 @@ data class App constructor(
         }
 
     val tagCount: Int
-        get() = tagConfig?.count?.coerceAtMost((100 - branchCount).coerceAtLeast(0)) ?: -1
+        get() = gitConfig?.tagConfig?.count?.coerceAtMost((100 - branchCount).coerceAtLeast(0)) ?: -1
 
     val branchCount: Int
-        get() = branchConfig?.count?.coerceAtMost(100) ?: -1
+        get() = gitConfig?.branchConfig?.count?.coerceAtMost(100) ?: -1
+
+    data class GitConfig(
+        @SerializedName("tag_config") val tagConfig: RefConfig? = null,
+        @SerializedName("branch_config") val branchConfig: RefConfig? = null,
+        @SerializedName("git_credentials") val credentialProvider: CredentialProvider
+    )
 
     data class FileMapping(
         @SerializedName("name") val name: String,

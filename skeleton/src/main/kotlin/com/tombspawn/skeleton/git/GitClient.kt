@@ -3,6 +3,7 @@ package com.tombspawn.skeleton.git
 import com.tombspawn.base.extensions.moveToDirectory
 import com.tombspawn.skeleton.extensions.authenticate
 import com.tombspawn.skeleton.extensions.checkout
+import com.tombspawn.skeleton.models.App
 import kotlinx.coroutines.*
 import org.eclipse.jgit.api.CloneCommand
 import org.eclipse.jgit.api.Git
@@ -16,11 +17,12 @@ import org.eclipse.jgit.transport.FetchResult
 import org.eclipse.jgit.transport.TagOpt
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.util.*
 import javax.inject.Inject
 import kotlin.coroutines.resume
 
-class GitClient @Inject constructor(private val provider: CredentialProvider) {
-    suspend fun clone(appId: String, dir: String, gitUri: String, defaultBranch: String? = null) = suspendCancellableCoroutine<Boolean> { continuation ->
+class GitClient @Inject constructor(private val gitConfig: Optional<App.GitConfig>) {
+    suspend fun clone(appId: String, dir: String, gitUri: String) = suspendCancellableCoroutine<Boolean> { continuation ->
         if (!try {
                 LOGGER.debug("Generating app")
                 initRepository(dir).use {
@@ -68,8 +70,8 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
                 .setURI(gitUri)
                 .setDirectory(directory)
                 .apply {
-                    defaultBranch?.let {
-                        "refs/heads/$defaultBranch"
+                    gitConfig.get().branchConfig?.default?.let {
+                        "refs/heads/$it"
                     }?.let {
                         setBranchesToClone(listOf(it))
                         setBranch(it)
@@ -111,7 +113,7 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
                     }
 
                 })
-                .authenticate(provider)
+                .authenticate(gitConfig.get().credentialProvider)
                 .call()
             LOGGER.debug("Clone completed")
 
@@ -166,7 +168,7 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
                 git.fetch().setRemote(origin)
                     .setRemoveDeletedRefs(true)
                     .setTagOpt(TagOpt.FETCH_TAGS)
-                    .authenticate(provider).call()
+                    .authenticate(gitConfig.get().credentialProvider).call()
             }
         }
     }
@@ -318,7 +320,7 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
         async {
             return@async Git(initRepository(dir)).use {git ->
                 if (git.pull().setRemoteBranchName(branch)
-                        .authenticate(provider).call().isSuccessful
+                        .authenticate(gitConfig.get().credentialProvider).call().isSuccessful
                 ) {
                     LOGGER.info("Pulled latest code")
                     true
