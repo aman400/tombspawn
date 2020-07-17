@@ -2,6 +2,7 @@
 package com.tombspawn.slackbot
 
 import com.tombspawn.ApplicationService
+import com.tombspawn.models.locations.Apps
 import com.tombspawn.models.locations.Slack
 import com.tombspawn.utils.Constants
 import io.ktor.application.call
@@ -17,11 +18,11 @@ private val LOGGER = LoggerFactory.getLogger("com.tombspawn.slackbot.Subscriptio
 
 @OptIn(KtorExperimentalLocationsAPI::class)
 fun Routing.subscribe(applicationService: ApplicationService) {
-    post<Slack.Subscribe> { subscription ->
+    post<Apps.App.Subscribe> { subscription ->
         LOGGER.debug(subscription.toString())
         val parameters = call.receiveParameters()
         val triggerId = parameters[Constants.Slack.TRIGGER_ID]
-        applicationService.showSubscriptionDialog(subscription.appID, triggerId!!)
+        applicationService.showSubscriptionDialog(subscription.app.id, triggerId!!)
         call.respond(HttpStatusCode.OK)
     }
 }

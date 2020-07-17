@@ -33,13 +33,3 @@ fun Routing.githubWebhook(applicationService: ApplicationService) {
         call.respond(HttpStatusCode.OK)
     }
 }
-
-fun CommitData?.getData(app: App?): Pair<App, Reference>? {
-    return this?.let { data ->
-        val refType = RefType.from(data.type)
-        val name = data.name
-        if(app != null && refType != null && name != null) {
-            Pair(app, Reference(name, refType))
-        } else null
-    }
-}
