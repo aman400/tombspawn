@@ -10,6 +10,9 @@ class Apps {
         @Location("/github/payload")
         class GithubWebhook(val app: App)
 
+        @Location("/bitbucket/payload")
+        class BitbucketWebhook(val app: App)
+
         @Location("/init")
         data class Init(val app: App)
 

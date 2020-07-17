@@ -18,6 +18,8 @@ import com.tombspawn.di.qualifiers.WaitingMessages
 import com.tombspawn.docker.DockerService
 import com.tombspawn.models.AppResponse
 import com.tombspawn.models.Reference
+import com.tombspawn.models.bitbucket.BitbucketResponse
+import com.tombspawn.models.bitbucket.getData
 import com.tombspawn.models.config.App
 import com.tombspawn.models.config.Common
 import com.tombspawn.models.config.ServerConf
@@ -39,6 +41,7 @@ import java.io.File
 import java.util.regex.Pattern
 import javax.inject.Inject
 import javax.inject.Provider
+import kotlin.coroutines.coroutineContext
 import kotlin.coroutines.resume
 
 @AppScope
@@ -516,58 +519,27 @@ class ApplicationService @Inject constructor(
             when (headers[Constants.Github.HEADER_KEY_EVENT]?.first()) {
                 Constants.Github.HEADER_VALUE_EVENT_PUSH -> payload.ref?.let { ref ->
                     val branch = ref.substringAfter("refs/heads/")
-                    // Delete all apks present in cache
-                    deleteApks(app.id, branch)
-
-                    val subscriptions = databaseService.findSubscriptions(branch, app.id)
-                    subscriptions.orEmpty().forEach { resultRow ->
-                        launch(Dispatchers.IO) {
-                            slackService.sendShowConfirmGenerateApk(
-                                resultRow[Subscriptions.channel],
-                                resultRow[Refs.name],
-                                Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK + app.id
-                            )
-                        }
-                    }
+                    onCodePushed(app, Reference(branch, payload.refType ?: RefType.BRANCH))
                 }
                 Constants.Github.HEADER_VALUE_EVENT_CREATE -> {
-                    launch {
-                        if (payload.refType == RefType.BRANCH) {
-                            payload.ref?.let { ref ->
-                                databaseService.addRef(app.id, Reference(ref, RefType.BRANCH))
-                                updateCachedRefs(app)
-                                fetchAndUpdateReferences(app)
-                            }
-                        } else if (payload.refType == RefType.TAG) {
-                            payload.ref?.let { ref ->
-                                databaseService.addRef(app.id, Reference(ref, RefType.TAG))
-                                updateCachedRefs(app)
-                                fetchAndUpdateReferences(app)
+                    when(val type = payload.refType) {
+                        RefType.BRANCH, RefType.TAG -> {
+                            payload.ref?.let {
+                                onReferenceCreated(app, Reference(it, type))
                             }
                         }
+                        else -> {}
                     }
                 }
                 Constants.Github.HEADER_VALUE_EVENT_DELETE -> {
-                    launch {
-                        if (payload.refType == RefType.BRANCH) {
-                            payload.ref?.let { ref ->
-                                databaseService.deleteRef(app.id, Reference(ref, RefType.BRANCH))
-                                updateCachedRefs(app)
-                                // Delete cached APKs
-                                deleteApks(app.id, ref)
-                                fetchAndUpdateReferences(app)
-                            }
-                        } else if (payload.refType == RefType.TAG) {
-                            payload.ref?.let { ref ->
-                                databaseService.deleteRef(app.id, Reference(ref, RefType.TAG))
-                                updateCachedRefs(app)
-                                // Delete cached APKs
-                                deleteApks(app.id, ref)
-                                fetchAndUpdateReferences(app)
+                    when(val type = payload.refType) {
+                        RefType.BRANCH, RefType.TAG -> {
+                            payload.ref?.let {
+                                onReferenceDeleted(app, Reference(it, type))
                             }
                         }
+                        else -> {}
                     }
-                    LOGGER.info("deleted branch: ${payload.ref}")
                 }
                 Constants.Github.HEADER_VALUE_EVENT_PING -> {
                 }
@@ -575,6 +547,71 @@ class ApplicationService @Inject constructor(
                 }
             }
         }
+    }
+
+    suspend fun handleBitbucketEvent(
+        appId: String, headers: Map<String, List<String>>,
+        body: BitbucketResponse
+    ) {
+        body.push?.changes?.firstOrNull()?.let {
+            when {
+                it.oldCommitData != null && it.newCommitData != null -> {
+                    apps.firstOrNull { it.id == appId }?.let { app ->
+                        it.newCommitData.getData(app)?.let { (app, ref) ->
+                            onCodePushed(app, ref)
+                        }
+                    }
+                }
+                // A new branch is created
+                it.oldCommitData == null -> {
+                    apps.firstOrNull { it.id == appId }?.let { app ->
+                        it.newCommitData.getData(app)?.let { (app, ref) ->
+                            onReferenceCreated(app, ref)
+                        }
+                    }
+                }
+                // A branch is deleted
+                it.newCommitData == null -> {
+                    apps.firstOrNull { it.id == appId }?.let { app ->
+                        it.oldCommitData.getData(app)?.let { (app, ref) ->
+                            onReferenceDeleted(app, ref)
+                        }
+                    }
+                }
+                else -> {}
+            }
+        }
+    }
+
+    suspend fun onCodePushed(app: App, reference: Reference) = withContext(Dispatchers.IO) {
+        LOGGER.info("Removing apks for reference $reference for app ${app.name}")
+        // Delete all apks present in cache
+        deleteApks(app.id, reference.name)
+
+        val subscriptions = databaseService.findSubscriptions(reference.name, app.id)
+        subscriptions.orEmpty().forEach { resultRow ->
+            slackService.sendShowConfirmGenerateApk(
+                resultRow[Subscriptions.channel],
+                resultRow[Refs.name],
+                Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK + app.id
+            )
+        }
+    }
+
+    suspend fun onReferenceCreated(app: App, reference: Reference) = withContext(Dispatchers.IO) {
+        LOGGER.info("Creating reference $reference for app ${app.name}")
+        databaseService.addRef(app.id, reference)
+        updateCachedRefs(app)
+        fetchAndUpdateReferences(app)
+    }
+
+    suspend fun onReferenceDeleted(app: App, reference: Reference) = withContext(Dispatchers.IO) {
+        LOGGER.info("Deleting reference $reference for app ${app.name}")
+        databaseService.deleteRef(app.id, reference)
+        updateCachedRefs(app)
+        // Delete cached APKs
+        deleteApks(app.id, reference.name)
+        fetchAndUpdateReferences(app)
     }
 
     suspend fun subscribeSlackEvent(slackEvent: SlackEvent) {
