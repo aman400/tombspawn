@@ -32,6 +32,7 @@ class Constants {
         const val LIMIT = "limit"
 
         const val CALLBACK_SUBSCRIBE_CONSUMER = "subscribe_consumer_"
+        const val NAME_SEPARATOR = "$#---#$"
 
         const val TYPE_SUBSCRIBE_CONSUMER = "subscribe-consumer"
         const val TYPE_SUBSCRIBE_FLEET = "subscribe-fleet"

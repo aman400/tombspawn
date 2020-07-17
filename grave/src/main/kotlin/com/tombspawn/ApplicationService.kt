@@ -369,14 +369,13 @@ class ApplicationService @Inject constructor(
         }
     }
 
-    suspend fun showSubscriptionDialog(appId: String, triggerId: String) {
-        apps.firstOrNull {
-            it.id == appId
-        }?.let { app ->
+    suspend fun showSubscriptionDialog(triggerId: String) {
+        apps.map {
+            Pair(it, databaseService.getRefs(it.id, RefType.BRANCH))
+        }.let { refs ->
             slackService.sendShowSubscriptionDialog(
-                databaseService.getRefs(app.id),
-                triggerId,
-                app
+                refs,
+                triggerId
             )
         }
     }
@@ -428,14 +427,18 @@ class ApplicationService @Inject constructor(
         }
     }
 
-    private suspend fun onDialogSubmitted(slackEvent: SlackEvent) = coroutineScope {
+    private suspend fun onDialogSubmitted(slackEvent: SlackEvent) = withContext(Dispatchers.IO) {
         when {
             slackEvent.callbackId?.startsWith(Constants.Slack.CALLBACK_SUBSCRIBE_CONSUMER) == true -> {
-                val appId = slackEvent.callbackId.substringAfter(Constants.Slack.CALLBACK_SUBSCRIBE_CONSUMER)
+                val callback = slackEvent.dialogResponse?.get(SlackConstants.TYPE_SELECT_BRANCH)
+                    ?.split(Constants.Slack.NAME_SEPARATOR)
+                if(callback?.size != 2) {
+                    return@withContext
+                }
                 apps.firstOrNull {
-                    it.id == appId
+                    it.id == callback.getOrNull(0)
                 }?.let { app ->
-                    val branch = slackEvent.dialogResponse?.get(SlackConstants.TYPE_SELECT_BRANCH)
+                    val branch = callback.getOrNull(1)
                     val channelId = slackEvent.channel?.id
                     slackService.sendSubscribeToBranch(slackEvent, app, branch!!, channelId!!)
                 }
@@ -590,6 +593,7 @@ class ApplicationService @Inject constructor(
         val subscriptions = databaseService.findSubscriptions(reference.name, app.id)
         subscriptions.orEmpty().forEach { resultRow ->
             slackService.sendShowConfirmGenerateApk(
+                app,
                 resultRow[Subscriptions.channel],
                 resultRow[Refs.name],
                 Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK + app.id

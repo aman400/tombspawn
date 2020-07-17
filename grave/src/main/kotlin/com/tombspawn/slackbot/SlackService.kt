@@ -194,27 +194,32 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
     }
 
     suspend fun sendShowSubscriptionDialog(
-        branches: List<Ref>?,
-        triggerId: String,
-        app: App
+        refs: List<Pair<App, List<Ref>?>>,
+        triggerId: String
     ) {
-        val branchList = mutableListOf<Element.Option>()
-        branches?.forEach { branch ->
-            branchList.add(Element.Option("${branch.name}(${branch.type.type})", branch.name))
+        val branchList = mutableListOf<Element.OptionGroups>()
+        refs.map { (app, refs) ->
+            branchList.add(optionGroups {
+                label = app.name ?: app.id
+                refs?.forEach { ref ->
+                    +options {
+                        this.label = ref.name
+                        this.value = "${app.id}${Constants.Slack.NAME_SEPARATOR}${ref.name}"
+                    }
+                }
+            })
         }
         val dialog = dialog {
-            callbackId = Constants.Slack.CALLBACK_SUBSCRIBE_CONSUMER + app.id
+            callbackId = Constants.Slack.CALLBACK_SUBSCRIBE_CONSUMER
             title = "Subscription Details"
             submitLabel = "Submit"
             notifyOnCancel = false
             elements {
                 +element {
                     type = ElementType.SELECT
-                    label = "Select Branch"
+                    label = "Select a Branch"
                     name = SlackConstants.TYPE_SELECT_BRANCH
-                    options {
-                        +branchList
-                    }
+                    optionsGroup = branchList
                 }
             }
         }
@@ -251,8 +256,7 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
         slackClient.sendShowDialog(dialog, triggerId)
     }
 
-
-    suspend fun sendShowConfirmGenerateApk(channelId: String, branch: String, callbackId: String) {
+    suspend fun sendShowConfirmGenerateApk(app: App, channelId: String, branch: String, callbackId: String) {
         val attachments = mutableListOf(
             attachment {
                 this.callbackId = callbackId
@@ -298,7 +302,7 @@ class SlackService @Inject constructor(private val slackClient: SlackClient, val
             }
         )
 
-        sendMessage("New changes are available in `$branch` branch.", channelId, attachments)
+        sendMessage("New changes for `${app.name}` app are available in `$branch` branch.", channelId, attachments)
     }
 
     suspend fun subscriptionResponse(

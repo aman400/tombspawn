@@ -1,6 +1,7 @@
 package com.tombspawn.data
 
 import com.tombspawn.models.Reference
+import com.tombspawn.models.github.RefType
 import com.tombspawn.utils.Constants
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
@@ -263,12 +264,16 @@ class DatabaseService constructor(dbUrl: String?, dbUsername: String?, dbPass: S
         }
     }
 
-    suspend fun getRefs(app: String): List<Ref>? = withContext(dispatcher) {
+    suspend fun getRefs(app: String, refType: RefType? = null): List<Ref>? = withContext(dispatcher) {
         return@withContext transaction(connection) {
             if(isDebug) {
                 addLogger(StdOutSqlLogger)
             }
-            Ref.wrapRows(Refs.leftJoin(Apps, { appId }, { id }).select { Apps.name eq app }).toList()
+            Ref.wrapRows(Refs.leftJoin(Apps, { appId }, { id }).select { Apps.name eq app }.apply {
+                if(refType != null) {
+                    this.andWhere { Refs.type eq refType }
+                }
+            }).toList()
         }
     }
 

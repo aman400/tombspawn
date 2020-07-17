@@ -18,11 +18,11 @@ private val LOGGER = LoggerFactory.getLogger("com.tombspawn.slackbot.Subscriptio
 
 @OptIn(KtorExperimentalLocationsAPI::class)
 fun Routing.subscribe(applicationService: ApplicationService) {
-    post<Apps.App.Subscribe> { subscription ->
+    post<Apps.Subscribe> { subscription ->
         LOGGER.debug(subscription.toString())
         val parameters = call.receiveParameters()
         val triggerId = parameters[Constants.Slack.TRIGGER_ID]
-        applicationService.showSubscriptionDialog(subscription.app.id, triggerId!!)
+        applicationService.showSubscriptionDialog(triggerId!!)
         call.respond(HttpStatusCode.OK)
     }
 }
