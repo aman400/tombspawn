@@ -33,9 +33,20 @@ suspend fun SlackService.subscriptionResponse(
             }
         }
         GenerateCallback.Action.GENERATE -> {
+            val dbRefs = databaseService.getRefs(app.id)?.map {
+                Reference(it.name, it.type)
+            }.orEmpty()
+            val dbBranches = dbRefs.map {
+                it.name
+            }
+
             var branchList: List<Reference>? = null
             callback.data?.get(SlackConstants.TYPE_SELECT_BRANCH)?.let { branch ->
-                branchList = listOf(Reference(branch, RefType.BRANCH))
+                branchList = listOf(Reference(branch, RefType.BRANCH)).filter {
+                    it.name in dbBranches
+                }.ifEmpty {
+                    dbRefs
+                }
             }
 
             updatedMessage?.apply {
