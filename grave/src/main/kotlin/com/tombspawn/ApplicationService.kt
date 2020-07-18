@@ -322,26 +322,39 @@ class ApplicationService @Inject constructor(
         }
     }
 
+    private suspend fun getFilteredReferences(appId: String, vararg toFilter: RefType): List<Reference> {
+        return apps.firstOrNull {
+            appId == it.id
+        }?.let { app ->
+            val branchPattern = if (app.gitConfig?.branchConfig?.regex != null) {
+                Pattern.compile(app.gitConfig.branchConfig.regex)
+            } else null
+            val tagPattern = if (app.gitConfig?.tagConfig?.regex != null) {
+                Pattern.compile(app.gitConfig.tagConfig.regex)
+            } else null
+
+            // Limit the list to 100. Slack limitation.
+            getReferences(app.id)?.filter {
+                if(toFilter.isEmpty() || it.type in toFilter) {
+                    if (it.type == RefType.TAG) {
+                        tagPattern?.matcher(it.name)?.matches() ?: true
+                    } else {
+                        branchPattern?.matcher(it.name)?.matches() ?: true
+                    }
+                } else {
+                    false
+                }
+            }.orEmpty()
+        }.orEmpty()
+    }
+
     suspend fun showGenerateApkDialog(appId: String, triggerId: String) {
         apps.firstOrNull {
             appId == it.id
         }?.let { app ->
             LOGGER.warn("Command options not set. These options can be set using '/build-fleet BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'")
-            val branchPattern = if(app.gitConfig?.branchConfig?.regex != null) {
-                Pattern.compile(app.gitConfig.branchConfig.regex)
-            } else null
-            val tagPattern = if(app.gitConfig?.tagConfig?.regex != null) {
-                Pattern.compile(app.gitConfig.tagConfig.regex)
-            } else null
-
             // Limit the list to 100. Slack limitation.
-            val branchList = getReferences(app.id)?.filter {
-                if(it.type == RefType.TAG) {
-                    tagPattern?.matcher(it.name)?.matches() ?: true
-                } else {
-                    branchPattern?.matcher(it.name)?.matches() ?: true
-                }
-            }?.take(100)
+            val branchList = getFilteredReferences(appId).take(100)
             val buildTypesList = app.gradleTasks?.map {
                 it.id
             }
@@ -371,7 +384,9 @@ class ApplicationService @Inject constructor(
         appsToFilter.toList().ifEmpty {
             this@ApplicationService.apps
         }.map {
-            Pair(it, databaseService.getRefs(it.id, RefType.BRANCH))
+            Pair(it, getFilteredReferences(it.id, RefType.BRANCH).take(15))
+        }.filter {
+            !it.second.isNullOrEmpty()
         }.takeIf {
             it.firstOrNull { !it.second.isNullOrEmpty() } != null
         }?.let { refs ->

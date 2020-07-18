@@ -206,7 +206,7 @@ suspend fun SlackService.sendShowConfirmGenerateApk(app: App, channelId: String,
 }
 
 suspend fun SlackService.sendShowSubscriptionDialog(
-    refs: List<Pair<App, List<Ref>?>>,
+    refs: List<Pair<App, List<Reference>?>>,
     triggerId: String
 ) {
     val branchList = mutableListOf<Element.OptionGroups>()
