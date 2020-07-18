@@ -44,13 +44,12 @@ class DatabaseService constructor(dbUrl: String?, dbUsername: String?, dbPass: S
         connectionPool.close()
     }
 
-    suspend fun findSubscriptions(refName: String, appId: String): List<ResultRow>? = withContext(dispatcher) {
+    suspend fun findSubscriptions(appId: String, refName: String? = null): List<ResultRow>? = withContext(dispatcher) {
         try {
             return@withContext transaction(connection) {
-                if(isDebug) {
+                if (isDebug) {
                     addLogger(StdOutSqlLogger)
                 }
-
                 val query = Subscriptions.leftJoin(Refs, {
                     this.refId
                 }, {
@@ -64,11 +63,42 @@ class DatabaseService constructor(dbUrl: String?, dbUsername: String?, dbPass: S
                 }, {
                     this.id
                 }).slice(Users.slackId, Subscriptions.channel, Refs.name).select {
-                    Refs.name eq refName
+                    if (!refName.isNullOrBlank()) (Refs.name eq refName) and (Apps.name eq appId) else (Apps.name eq appId)
+                }.withDistinct(true)
+                return@transaction query.toList()
+            }
+        } catch (exception: Exception) {
+            return@withContext null
+        }
+    }
+
+    suspend fun findSubscriptionByUser(slackUserId: String): List<Pair<App, Ref>>? = withContext(dispatcher) {
+        try {
+            return@withContext transaction(connection) {
+                if (isDebug) {
+                    addLogger(StdOutSqlLogger)
+                }
+                val query = Subscriptions.leftJoin(Refs, {
+                    this.refId
+                }, {
+                    this.id
+                }).innerJoin(Users, {
+                    Subscriptions.userId
+                }, {
+                    id
+                }).innerJoin(Apps, {
+                    Subscriptions.appId
+                }, {
+                    this.id
+                }).slice(
+                    Subscriptions.columns + Apps.columns + Refs.columns + Users.columns
+                ).select {
+                    Users.slackId eq slackUserId
                 }.withDistinct(true)
 
-                return@transaction query.toList()
-
+                query.map {
+                    Pair(App.wrapRow(it), Ref.wrapRow(it))
+                }
             }
         } catch (exception: Exception) {
             return@withContext null
@@ -81,7 +111,7 @@ class DatabaseService constructor(dbUrl: String?, dbUsername: String?, dbPass: S
     suspend fun subscribeUser(userId: String, appName: String, refName: String, channel: String): Boolean =
         withContext(dispatcher) {
             return@withContext transaction(connection) {
-                if(isDebug) {
+                if (isDebug) {
                     addLogger(StdOutSqlLogger)
                 }
                 val user = DBUser.find { Users.slackId eq userId }.first()
@@ -89,15 +119,57 @@ class DatabaseService constructor(dbUrl: String?, dbUsername: String?, dbPass: S
                 val ref = Ref.find { Refs.name eq refName }.first()
                 if (runBlocking(coroutineContext) { !isUserSubscribed(user, app, ref, channel) }) {
                     Subscription.new {
-                        this.appId = app
-                        this.refId = ref
+                        this.app = app
+                        this.ref = ref
                         this.channel = channel
-                        this.userId = user
+                        this.user = user
                     }
                     return@transaction true
                 } else {
                     return@transaction false
                 }
+            }
+        }
+
+    suspend fun unsubscribeBranches(userId: String, channel: String, vararg branches: String) = withContext(dispatcher) {
+        return@withContext transaction(connection) {
+            if (isDebug) {
+                addLogger(StdOutSqlLogger)
+            }
+            Subscription.wrapRows(Subscriptions.leftJoin(Refs, {
+                this.refId
+            }, {
+                this.id
+            }).innerJoin(Users, {
+                Subscriptions.userId
+            }, {
+                id
+            }).innerJoin(Apps, {
+                Subscriptions.appId
+            }, {
+                this.id
+            }).slice(Users.slackId, Subscriptions.channel, Refs.name).select {
+                (Users.slackId eq userId) and (Refs.name inList branches.toList()) and (Subscriptions.channel eq channel)
+            }).toList().forEach {
+                it.delete()
+            }
+            true
+        }
+    }
+
+    suspend fun unSubscribeUser(userId: String, appName: String, refName: String, channel: String): Boolean =
+        withContext(dispatcher) {
+            return@withContext transaction(connection) {
+                if (isDebug) {
+                    addLogger(StdOutSqlLogger)
+                }
+                val user = DBUser.find { Users.slackId eq userId }.first()
+                val app = App.find { Apps.name eq appName }.first()
+                val ref = Ref.find { Refs.name eq refName }.first()
+                Subscription.find {
+                    (Subscriptions.userId eq user.id) and (Subscriptions.appId eq app.id) and (Subscriptions.refId eq ref.id) and (Subscriptions.channel eq channel)
+                }.first().delete()
+                true
             }
         }
 
@@ -107,7 +179,7 @@ class DatabaseService constructor(dbUrl: String?, dbUsername: String?, dbPass: S
     suspend fun isUserSubscribed(user: DBUser, app: App, ref: Ref, channel: String): Boolean =
         withContext(dispatcher) {
             return@withContext transaction(connection) {
-                if(isDebug) {
+                if (isDebug) {
                     addLogger(StdOutSqlLogger)
                 }
                 return@transaction !Subscription.find {
@@ -121,7 +193,7 @@ class DatabaseService constructor(dbUrl: String?, dbUsername: String?, dbPass: S
             return@withContext false
         }
         return@withContext transaction(connection) {
-            if(isDebug) {
+            if (isDebug) {
                 addLogger(StdOutSqlLogger)
             }
             val user = DBUser.find { Users.slackId eq userId }
@@ -131,7 +203,7 @@ class DatabaseService constructor(dbUrl: String?, dbUsername: String?, dbPass: S
 
     suspend fun addApp(appName: String) = withContext(dispatcher) {
         transaction(connection) {
-            if(isDebug) {
+            if (isDebug) {
                 addLogger(StdOutSqlLogger)
             }
             if (App.find { Apps.name eq appName }.limit(1).firstOrNull() == null) {
@@ -145,7 +217,7 @@ class DatabaseService constructor(dbUrl: String?, dbUsername: String?, dbPass: S
 
     suspend fun addApps(appNames: List<com.tombspawn.models.config.App>) = withContext(dispatcher) {
         transaction(connection) {
-            if(isDebug) {
+            if (isDebug) {
                 addLogger(StdOutSqlLogger)
             }
             appNames.forEach {
@@ -166,7 +238,7 @@ class DatabaseService constructor(dbUrl: String?, dbUsername: String?, dbPass: S
         imId: String? = null
     ): DBUser? = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            if(isDebug) {
+            if (isDebug) {
                 addLogger(StdOutSqlLogger)
             }
             val types = UserType.find { UserTypes.type eq typeString }.limit(1)
@@ -194,7 +266,7 @@ class DatabaseService constructor(dbUrl: String?, dbUsername: String?, dbPass: S
         email: String? = null
     ) = withContext(dispatcher) {
         transaction(connection) {
-            if(isDebug) {
+            if (isDebug) {
                 addLogger(StdOutSqlLogger)
             }
             DBUser.find {
@@ -210,7 +282,7 @@ class DatabaseService constructor(dbUrl: String?, dbUsername: String?, dbPass: S
     suspend fun getUser(userType: String): DBUser? = withContext(dispatcher) {
         try {
             return@withContext transaction(connection) {
-                if(isDebug) {
+                if (isDebug) {
                     addLogger(StdOutSqlLogger)
                 }
                 val query = Users.innerJoin(UserTypes, {
@@ -235,7 +307,7 @@ class DatabaseService constructor(dbUrl: String?, dbUsername: String?, dbPass: S
     suspend fun findUser(slackId: String): DBUser? = withContext(dispatcher) {
         try {
             return@withContext transaction(connection) {
-                if(isDebug) {
+                if (isDebug) {
                     addLogger(StdOutSqlLogger)
                 }
                 val query = Users.select {
@@ -251,8 +323,8 @@ class DatabaseService constructor(dbUrl: String?, dbUsername: String?, dbPass: S
 
     suspend fun getUsers(type: String): List<DBUser> = withContext(dispatcher) {
         try {
-            return@withContext  transaction(connection) {
-                if(isDebug) {
+            return@withContext transaction(connection) {
+                if (isDebug) {
                     addLogger(StdOutSqlLogger)
                 }
                 return@transaction DBUser.wrapRows(Users.leftJoin(UserTypes, { this.userType }, { this.type })
@@ -266,11 +338,11 @@ class DatabaseService constructor(dbUrl: String?, dbUsername: String?, dbPass: S
 
     suspend fun getRefs(app: String, refType: RefType? = null): List<Ref>? = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            if(isDebug) {
+            if (isDebug) {
                 addLogger(StdOutSqlLogger)
             }
             Ref.wrapRows(Refs.leftJoin(Apps, { appId }, { id }).select { Apps.name eq app }.apply {
-                if(refType != null) {
+                if (refType != null) {
                     this.andWhere { Refs.type eq refType }
                 }
             }).toList()
@@ -279,11 +351,12 @@ class DatabaseService constructor(dbUrl: String?, dbUsername: String?, dbPass: S
 
     suspend fun addRef(app: String, ref: Reference) = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            if(isDebug) {
+            if (isDebug) {
                 addLogger(StdOutSqlLogger)
             }
             val application = App.find { Apps.name eq app }.first()
-            if (Ref.find { (Refs.name eq ref.name) and (Refs.appId eq application.id) and (Refs.type eq ref.type) }.empty()) {
+            if (Ref.find { (Refs.name eq ref.name) and (Refs.appId eq application.id) and (Refs.type eq ref.type) }
+                    .empty()) {
                 Ref.new {
                     this.name = ref.name
                     this.deleted = false
@@ -294,9 +367,9 @@ class DatabaseService constructor(dbUrl: String?, dbUsername: String?, dbPass: S
         }
     }
 
-    suspend fun deleteRef(appName: String, reference: Reference)= withContext(dispatcher) {
+    suspend fun deleteRef(appName: String, reference: Reference) = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            if(isDebug) {
+            if (isDebug) {
                 addLogger(StdOutSqlLogger)
             }
             App.find { Apps.name eq appName }.firstOrNull()?.let { application ->
@@ -307,22 +380,24 @@ class DatabaseService constructor(dbUrl: String?, dbUsername: String?, dbPass: S
 
     suspend fun addRefs(refs: List<Reference>, appName: String) = withContext(dispatcher) {
         return@withContext transaction(connection) {
-            if(isDebug) {
+            if (isDebug) {
                 addLogger(StdOutSqlLogger)
             }
             App.find { Apps.name eq appName }.firstOrNull()?.let { application ->
-                Ref.wrapRows(Refs.select {Refs.appId eq application.id}).forEach { ref ->
-                    if(refs.firstOrNull {
-                        ref.name == it.name && ref.type == it.type
-                    } == null) {
+                Ref.wrapRows(Refs.select { Refs.appId eq application.id }).forEach { ref ->
+                    if (refs.firstOrNull {
+                            ref.name == it.name && ref.type == it.type
+                        } == null) {
                         ref.delete()
                     }
                 }
 
                 refs.forEach {
-                    if(Ref.find { (Refs.name eq it.name) and
-                                (Refs.appId eq application.id) and
-                                (Refs.type eq it.type)}.firstOrNull() == null) {
+                    if (Ref.find {
+                            (Refs.name eq it.name) and
+                                    (Refs.appId eq application.id) and
+                                    (Refs.type eq it.type)
+                        }.firstOrNull() == null) {
                         Ref.new {
                             this.name = it.name
                             this.deleted = false

@@ -22,4 +22,7 @@ class Apps {
 
     @Location("/subscribe")
     class Subscribe
+
+    @Location("/unsubscribe")
+    class Unsubscribe
 }
