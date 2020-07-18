@@ -13,6 +13,7 @@ class Element(
     @SerializedName("hint") var hint: String? = null,
     @SerializedName("value") var defaultValue: String? = null,
     @SerializedName("subtype") var inputType: InputType? = null,
+    @SerializedName("option_groups") var optionsGroup: List<OptionGroups>? = null,
     // Select options
     @SerializedName("options") var options: MutableList<Option>? = null,
     // Predefined data from slack for selection
@@ -58,12 +59,33 @@ class Element(
         EXTERNAL("external")
     }
 
-    class Option(
+    class OptionGroups(
+        @SerializedName("label") var label: String = "",
+        @SerializedName("options") var options: MutableList<Option>? = null
+    ) {
+        operator fun Option.unaryPlus() {
+            if(options == null) {
+                options = mutableListOf()
+            }
+            options?.add(this)
+        }
+
+        operator fun MutableList<Option>.unaryPlus() {
+            if(options == null) {
+                options = mutableListOf()
+            }
+            options?.addAll(this)
+        }
+    }
+
+    class Option constructor(
         @SerializedName("label") var label: String = "",
         @SerializedName("value") var value: String = ""
     )
 }
 
-fun elementOption(block: Element.Option.() -> Unit) = Element.Option().apply(block)
+fun options(block: Element.Option.() -> Unit) = Element.Option().apply(block)
+
+fun optionGroups(block: Element.OptionGroups.() -> Unit) = Element.OptionGroups().apply(block)
 
 fun element(block: Element.() -> Unit) = Element().apply(block)

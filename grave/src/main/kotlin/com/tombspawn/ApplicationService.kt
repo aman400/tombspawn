@@ -26,10 +26,8 @@ import com.tombspawn.models.config.ServerConf
 import com.tombspawn.models.config.Slack
 import com.tombspawn.models.github.Payload
 import com.tombspawn.models.github.RefType
-import com.tombspawn.models.slack.Event
-import com.tombspawn.models.slack.GenerateCallback
-import com.tombspawn.models.slack.SlackEvent
-import com.tombspawn.slackbot.SlackService
+import com.tombspawn.models.slack.*
+import com.tombspawn.slackbot.*
 import com.tombspawn.utils.Constants
 import com.tombspawn.utils.Constants.Common.SKELETON_DEBUG_PORT
 import io.grpc.Status
@@ -324,26 +322,39 @@ class ApplicationService @Inject constructor(
         }
     }
 
+    private suspend fun getFilteredReferences(appId: String, vararg toFilter: RefType): List<Reference> {
+        return apps.firstOrNull {
+            appId == it.id
+        }?.let { app ->
+            val branchPattern = if (app.gitConfig?.branchConfig?.regex != null) {
+                Pattern.compile(app.gitConfig.branchConfig.regex)
+            } else null
+            val tagPattern = if (app.gitConfig?.tagConfig?.regex != null) {
+                Pattern.compile(app.gitConfig.tagConfig.regex)
+            } else null
+
+            // Limit the list to 100. Slack limitation.
+            getReferences(app.id)?.filter {
+                if(toFilter.isEmpty() || it.type in toFilter) {
+                    if (it.type == RefType.TAG) {
+                        tagPattern?.matcher(it.name)?.matches() ?: true
+                    } else {
+                        branchPattern?.matcher(it.name)?.matches() ?: true
+                    }
+                } else {
+                    false
+                }
+            }.orEmpty()
+        }.orEmpty()
+    }
+
     suspend fun showGenerateApkDialog(appId: String, triggerId: String) {
         apps.firstOrNull {
             appId == it.id
         }?.let { app ->
             LOGGER.warn("Command options not set. These options can be set using '/build-fleet BRANCH=<git-branch-name>(optional)  BUILD_TYPE=<release/debug>(optional)  FLAVOUR=<flavour>(optional)'")
-            val branchPattern = if(app.gitConfig?.branchConfig?.regex != null) {
-                Pattern.compile(app.gitConfig.branchConfig.regex)
-            } else null
-            val tagPattern = if(app.gitConfig?.tagConfig?.regex != null) {
-                Pattern.compile(app.gitConfig.tagConfig.regex)
-            } else null
-
             // Limit the list to 100. Slack limitation.
-            val branchList = getReferences(app.id)?.filter {
-                if(it.type == RefType.TAG) {
-                    tagPattern?.matcher(it.name)?.matches() ?: true
-                } else {
-                    branchPattern?.matcher(it.name)?.matches() ?: true
-                }
-            }?.take(100)
+            val branchList = getFilteredReferences(appId).take(100)
             val buildTypesList = app.gradleTasks?.map {
                 it.id
             }
@@ -369,15 +380,42 @@ class ApplicationService @Inject constructor(
         }
     }
 
-    suspend fun showSubscriptionDialog(appId: String, triggerId: String) {
-        apps.firstOrNull {
-            it.id == appId
-        }?.let { app ->
+    suspend fun showSubscriptionDialog(triggerId: String, channelId: String, vararg appsToFilter: App) {
+        appsToFilter.toList().ifEmpty {
+            this@ApplicationService.apps
+        }.map {
+            Pair(it, getFilteredReferences(it.id, RefType.BRANCH).take(20))
+        }.filter {
+            !it.second.isNullOrEmpty()
+        }.takeIf {
+            it.firstOrNull { !it.second.isNullOrEmpty() } != null
+        }?.let { refs ->
             slackService.sendShowSubscriptionDialog(
-                databaseService.getRefs(app.id),
-                triggerId,
-                app
+                refs,
+                triggerId
             )
+        } ?: run {
+            slackService.sendMessage("No Apps found for subscription", channelId, null)
+        }
+    }
+
+    suspend fun showUnSubscriptionDialog(triggerId: String, slackUserId: String, channelId: String) {
+        val refs = mutableMapOf<String, MutableSet<Reference>>()
+        databaseService.findSubscriptionByUser(slackUserId)?.forEach { (app, ref) ->
+            if(refs.containsKey(app.name)) {
+                refs[app.name]?.add(Reference(ref.name, RefType.BRANCH))
+            } else {
+                refs[app.name] = mutableSetOf(Reference(ref.name, RefType.BRANCH))
+            }
+        }
+        if(refs.isNotEmpty()) {
+            slackService.sendShowUnSubscriptionDialog(refs.map { (key, value) ->
+                Pair(apps.first {
+                    it.id == key
+                }, value)
+            }, triggerId)
+        } else {
+            slackService.sendMessage("No subscriptions found", channelId, null)
         }
     }
 
@@ -400,8 +438,7 @@ class ApplicationService @Inject constructor(
                                     Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK,
                                     true
                                 ) == true -> {
-                                    val appId =
-                                        action.name?.substringAfter(Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK, "")
+                                    val appId = action.name?.substringAfter(Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK, "")
                                     apps.firstOrNull {
                                         it.id == appId
                                     }?.let { app ->
@@ -410,6 +447,28 @@ class ApplicationService @Inject constructor(
                                             app.gradleTasks?.map {
                                                 it.id
                                             })
+                                    }
+                                }
+
+                                action.name?.startsWith(Constants.Slack.CALLBACK_SUBSCRIBE_BRANCH, true) == true -> {
+                                    val updatedMessage = slackEvent.originalMessage?.copy(attachments = null)
+                                    slackService.updateMessage(updatedMessage, slackEvent.channel?.id)
+                                    try {
+                                        val callback: CallbackMessage<String> = gson.fromJson<CallbackMessage<String>>(action.value, CallbackMessage::class.java)
+                                        when(callback.action) {
+                                            CallbackMessage.Action.POSITIVE -> {
+                                                val appId = callback.data
+                                                showSubscriptionDialog(
+                                                    slackEvent.triggerId!!,
+                                                    slackEvent.channel!!.id!!,
+                                                    apps.first {
+                                                        it.id == appId
+                                                    })
+                                            }
+                                        }
+
+                                    } catch (exception: Exception) {
+                                        LOGGER.error("Something went wrong in callback", exception)
                                     }
                                 }
                             }
@@ -428,16 +487,34 @@ class ApplicationService @Inject constructor(
         }
     }
 
-    private suspend fun onDialogSubmitted(slackEvent: SlackEvent) = coroutineScope {
+    private suspend fun onDialogSubmitted(slackEvent: SlackEvent) = withContext(Dispatchers.IO) {
         when {
             slackEvent.callbackId?.startsWith(Constants.Slack.CALLBACK_SUBSCRIBE_CONSUMER) == true -> {
-                val appId = slackEvent.callbackId.substringAfter(Constants.Slack.CALLBACK_SUBSCRIBE_CONSUMER)
+                val callback = slackEvent.dialogResponse?.get(SlackConstants.TYPE_SELECT_BRANCH)
+                    ?.split(Constants.Slack.NAME_SEPARATOR)
+                if(callback?.size != 2) {
+                    return@withContext
+                }
                 apps.firstOrNull {
-                    it.id == appId
+                    it.id == callback.getOrNull(0)
                 }?.let { app ->
-                    val branch = slackEvent.dialogResponse?.get(SlackConstants.TYPE_SELECT_BRANCH)
+                    val branch = callback.getOrNull(1)
                     val channelId = slackEvent.channel?.id
                     slackService.sendSubscribeToBranch(slackEvent, app, branch!!, channelId!!)
+                }
+            }
+            slackEvent.callbackId?.startsWith(Constants.Slack.CALLBACK_UNSUBSCRIBE_CONSUMER) == true -> {
+                val callback = slackEvent.dialogResponse?.get(SlackConstants.TYPE_SELECT_BRANCH)
+                    ?.split(Constants.Slack.NAME_SEPARATOR)
+                if(callback?.size != 2) {
+                    return@withContext
+                }
+                apps.firstOrNull {
+                    it.id == callback.getOrNull(0)
+                }?.let { app ->
+                    val branch = callback.getOrNull(1)
+                    val channelId = slackEvent.channel?.id
+                    slackService.unsubscribeFrom(slackEvent, app, branch!!, channelId!!)
                 }
             }
             slackEvent.callbackId?.startsWith(Constants.Slack.CALLBACK_GENERATE_APK) == true -> {
@@ -587,9 +664,10 @@ class ApplicationService @Inject constructor(
         // Delete all apks present in cache
         deleteApks(app.id, reference.name)
 
-        val subscriptions = databaseService.findSubscriptions(reference.name, app.id)
+        val subscriptions = databaseService.findSubscriptions(app.id, reference.name)
         subscriptions.orEmpty().forEach { resultRow ->
             slackService.sendShowConfirmGenerateApk(
+                app,
                 resultRow[Subscriptions.channel],
                 resultRow[Refs.name],
                 Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK + app.id
@@ -606,6 +684,7 @@ class ApplicationService @Inject constructor(
 
     suspend fun onReferenceDeleted(app: App, reference: Reference) = withContext(Dispatchers.IO) {
         LOGGER.info("Deleting reference $reference for app ${app.name}")
+        slackService.unsubscribeDeletedBranch(app, reference)
         databaseService.deleteRef(app.id, reference)
         updateCachedRefs(app)
         // Delete cached APKs

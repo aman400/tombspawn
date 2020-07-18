@@ -87,16 +87,13 @@ object Subscriptions : IntIdTable() {
         )
     val channel = varchar("channel_id", 100)
     override val primaryKey: PrimaryKey =  PrimaryKey(id, userId, refId, appId, channel)
-    init {
-        index(true, userId, refId, appId, channel)
-    }
 }
 
 class Subscription(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<Subscription>(Subscriptions)
 
-    var userId by DBUser referencedOn Subscriptions.userId
-    var refId by Ref referencedOn Subscriptions.refId
-    var appId by App referencedOn Subscriptions.appId
+    var user by DBUser referencedOn Subscriptions.userId
+    var ref by Ref referencedOn Subscriptions.refId
+    var app by App referencedOn Subscriptions.appId
     var channel by Subscriptions.channel
 }

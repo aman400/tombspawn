@@ -9,6 +9,7 @@ import com.tombspawn.models.locations.Apps
 import com.tombspawn.models.locations.Slack
 import com.tombspawn.models.slack.Event
 import com.tombspawn.models.slack.SlackEvent
+import com.tombspawn.utils.Constants
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
@@ -28,7 +29,7 @@ private val LOGGER = LoggerFactory.getLogger("com.tombspawn.slackbot.SlackRoutes
 fun Routing.slackEvent(applicationService: ApplicationService) {
     post<Slack.Event> {
         val slackEvent = call.receive<SlackEvent>()
-        LOGGER.debug("SlackEvent: $slackEvent")
+        LOGGER.trace("SlackEvent: $slackEvent")
         when (slackEvent.type) {
             Event.EventType.URL_VERIFICATION -> call.respond(slackEvent)
             Event.EventType.RATE_LIMIT -> {
@@ -52,7 +53,7 @@ fun Routing.slackAction(
     post<Slack.Action> {
         val params = call.receive<Parameters>()
         val payload = params["payload"]
-        LOGGER.debug("SlackAction payload: $payload")
+        LOGGER.trace("SlackAction payload: $payload")
         GlobalScope.launch(Dispatchers.IO) {
             payload?.let {
                 applicationService.handleSlackEvent(it)
@@ -66,9 +67,9 @@ fun Routing.buildApp(applicationService: ApplicationService) {
     post<Slack.Command> { command ->
         val params = call.receiveParameters()
 
-        val channelId = params["channel_id"]
+        val channelId = params[Constants.Slack.CHANNEL_ID]
         val text = params["text"]
-        val triggerId = params["trigger_id"]
+        val triggerId = params[Constants.Slack.TRIGGER_ID]
 
         params.forEach { key, list ->
             LOGGER.info("$key: $list")

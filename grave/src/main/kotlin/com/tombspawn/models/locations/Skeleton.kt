@@ -18,8 +18,11 @@ class Apps {
 
         @Location("/clean")
         data class Clean(val app: App)
-
-        @Location("/subscribe")
-        class Subscribe(val app: App)
     }
+
+    @Location("/subscribe")
+    class Subscribe
+
+    @Location("/unsubscribe")
+    class Unsubscribe
 }
