@@ -367,8 +367,10 @@ class ApplicationService @Inject constructor(
         }
     }
 
-    suspend fun showSubscriptionDialog(triggerId: String, channelId: String) {
-        apps.map {
+    suspend fun showSubscriptionDialog(triggerId: String, channelId: String, vararg appsToFilter: App) {
+        appsToFilter.toList().ifEmpty {
+            this@ApplicationService.apps
+        }.map {
             Pair(it, databaseService.getRefs(it.id, RefType.BRANCH))
         }.takeIf {
             it.firstOrNull { !it.second.isNullOrEmpty() } != null
@@ -421,8 +423,7 @@ class ApplicationService @Inject constructor(
                                     Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK,
                                     true
                                 ) == true -> {
-                                    val appId =
-                                        action.name?.substringAfter(Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK, "")
+                                    val appId = action.name?.substringAfter(Constants.Slack.CALLBACK_CONFIRM_GENERATE_APK, "")
                                     apps.firstOrNull {
                                         it.id == appId
                                     }?.let { app ->
@@ -431,6 +432,28 @@ class ApplicationService @Inject constructor(
                                             app.gradleTasks?.map {
                                                 it.id
                                             })
+                                    }
+                                }
+
+                                action.name?.startsWith(Constants.Slack.CALLBACK_SUBSCRIBE_BRANCH, true) == true -> {
+                                    val updatedMessage = slackEvent.originalMessage?.copy(attachments = null)
+                                    slackService.updateMessage(updatedMessage, slackEvent.channel?.id)
+                                    try {
+                                        val callback: CallbackMessage<String> = gson.fromJson<CallbackMessage<String>>(action.value, CallbackMessage::class.java)
+                                        when(callback.action) {
+                                            CallbackMessage.Action.POSITIVE -> {
+                                                val appId = callback.data
+                                                showSubscriptionDialog(
+                                                    slackEvent.triggerId!!,
+                                                    slackEvent.channel!!.id!!,
+                                                    apps.first {
+                                                        it.id == appId
+                                                    })
+                                            }
+                                        }
+
+                                    } catch (exception: Exception) {
+                                        LOGGER.error("Something went wrong in callback", exception)
                                     }
                                 }
                             }
@@ -646,21 +669,12 @@ class ApplicationService @Inject constructor(
 
     suspend fun onReferenceDeleted(app: App, reference: Reference) = withContext(Dispatchers.IO) {
         LOGGER.info("Deleting reference $reference for app ${app.name}")
-        unSubscribeDeletedBranch(app, reference)
+        slackService.unsubscribeDeletedBranch(app, reference)
         databaseService.deleteRef(app.id, reference)
         updateCachedRefs(app)
         // Delete cached APKs
         deleteApks(app.id, reference.name)
         fetchAndUpdateReferences(app)
-    }
-
-    private suspend fun unSubscribeDeletedBranch(app: App, reference: Reference) = withContext(Dispatchers.IO) {
-        val subscriptions = databaseService.findSubscriptions(app.id, reference.name)
-        subscriptions.orEmpty().forEach { resultRow ->
-            slackService.sendMessage(
-                "`${reference.name}` branch for `${app.name}` app is deleted :scream:. You are unsubscribed from the same.",
-            resultRow[Subscriptions.channel], null)
-        }
     }
 
     suspend fun subscribeSlackEvent(slackEvent: SlackEvent) {

@@ -2,6 +2,7 @@ package com.tombspawn.slackbot
 
 import com.tombspawn.base.common.SlackConstants
 import com.tombspawn.data.Ref
+import com.tombspawn.data.Subscriptions
 import com.tombspawn.models.Reference
 import com.tombspawn.models.RequestData
 import com.tombspawn.models.config.App
@@ -77,6 +78,63 @@ suspend fun SlackService.subscriptionResponse(
             }
             LOGGER.error("Not generating the APK")
         }
+    }
+}
+
+suspend fun SlackService.unsubscribeDeletedBranch(app: App, reference: Reference) = withContext(Dispatchers.IO) {
+    val callbackId = Constants.Slack.CALLBACK_SUBSCRIBE_BRANCH + app.id
+    val subscriptions = databaseService.findSubscriptions(app.id, reference.name)
+    val attachments = mutableListOf<Attachment>().apply {
+        add(attachment {
+            this.callbackId = callbackId
+            fallback = "Unable to show subscription popup"
+            text = "Do you want to subscribe to different branch?"
+            id = 1
+            color = "#00FF00"
+            actions {
+                +action {
+                    confirm = confirm {
+                        title = "Are you sure?"
+                        text = "You want to subscribe to a different branch."
+                        dismissText = "No"
+                        okText = "Yes"
+                    }
+                    name = callbackId
+                    text = "Yes"
+                    type = Action.ActionType.BUTTON
+                    style = Action.ActionStyle.PRIMARY
+                    value = gson.toJson(
+                        callbackMessage<String> {
+                            action = CallbackMessage.Action.POSITIVE
+                            data = app.id
+                        }, CallbackMessage::class.java
+                    )
+                }
+                +action {
+                    confirm = confirm {
+                        title = "Are you sure?"
+                        text = "You do not want to subscribe to a different branch."
+                        dismissText = "No"
+                        okText = "Yes"
+                    }
+                    name = callbackId
+                    text = "No"
+                    type = Action.ActionType.BUTTON
+                    style = Action.ActionStyle.DEFAULT
+                    value = gson.toJson(
+                        callbackMessage<String> {
+                            action = CallbackMessage.Action.NEGATIVE
+                            data = app.id
+                        }, CallbackMessage::class.java
+                    )
+                }
+            }
+        })
+    }
+    subscriptions.orEmpty().forEach { resultRow ->
+        sendMessage(
+            "`${reference.name}` branch for `${app.name}` app is deleted :scream:. You are unsubscribed from the same.",
+            resultRow[Subscriptions.channel], attachments)
     }
 }
 

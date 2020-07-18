@@ -3,12 +3,10 @@ package com.tombspawn.slackbot
 import com.google.gson.Gson
 import com.tombspawn.base.common.*
 import com.tombspawn.data.DatabaseService
-import com.tombspawn.data.Ref
 import com.tombspawn.models.Reference
 import com.tombspawn.models.RequestData
 import com.tombspawn.models.config.App
 import com.tombspawn.models.config.Slack
-import com.tombspawn.models.github.RefType
 import com.tombspawn.models.slack.*
 import com.tombspawn.utils.Constants
 import io.ktor.client.request.forms.formData
@@ -191,6 +189,11 @@ class SlackService @Inject constructor(internal val slackClient: SlackClient, va
         withContext(Dispatchers.IO) {
             slackClient.openActionDialog(dialog, slack.botToken, triggerId)
         }
+    }
+
+    suspend fun updateMessage(updatedMessage: SlackMessage?, channelId: String?) {
+        require(updatedMessage != null && channelId != null)
+        slackClient.updateMessage(updatedMessage, channelId)
     }
 
     @Throws(Exception::class)

@@ -20,6 +20,7 @@ class Constants {
 
         const val CALLBACK_GENERATE_APK = "generate_apk_"
         const val CALLBACK_CONFIRM_GENERATE_APK = "confirm_generate_apk_"
+        const val CALLBACK_SUBSCRIBE_BRANCH = "subscribe_branch_"
 
         const val TOKEN = "token"
         const val CHANNEL = "channel"
