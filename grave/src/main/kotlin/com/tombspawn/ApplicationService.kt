@@ -384,7 +384,7 @@ class ApplicationService @Inject constructor(
         appsToFilter.toList().ifEmpty {
             this@ApplicationService.apps
         }.map {
-            Pair(it, getFilteredReferences(it.id, RefType.BRANCH).take(15))
+            Pair(it, getFilteredReferences(it.id, RefType.BRANCH).take(20))
         }.filter {
             !it.second.isNullOrEmpty()
         }.takeIf {
