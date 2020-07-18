@@ -646,12 +646,12 @@ class ApplicationService @Inject constructor(
 
     suspend fun onReferenceDeleted(app: App, reference: Reference) = withContext(Dispatchers.IO) {
         LOGGER.info("Deleting reference $reference for app ${app.name}")
+        unSubscribeDeletedBranch(app, reference)
         databaseService.deleteRef(app.id, reference)
         updateCachedRefs(app)
         // Delete cached APKs
         deleteApks(app.id, reference.name)
         fetchAndUpdateReferences(app)
-        unSubscribeDeletedBranch(app, reference)
     }
 
     private suspend fun unSubscribeDeletedBranch(app: App, reference: Reference) = withContext(Dispatchers.IO) {

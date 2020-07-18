@@ -198,13 +198,13 @@ suspend fun SlackService.sendShowUnSubscriptionDialog(
     }
     val dialog = dialog {
         callbackId = Constants.Slack.CALLBACK_UNSUBSCRIBE_CONSUMER
-        title = "You are Subscribed to"
+        title = "Unsubscribe from branch"
         submitLabel = "Unsubscribe"
         notifyOnCancel = false
         elements {
             +element {
                 type = ElementType.SELECT
-                label = "Select Branch to unsubscribe"
+                label = "Select a Branch"
                 name = SlackConstants.TYPE_SELECT_BRANCH
                 optionsGroup = branchList
             }
