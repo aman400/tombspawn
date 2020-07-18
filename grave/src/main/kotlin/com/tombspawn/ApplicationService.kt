@@ -26,9 +26,7 @@ import com.tombspawn.models.config.ServerConf
 import com.tombspawn.models.config.Slack
 import com.tombspawn.models.github.Payload
 import com.tombspawn.models.github.RefType
-import com.tombspawn.models.slack.Event
-import com.tombspawn.models.slack.GenerateCallback
-import com.tombspawn.models.slack.SlackEvent
+import com.tombspawn.models.slack.*
 import com.tombspawn.slackbot.*
 import com.tombspawn.utils.Constants
 import com.tombspawn.utils.Constants.Common.SKELETON_DEBUG_PORT
@@ -653,6 +651,16 @@ class ApplicationService @Inject constructor(
         // Delete cached APKs
         deleteApks(app.id, reference.name)
         fetchAndUpdateReferences(app)
+        unSubscribeDeletedBranch(app, reference)
+    }
+
+    private suspend fun unSubscribeDeletedBranch(app: App, reference: Reference) = withContext(Dispatchers.IO) {
+        val subscriptions = databaseService.findSubscriptions(app.id, reference.name)
+        subscriptions.orEmpty().forEach { resultRow ->
+            slackService.sendMessage(
+                "`${reference.name}` branch for `${app.name}` app is deleted :scream:. You are unsubscribed from the same.",
+            resultRow[Subscriptions.channel], null)
+        }
     }
 
     suspend fun subscribeSlackEvent(slackEvent: SlackEvent) {
