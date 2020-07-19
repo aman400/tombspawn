@@ -316,7 +316,7 @@ suspend fun SlackService.unsubscribeFrom(
     channelId: String
 ) = coroutineScope {
     withContext(Dispatchers.IO) {
-        val message = "You are successfully unsubscribed from `$branch` branch for `${app.name} app.`"
+        val message = "You are successfully unsubscribed from `$branch` branch for `${app.name}` App."
         slackEvent.user?.id?.let { userId ->
             if (!databaseService.userExists(userId)) {
                 fetchUser(userId)
