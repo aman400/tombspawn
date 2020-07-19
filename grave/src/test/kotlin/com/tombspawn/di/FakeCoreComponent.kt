@@ -1,15 +1,19 @@
 package com.tombspawn.di
 
 import com.google.gson.Gson
-import com.tombspawn.TestApplicationService
+import com.tombspawn.git.CredentialProvider
 import dagger.Component
 
-@Component(modules = [FakeCoreModule::class])
+@Component(modules = [FakeCoreModule::class, FakeAppModule::class])
 interface FakeCoreComponent {
     fun provideGson(): Gson
 
+    fun provideCredentialProvider(): CredentialProvider
+
     @Component.Factory
     interface Factory {
-        fun create(): FakeCoreComponent
+        fun create(fakeCoreModule: FakeCoreModule,
+                   fakeAppModule: FakeAppModule
+        ): FakeCoreComponent
     }
 }
