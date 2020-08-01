@@ -1,8 +1,10 @@
 package com.tombspawn
 
+import com.tombspawn.auth.makeJwtVerifier
 import com.tombspawn.base.config.JsonApplicationConfig
 import com.tombspawn.base.di.DaggerCoreComponent
 import com.tombspawn.di.DaggerAppComponent
+import com.tombspawn.models.config.JWTConfig
 import com.tombspawn.models.config.ServerConf
 import com.tombspawn.network.githubWebhook
 import com.tombspawn.network.health
@@ -10,6 +12,8 @@ import com.tombspawn.network.status
 import com.tombspawn.slackbot.*
 import com.tombspawn.utils.Constants
 import io.ktor.application.*
+import io.ktor.auth.*
+import io.ktor.auth.jwt.*
 import io.ktor.features.*
 import io.ktor.gson.gson
 import io.ktor.http.HttpStatusCode
@@ -36,6 +40,9 @@ class Grave(val args: Array<String>) {
     @Inject
     lateinit var applicationService: ApplicationService
 
+    @Inject
+    lateinit var jwtConfig: JWTConfig
+
     @ExperimentalStdlibApi
     fun startServer() {
         val coreComponent = DaggerCoreComponent.create()
@@ -45,7 +52,7 @@ class Grave(val args: Array<String>) {
                     .factory()
                     .create(this, coreComponent)
                     .inject(this@Grave)
-                module(applicationService)
+                module(applicationService, jwtConfig)
             }
 
             var host = Constants.Common.DEFAULT_HOST
@@ -95,7 +102,7 @@ class Grave(val args: Array<String>) {
 @ExperimentalStdlibApi
 @KtorExperimentalLocationsAPI
 @Suppress("unused") // Referenced in application.conf
-fun Application.module(applicationService: ApplicationService) {
+fun Application.module(applicationService: ApplicationService, jwtConfig: JWTConfig) {
     val LOGGER = LoggerFactory.getLogger("com.tombspawn.grave.Application")
 
     launch(Dispatchers.IO) {
@@ -125,6 +132,16 @@ fun Application.module(applicationService: ApplicationService) {
         deflate {
             priority = 10.0
             minimumSize(1024) // condition
+        }
+    }
+
+    install(Authentication) {
+        jwt(Constants.Common.ADMIN_AUTH) {
+            realm = jwtConfig.realm
+            verifier(makeJwtVerifier(jwtConfig))
+            validate { credential ->
+                if (credential.payload.audience.contains(jwtConfig.audience)) JWTPrincipal(credential.payload) else null
+            }
         }
     }
 

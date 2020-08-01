@@ -60,6 +60,12 @@ class AppModule {
 
     @Provides
     @AppScope
+    fun provideDistributionConfig(config: JsonApplicationConfig): Distribution {
+        return config.property("distribution").getAs(Distribution::class.java)
+    }
+
+    @Provides
+    @AppScope
     fun provideCredentialProvider(config: JsonApplicationConfig): CredentialProvider {
         return config.property("git").getAs(CredentialProvider::class.java)
     }
@@ -89,7 +95,6 @@ class AppModule {
                 !it.isNullOrEmpty()
             }
         return Optional.fromNullable(messages)
-
     }
 
     @Provides
@@ -129,5 +134,11 @@ class AppModule {
     @AppScope
     fun provideServerConf(config: JsonApplicationConfig): Optional<ServerConf> {
         return Optional.fromNullable(config.propertyOrNull("ktor.deployment")?.getAs(ServerConf::class.java))
+    }
+
+    @Provides
+    @AppScope
+    fun provideJWT(config: JsonApplicationConfig): JWTConfig {
+        return config.property("ktor.jwt").getAs(JWTConfig::class.java)
     }
 }

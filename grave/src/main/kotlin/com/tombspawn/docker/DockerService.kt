@@ -339,7 +339,7 @@ class DockerService @Inject constructor(
                                 Pair(it.key, it.value)
                             }.toTypedArray()
                         ).let {
-                            AppResponse(it.data.toByteArray(), it.responseParamsMap, it.fileName)
+                            AppResponse(it.data.toByteArray(), it.responseParamsMap, it.fileName, false)
                         }
                     )
                 } catch (exception: Exception) {

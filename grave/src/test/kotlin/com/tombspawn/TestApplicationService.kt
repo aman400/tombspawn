@@ -11,6 +11,7 @@ import com.tombspawn.di.DaggerFakeCachingComponent
 import com.tombspawn.di.DaggerFakeCoreComponent
 import com.tombspawn.di.FakeAppModule
 import com.tombspawn.di.FakeCoreModule
+import com.tombspawn.distribution.DistributionService
 import com.tombspawn.docker.DockerService
 import com.tombspawn.git.CredentialProvider
 import com.tombspawn.models.config.App
@@ -30,7 +31,6 @@ import org.junit.rules.TemporaryFolder
 import org.mockito.Mockito
 import org.mockito.Mockito.mock
 import javax.inject.Inject
-import javax.inject.Provider
 
 class TestApplicationService {
     lateinit var applicationService: ApplicationService
@@ -56,6 +56,7 @@ class TestApplicationService {
         val common = mock(Common::class.java)
         val databaseService = mock(DatabaseService::class.java)
         val dockerService = mock(DockerService::class.java)
+        val distributionService = mock(DistributionService::class.java)
         cachingService = mock(CachingService::class.java)
         slackService = mock(SlackService::class.java)
 
@@ -69,7 +70,7 @@ class TestApplicationService {
                     this.host = Constants.Common.DEFAULT_HOST
                     this.port = Constants.Common.DEFAULT_PORT
                 }
-            }, Optional.fromNullable(null)
+            }, Optional.fromNullable(null), distributionService
         )
     }
 

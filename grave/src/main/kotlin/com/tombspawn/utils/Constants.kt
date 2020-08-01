@@ -11,6 +11,8 @@ class Constants {
         const val DEFAULT_REDIS_HOST = "redis://127.0.0.1"
 
         const val APP_CONSUMER = "consumer"
+
+        const val ADMIN_AUTH = "admin_auth"
     }
 
     object Slack {
@@ -34,6 +36,7 @@ class Constants {
 
         const val CALLBACK_SUBSCRIBE_CONSUMER = "subscribe_consumer_"
         const val CALLBACK_UNSUBSCRIBE_CONSUMER = "unsubscribe_consumer_"
+        const val CALLBACK_DISTRIBUTE_APP = "distribute_consumer_"
         const val NAME_SEPARATOR = "$#---#$"
 
         const val TYPE_SUBSCRIBE_CONSUMER = "subscribe-consumer"

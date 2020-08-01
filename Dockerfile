@@ -10,7 +10,7 @@ RUN apt-get update \
 ENV REPO_OS_OVERRIDE linux
 
 ENV DOCKER_CHANNEL stable
-ENV DOCKER_VERSION 19.03.5
+ENV DOCKER_VERSION 19.03.12
 
 RUN set -eux; \
 	\

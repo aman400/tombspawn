@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package distribution;
+
+option java_multiple_files = true;
+option java_package = "com.tombspawn.base.distribution";
+option java_outer_classname = "AppDistribution";
+option go_package = "github.com/firebase/build/gen;distribution";
+
+service Distribution {
+    rpc App(stream UploadRequest) returns (UploadResponse) {}
+}
+
+message UploadRequest {
+    string fileName = 1;
+    string token = 2;
+    string appId = 3;
+    string testers = 4;
+    string releaseNotes = 5;
+    bytes file = 6;
+}
+
+message UploadResponse {
+    string message = 1;
+    bool success = 2;
+}

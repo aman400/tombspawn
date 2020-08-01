@@ -22,8 +22,10 @@ import java.io.File
 import java.io.FileInputStream
 import javax.inject.Inject
 
-class SlackService @Inject constructor(internal val slackClient: SlackClient, val slack: Slack,
-                                       internal val gson: Gson, internal val databaseService: DatabaseService) {
+class SlackService @Inject constructor(
+    internal val slackClient: SlackClient, val slack: Slack, internal val gson: Gson,
+    internal val databaseService: DatabaseService
+) {
     internal val LOGGER = LoggerFactory.getLogger("com.tombspawn.slackbot.SlackService")
 
     suspend fun sendMessage(message: String, channelId: String, attachments: List<Attachment>?) {
@@ -48,8 +50,10 @@ class SlackService @Inject constructor(internal val slackClient: SlackClient, va
         }
     }
 
-    suspend fun uploadFile(fileData: ByteArray, channelId: String,
-                           initialComment: String, onFinish: (() -> Unit)? = null, fileName: String) {
+    suspend fun uploadFile(
+        fileData: ByteArray, channelId: String,
+        initialComment: String, onFinish: (() -> Unit)? = null, fileName: String
+    ) {
         withContext(Dispatchers.IO) {
             val formData = formData {
                 append("token", slack.botToken)
@@ -126,7 +130,8 @@ class SlackService @Inject constructor(internal val slackClient: SlackClient, va
         echo: String?,
         triggerId: String,
         callbackId: String,
-        app: App
+        app: App,
+        canDistribute: Boolean = false
     ) {
         val dialogElementList = mutableListOf<Element>()
         val branchList = mutableListOf<Element.Option>()
@@ -160,8 +165,30 @@ class SlackService @Inject constructor(internal val slackClient: SlackClient, va
             )
         }
 
-        app.elements?.take(2)?.forEach {
+        app.elements?.take(if (canDistribute) 1 else 2)?.forEach {
             dialogElementList.add(it)
+        }
+
+        if (canDistribute) {
+            dialogElementList.add(
+                Element(
+                    ElementType.SELECT,
+                    "Distribute",
+                    SlackConstants.TYPE_DISTRIBUTION,
+                    optional = true,
+                    hint = "Distribute app to firebase",
+                    options = mutableListOf(
+                        options {
+                            this.value = "true"
+                            this.label = "Yes"
+                        },
+                        options {
+                            this.value = "false"
+                            this.label = "No"
+                        },
+                    )
+                )
+            )
         }
 
         dialogElementList.add(

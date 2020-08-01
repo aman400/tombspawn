@@ -38,7 +38,8 @@ class DockerApiClient @Inject constructor(
                     var byteData = ByteString.EMPTY
                     ApplicationGrpc.newStub(channel)
                         .withDeadlineAfter(45, TimeUnit.MINUTES)
-                        .generateApp(GenerateAppRequest
+                        .generateApp(
+                            GenerateAppRequest
                             .newBuilder()
                             .putAllBuildParams(params.toMap())
                             .build(), object : StreamObserver<GenerateAppResponse> {

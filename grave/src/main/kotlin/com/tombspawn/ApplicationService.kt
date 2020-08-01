@@ -15,6 +15,8 @@ import com.tombspawn.di.qualifiers.ApplicationBaseUri
 import com.tombspawn.di.qualifiers.Debuggable
 import com.tombspawn.di.qualifiers.UploadDir
 import com.tombspawn.di.qualifiers.WaitingMessages
+import com.tombspawn.distribution.DistributionService
+import com.tombspawn.distribution.distribute
 import com.tombspawn.docker.DockerService
 import com.tombspawn.models.AppResponse
 import com.tombspawn.models.Reference
@@ -43,23 +45,24 @@ import kotlin.coroutines.resume
 
 @AppScope
 class ApplicationService @Inject constructor(
-    private val slack: Slack,
-    private val common: Common,
-    private val gson: Gson,
-    private val databaseService: DatabaseService,
-    private val apps: List<App>,
+    internal val slack: Slack,
+    internal val common: Common,
+    internal val gson: Gson,
+    internal val databaseService: DatabaseService,
+    internal val apps: List<App>,
     private val dockerService: DockerService,
-    private val slackService: SlackService,
+    internal val slackService: SlackService,
     @UploadDir
-    val uploadDir: File,
-    private val cachingService: CachingService,
+    internal val uploadDir: File,
+    internal val cachingService: CachingService,
     @Debuggable
-    val debug: Boolean,
-    val config: Optional<ServerConf>,
+    internal val debug: Boolean,
+    internal val config: Optional<ServerConf>,
     @ApplicationBaseUri
-    val baseUri: Provider<URLBuilder>,
+    internal val baseUri: Provider<URLBuilder>,
     @WaitingMessages
-    private val randomWaitingMessages: Optional<List<String>>
+    internal val randomWaitingMessages: Optional<List<String>>,
+    internal val distributionService: DistributionService
 ) {
 
     fun onTaskCompleted(id: String) {
@@ -211,9 +214,11 @@ class ApplicationService @Inject constructor(
         apps.firstOrNull {
             it.id == appID
         }?.let { app ->
-            val useCache: Boolean = app.gradleTasks?.firstOrNull {
+            val distribute: Boolean = buildData[SlackConstants.TYPE_DISTRIBUTION].toBoolean()
+            val task = app.gradleTasks?.firstOrNull {
                 it.id == buildData[SlackConstants.TYPE_SELECT_BUILD_TYPE]
-            }?.useCache ?: true
+            }
+            val useCache: Boolean = (task?.useCache ?: true) && !distribute
             LOGGER.debug(if(useCache) "Using Cache" else "Skipping cache")
             val cachedFile = if(useCache) {
                  getCachedApk(buildData, app)
@@ -257,8 +262,14 @@ class ApplicationService @Inject constructor(
                                     LOGGER.debug("Skipping cache for file")
                                 }
                             }
-                            uploadApk(appData, buildData, channelId, response.fileName ?: "App.apk") {
-                                onTaskCompleted(app.id)
+                            if(distribute) {
+                                distribute(task!!, appData, buildData, channelId, response.fileName ?: "App.apk") {
+                                    onTaskCompleted(app.id)
+                                }
+                            } else {
+                                uploadApk(appData, buildData, channelId, response.fileName ?: "App.apk") {
+                                    onTaskCompleted(app.id)
+                                }
                             }
                         } ?: run {
                             LOGGER.error("File is null")
@@ -315,7 +326,7 @@ class ApplicationService @Inject constructor(
 
         if (cache?.second?.exists() == true) {
             LOGGER.trace("file exists")
-            continuation.resume(AppResponse(cache.second!!.readBytes(), cache.first.params, cache.second!!.name))
+            continuation.resume(AppResponse(cache.second!!.readBytes(), cache.first.params, cache.second!!.name, true))
         } else {
             LOGGER.trace("file not found")
             continuation.resume(null)
@@ -659,7 +670,7 @@ class ApplicationService @Inject constructor(
         }
     }
 
-    suspend fun onCodePushed(app: App, reference: Reference) = withContext(Dispatchers.IO) {
+    private suspend fun onCodePushed(app: App, reference: Reference) = withContext(Dispatchers.IO) {
         LOGGER.info("Removing apks for reference $reference for app ${app.name}")
         // Delete all apks present in cache
         deleteApks(app.id, reference.name)
@@ -675,14 +686,14 @@ class ApplicationService @Inject constructor(
         }
     }
 
-    suspend fun onReferenceCreated(app: App, reference: Reference) = withContext(Dispatchers.IO) {
+    private suspend fun onReferenceCreated(app: App, reference: Reference) = withContext(Dispatchers.IO) {
         LOGGER.info("Creating reference $reference for app ${app.name}")
         databaseService.addRef(app.id, reference)
         updateCachedRefs(app)
         fetchAndUpdateReferences(app)
     }
 
-    suspend fun onReferenceDeleted(app: App, reference: Reference) = withContext(Dispatchers.IO) {
+    private suspend fun onReferenceDeleted(app: App, reference: Reference) = withContext(Dispatchers.IO) {
         LOGGER.info("Deleting reference $reference for app ${app.name}")
         slackService.unsubscribeDeletedBranch(app, reference)
         databaseService.deleteRef(app.id, reference)
