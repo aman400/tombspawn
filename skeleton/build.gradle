@@ -52,6 +52,8 @@ shadowJar {
 }
 
 dependencies {
+    implementation project(":base")
+
     // Align versions of all Kotlin components
     implementation platform('org.jetbrains.kotlin:kotlin-bom')
 
@@ -76,7 +78,6 @@ dependencies {
     implementation Ktor.locations
     implementation Ktor.ktorGson
     implementation Jgit.lib
-    implementation project(":base")
 
     implementation GRPC.netty
     implementation GRPC.protobuf

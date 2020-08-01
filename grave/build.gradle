@@ -40,6 +40,8 @@ task generateApplication(type: Copy) {
 }
 
 dependencies {
+    implementation project(":base")
+
     implementation Kotlin.stdlib
     implementation Kotlin.html
 
@@ -66,8 +68,6 @@ dependencies {
     implementation Docker.lib
 
     implementation Jgit.lib
-
-    implementation project(":base")
 
     implementation GRPC.netty
     implementation GRPC.protobuf
