@@ -1,7 +1,6 @@
 object Versions {
     const val jgitVersion = "5.7.0.202003110725-r"
     const val junitVersion = "4.13"
-    const val kotlin = "1.4.0-rc"
     const val ktorVersion = "1.3.2-1.4.0-rc"
     const val shadowJar = "5.2.0"
     const val daggerVersion = "2.28.3"
@@ -11,7 +10,6 @@ object Versions {
 }
 
 object Classpaths {
-    const val kotlin = "org.jetbrains.kotlin:kotlin-gradle-plugin:${Versions.kotlin}"
     const val shadowJar = "com.github.jengelman.gradle.plugins:shadow:${Versions.shadowJar}"
 }
 
@@ -20,8 +18,12 @@ object Jgit {
 }
 
 object Kotlin {
-    const val stdlib = "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${Versions.kotlin}"
-    const val html = "org.jetbrains.kotlinx:kotlinx-html-jvm:0.6.12"
+    const val version = "1.4.0-rc"
+
+    const val classpath = "org.jetbrains.kotlin:kotlin-gradle-plugin:${version}"
+    const val stdlib = "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${version}"
+    const val html = "org.jetbrains.kotlinx:kotlinx-html-jvm:0.7.1-1.4.0-rc"
+    const val coroutines = "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.8-1.4.0-rc"
 }
 
 object Auth {
@@ -84,6 +86,21 @@ object GRPC {
     const val netty = "io.grpc:grpc-netty-shaded:${Versions.grpc}"
     const val protobuf = "io.grpc:grpc-protobuf:${Versions.grpc}"
     const val stub = "io.grpc:grpc-stub:${Versions.grpc}"
+    const val annot = "javax.annotation:javax.annotation-api:1.3.2"
+}
+
+object React {
+    private const val reactVersion = "16.13.1-pre.110-kotlin-1.4.0-rc"
+    private const val kotlinWrapper = "1.0.1-pre.110-kotlin-1.4.0-rc"
+
+    const val react = "org.jetbrains:kotlin-react:$reactVersion"
+    const val reactDom = "org.jetbrains:kotlin-react-dom:$reactVersion"
+    const val css = "org.jetbrains:kotlin-css-js:1.0.0-pre.110-kotlin-1.4.0-rc"
+    const val styled = "org.jetbrains:kotlin-styled:1.0.0-pre.110-kotlin-1.4.0-rc"
+    const val extensions = "org.jetbrains:kotlin-extensions:$kotlinWrapper"
+    const val html = "org.jetbrains.kotlinx:kotlinx-html-js:0.7.1-1.4.0-rc"
+    const val common = "org.jetbrains.kotlinx:kotlinx-html-common:0.7.1-1.4.0-rc"
+
 }
 
 object Testing {

@@ -15,6 +15,7 @@ plugins {
 }
 
 sourceCompatibility = 1.8
+targetCompatibility = 1.8
 compileKotlin {
     kotlinOptions.jvmTarget = "1.8"
 }
@@ -67,6 +68,7 @@ dependencies {
     api GRPC.netty
     api GRPC.protobuf
     api GRPC.stub
+    compileOnly GRPC.annot
 
     api Dagger.lib
     kapt Dagger.annotationProcessor
