@@ -36,3 +36,5 @@ out/
 output/
 /scripts/apps/
 /skeleton/apps/
+/frontend/externals/
+/frontend/output/

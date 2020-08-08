@@ -1,8 +1,14 @@
+import externals.semantic.ui.button.Button
 import kotlinx.browser.document
 import react.dom.*
 
 fun main() {
+    kotlinext.js.require("../../../node_modules/semantic-ui-css/semantic.min.css")
+//    requireAll(kotlinext.js.require.context("build", ))
     render(document.getElementById("root")) {
+        Button {
+            attrs.color = "red"
+        }
         h1 {
             +"KotlinConf Explorer"
         }
