@@ -4,6 +4,8 @@
 
 package externals.semantic.ui.button
 
+import SemanticShorthandContent
+import org.w3c.dom.events.MouseEvent
 import react.RClass
 import react.RComponent
 import react.RProps
@@ -48,9 +50,9 @@ external interface StrictButtonProps: RProps {
     var compact: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-//    var content: SemanticShorthandContent?
-//        get() = definedExternally
-//        set(value) = definedExternally
+    var content: SemanticShorthandContent?
+        get() = definedExternally
+        set(value) = definedExternally
     var disabled: Boolean?
         get() = definedExternally
         set(value) = definedExternally
@@ -78,9 +80,12 @@ external interface StrictButtonProps: RProps {
     var negative: Boolean?
         get() = definedExternally
         set(value) = definedExternally
+    var onClick: ((event: (event: MouseEvent) -> Unit, data: ButtonProps) -> Unit)?
+        get() = definedExternally
+        set(value) = definedExternally
+
 //    var onClick: ((event: React.MouseEvent<HTMLButtonElement>, data: externals.semantic.ui.button.ButtonProps) -> Unit)?
-//        get() = definedExternally
-//        set(value) = definedExternally
+
     var positive: Boolean?
         get() = definedExternally
         set(value) = definedExternally
@@ -107,11 +112,9 @@ external interface StrictButtonProps: RProps {
 abstract external class ButtonComponent : RClass<ButtonProps> {
     override var displayName: String? = definedExternally
     var focus: () -> Unit
-//    companion object {
-//        var Content: Any
-//        var Group: Any
-//        var Or: Any
-//    }
+    var Content: Any
+    var Group: Any
+    var Or: Any
 }
 
 @JsName("default")

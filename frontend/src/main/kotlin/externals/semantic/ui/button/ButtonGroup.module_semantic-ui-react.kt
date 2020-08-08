@@ -1,19 +1,10 @@
 @file:Suppress("INTERFACE_WITH_SUPERCLASS", "OVERRIDING_FINAL_MEMBER", "RETURN_TYPE_MISMATCH_ON_OVERRIDE", "CONFLICTING_OVERLOADS")
 
+package externals.semantic.ui.button
+
+import SemanticShorthandCollection
+import SemanticShorthandContent
 import kotlin.js.*
-import kotlin.js.Json
-import org.khronos.webgl.*
-import org.w3c.dom.*
-import org.w3c.dom.events.*
-import org.w3c.dom.parsing.*
-import org.w3c.dom.svg.*
-import org.w3c.dom.url.*
-import org.w3c.fetch.*
-import org.w3c.files.*
-import org.w3c.notifications.*
-import org.w3c.performance.*
-import org.w3c.workers.*
-import org.w3c.xhr.*
 
 external interface ButtonGroupProps : StrictButtonGroupProps {
     @nativeGetter
@@ -32,9 +23,9 @@ external interface StrictButtonGroupProps {
     var basic: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-//    var buttons: SemanticShorthandCollection<externals.semantic.ui.button.ButtonProps>?
-//        get() = definedExternally
-//        set(value) = definedExternally
+    var buttons: SemanticShorthandCollection<ButtonProps>?
+        get() = definedExternally
+        set(value) = definedExternally
     var children: Any?
         get() = definedExternally
         set(value) = definedExternally
@@ -47,9 +38,9 @@ external interface StrictButtonGroupProps {
     var compact: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-//    var content: SemanticShorthandContent?
-//        get() = definedExternally
-//        set(value) = definedExternally
+    var content: SemanticShorthandContent?
+        get() = definedExternally
+        set(value) = definedExternally
     var floated: String? /* 'left' | 'right' */
         get() = definedExternally
         set(value) = definedExternally

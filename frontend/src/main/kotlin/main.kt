@@ -1,5 +1,6 @@
 import externals.semantic.ui.button.Button
 import kotlinx.browser.document
+import react.RBuilder
 import react.dom.*
 
 fun main() {
@@ -8,6 +9,8 @@ fun main() {
     render(document.getElementById("root")) {
         Button {
             attrs.color = "red"
+            attrs.active = true
+            attrs.content = div { +"Hello" }
         }
         h1 {
             +"KotlinConf Explorer"
