@@ -1,35 +1,31 @@
-@file:JsModule("semantic-ui-react/dist/commonjs/elements/Button")
+@file:JsModule("semantic-ui-react/dist/commonjs/elements/Label/Label")
 @file:JsNonModule
 @file:Suppress("INTERFACE_WITH_SUPERCLASS", "OVERRIDING_FINAL_MEMBER", "RETURN_TYPE_MISMATCH_ON_OVERRIDE", "CONFLICTING_OVERLOADS")
 
-package externals.semantic.ui.button
+package com.tombspawn.externals.semantic.ui.label
 
 import SemanticShorthandContent
-import org.w3c.dom.events.MouseEvent
-import react.RClass
-import react.RComponent
-import react.RProps
-import react.RState
+import com.tombspawn.externals.semantic.ui.menu.MenuItemProps
 import kotlin.js.*
+import org.w3c.dom.events.*
+import react.RClass
+import react.RProps
 
-external interface ButtonProps : StrictButtonProps {
+external interface LabelProps : StrictLabelProps {
     @nativeGetter
     operator fun get(key: String): Any?
     @nativeSetter
     operator fun set(key: String, value: Any)
 }
 
-external interface StrictButtonProps: RProps {
+external interface StrictLabelProps: RProps {
     var `as`: Any?
         get() = definedExternally
         set(value) = definedExternally
     var active: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-    var animated: dynamic /* Boolean? | String | String */
-        get() = definedExternally
-        set(value) = definedExternally
-    var attached: dynamic /* Boolean? | String | String | String | String */
+    var attached: String? /* 'top' | 'bottom' | 'top right' | 'top left' | 'bottom left' | 'bottom right' */
         get() = definedExternally
         set(value) = definedExternally
     var basic: Boolean?
@@ -44,78 +40,64 @@ external interface StrictButtonProps: RProps {
     var className: String?
         get() = definedExternally
         set(value) = definedExternally
-    var color: String? /* 'red' | 'orange' | 'yellow' | 'olive' | 'green' | 'teal' | 'blue' | 'violet' | 'purple' | 'pink' | 'brown' | 'grey' | 'black' | 'facebook' | 'google plus' | 'vk' | 'twitter' | 'linkedin' | 'instagram' | 'youtube' */
-        get() = definedExternally
-        set(value) = definedExternally
-    var compact: Boolean?
+    var color: String? /* 'red' | 'orange' | 'yellow' | 'olive' | 'green' | 'teal' | 'blue' | 'violet' | 'purple' | 'pink' | 'brown' | 'grey' | 'black' */
         get() = definedExternally
         set(value) = definedExternally
     var content: SemanticShorthandContent?
         get() = definedExternally
         set(value) = definedExternally
-    var disabled: Boolean?
+    var corner: dynamic /* Boolean? | String | String */
         get() = definedExternally
         set(value) = definedExternally
-    var floated: String? /* 'left' | 'right' */
+    var detail: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.label.LabelDetailProps? | SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.label.LabelDetailProps>? */
         get() = definedExternally
         set(value) = definedExternally
-    var fluid: Boolean?
+    var empty: Any?
         get() = definedExternally
         set(value) = definedExternally
-    var icon: dynamic /* Boolean? | React.ReactNode? | IconProps? | SemanticShorthandItemFunc<IconProps>? */
+    var floating: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-    var inverted: Boolean?
+    var horizontal: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-    var label: dynamic /* React.ReactNode? | LabelProps? | SemanticShorthandItemFunc<LabelProps>? */
+    var icon: dynamic /* React.ReactNode? | IconProps? | SemanticShorthandItemFunc<IconProps>? */
         get() = definedExternally
         set(value) = definedExternally
-    var labelPosition: String? /* 'right' | 'left' */
+    var image: Any?
         get() = definedExternally
         set(value) = definedExternally
-    var loading: Boolean?
+    var onClick: ((event: (event: MouseEvent) -> Unit, data: LabelProps) -> Unit)?
         get() = definedExternally
         set(value) = definedExternally
-    var negative: Boolean?
+    var onRemove: ((event: (event: MouseEvent) -> Unit, data: LabelProps) -> Unit)?
         get() = definedExternally
         set(value) = definedExternally
-    var onClick: ((event: (event: MouseEvent) -> Unit, data: ButtonProps) -> Unit)?
+    var pointing: dynamic /* Boolean? | String | String | String | String */
         get() = definedExternally
         set(value) = definedExternally
-
-//    var onClick: ((event: React.MouseEvent<HTMLButtonElement>, data: externals.semantic.ui.button.ButtonProps) -> Unit)?
-
-    var positive: Boolean?
+    var prompt: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-    var primary: Boolean?
+    var removeIcon: dynamic /* React.ReactNode? | IconProps? | SemanticShorthandItemFunc<IconProps>? */
         get() = definedExternally
         set(value) = definedExternally
-    var role: String?
-        get() = definedExternally
-        set(value) = definedExternally
-    var secondary: Boolean?
+    var ribbon: dynamic /* Boolean? | String */
         get() = definedExternally
         set(value) = definedExternally
     var size: String? /* 'mini' | 'tiny' | 'small' | 'medium' | 'large' | 'big' | 'huge' | 'massive' */
         get() = definedExternally
         set(value) = definedExternally
-    var tabIndex: dynamic /* Number? | String? */
-        get() = definedExternally
-        set(value) = definedExternally
-    var toggle: Boolean?
+    var tag: Boolean?
         get() = definedExternally
         set(value) = definedExternally
 }
 
-abstract external class ButtonComponent : RClass<ButtonProps> {
-    override var displayName: String? = definedExternally
-    var focus: () -> Unit
-    var Content: Any
+
+external interface LabelComponent : RClass<LabelProps> {
+    var Detail: Any
     var Group: Any
-    var Or: Any
 }
 
 @JsName("default")
-external var Button: ButtonComponent = definedExternally
+external var Label: LabelComponent = definedExternally

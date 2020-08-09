@@ -1,18 +1,22 @@
+@file:JsModule("semantic-ui-react/dist/commonjs/collections/Menu/MenuHeader")
+@file:JsNonModule
 @file:Suppress("INTERFACE_WITH_SUPERCLASS", "OVERRIDING_FINAL_MEMBER", "RETURN_TYPE_MISMATCH_ON_OVERRIDE", "CONFLICTING_OVERLOADS")
 
-package externals.semantic.ui.button
+package com.tombspawn.externals.semantic.ui.menu
 
 import SemanticShorthandContent
+import react.RClass
+import react.RProps
 import kotlin.js.*
 
-external interface ButtonContentProps : StrictButtonContentProps {
+external interface MenuHeaderProps : StrictMenuHeaderProps {
     @nativeGetter
     operator fun get(key: String): Any?
     @nativeSetter
     operator fun set(key: String, value: Any)
 }
 
-external interface StrictButtonContentProps {
+external interface StrictMenuHeaderProps: RProps {
     var `as`: Any?
         get() = definedExternally
         set(value) = definedExternally
@@ -25,10 +29,11 @@ external interface StrictButtonContentProps {
     var content: SemanticShorthandContent?
         get() = definedExternally
         set(value) = definedExternally
-    var hidden: Boolean?
-        get() = definedExternally
-        set(value) = definedExternally
-    var visible: Boolean?
-        get() = definedExternally
-        set(value) = definedExternally
 }
+
+
+external interface MenuHeaderComponent : RClass<MenuHeaderProps> {
+}
+
+@JsName("default")
+external var MenuHeader: MenuHeaderComponent = definedExternally
