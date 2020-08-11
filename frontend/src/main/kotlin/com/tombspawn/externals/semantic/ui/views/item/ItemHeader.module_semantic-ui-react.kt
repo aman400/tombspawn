@@ -1,34 +1,37 @@
-@file:JsModule("semantic-ui-react/dist/commonjs/elements/Button/ButtonOr")
+@file:JsModule("semantic-ui-react/dist/commonjs/views/Item/ItemHeader")
 @file:JsNonModule
 @file:Suppress("INTERFACE_WITH_SUPERCLASS", "OVERRIDING_FINAL_MEMBER", "RETURN_TYPE_MISMATCH_ON_OVERRIDE", "CONFLICTING_OVERLOADS")
 
-package com.tombspawn.externals.semantic.ui.button
+package com.tombspawn.externals.semantic.ui.views.item
 
+import SemanticShorthandContent
 import react.RClass
 import react.RProps
 import kotlin.js.*
 
-external interface ButtonOrProps : StrictButtonOrProps {
+external interface ItemHeaderProps : StrictItemHeaderProps {
     @nativeGetter
     operator fun get(key: String): Any?
     @nativeSetter
     operator fun set(key: String, value: Any)
 }
 
-external interface StrictButtonOrProps: RProps {
+external interface StrictItemHeaderProps: RProps {
     var `as`: Any?
+        get() = definedExternally
+        set(value) = definedExternally
+    var children: Any?
         get() = definedExternally
         set(value) = definedExternally
     var className: String?
         get() = definedExternally
         set(value) = definedExternally
-    var text: dynamic /* Number? | String? */
+    var content: SemanticShorthandContent?
         get() = definedExternally
         set(value) = definedExternally
 }
 
-
-abstract external class ButtonOrComponent : RClass<ButtonOrProps>
+external interface ItemHeaderComponent : RClass<ItemHeaderProps>
 
 @JsName("default")
-external var ButtonOr: ButtonOrComponent = definedExternally
+external var ItemHeader: ItemHeaderComponent = definedExternally

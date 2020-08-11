@@ -1,22 +1,23 @@
-@file:JsModule("semantic-ui-react/dist/commonjs/elements/Button/ButtonContent")
+@file:JsModule("semantic-ui-react/dist/commonjs/views/Item/ItemGroup")
 @file:JsNonModule
 @file:Suppress("INTERFACE_WITH_SUPERCLASS", "OVERRIDING_FINAL_MEMBER", "RETURN_TYPE_MISMATCH_ON_OVERRIDE", "CONFLICTING_OVERLOADS")
 
-package com.tombspawn.externals.semantic.ui.button
+package com.tombspawn.externals.semantic.ui.views.item
 
+import SemanticShorthandCollection
 import SemanticShorthandContent
 import react.RClass
 import react.RProps
 import kotlin.js.*
 
-external interface ButtonContentProps : StrictButtonContentProps {
+external interface ItemGroupProps : StrictItemGroupProps {
     @nativeGetter
     operator fun get(key: String): Any?
     @nativeSetter
     operator fun set(key: String, value: Any)
 }
 
-external interface StrictButtonContentProps: RProps {
+external interface StrictItemGroupProps: RProps {
     var `as`: Any?
         get() = definedExternally
         set(value) = definedExternally
@@ -29,15 +30,24 @@ external interface StrictButtonContentProps: RProps {
     var content: SemanticShorthandContent?
         get() = definedExternally
         set(value) = definedExternally
-    var hidden: Boolean?
+    var divided: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-    var visible: Boolean?
+    var items: SemanticShorthandCollection<ItemProps>?
+        get() = definedExternally
+        set(value) = definedExternally
+    var link: Boolean?
+        get() = definedExternally
+        set(value) = definedExternally
+    var relaxed: dynamic /* Boolean? | String */
+        get() = definedExternally
+        set(value) = definedExternally
+    var unstackable: Boolean?
         get() = definedExternally
         set(value) = definedExternally
 }
 
-abstract external class ButtonContentComponent : RClass<ButtonContentProps>
+external interface ItemGroupComponent : RClass<ItemGroupProps>
 
 @JsName("default")
-external var ButtonContent: ButtonContentComponent = definedExternally
+external var ItemGroup: ItemGroupComponent = definedExternally

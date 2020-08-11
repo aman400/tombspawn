@@ -2,8 +2,8 @@
 @file:JsNonModule
 @file:Suppress("INTERFACE_WITH_SUPERCLASS", "OVERRIDING_FINAL_MEMBER", "RETURN_TYPE_MISMATCH_ON_OVERRIDE", "CONFLICTING_OVERLOADS")
 
-import com.tombspawn.externals.semantic.ui.form.FormRadioComponent
-import com.tombspawn.externals.semantic.ui.form.StrictFormFieldProps
+package com.tombspawn.externals.semantic.ui.form
+
 import com.tombspawn.externals.semantic.ui.others.StrictCheckboxProps
 import react.RClass
 import kotlin.js.*

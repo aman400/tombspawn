@@ -1,9 +1,13 @@
+@file:JsModule("semantic-ui-react/dist/commonjs/elements/Button/ButtonGroup")
+@file:JsNonModule
 @file:Suppress("INTERFACE_WITH_SUPERCLASS", "OVERRIDING_FINAL_MEMBER", "RETURN_TYPE_MISMATCH_ON_OVERRIDE", "CONFLICTING_OVERLOADS")
 
 package com.tombspawn.externals.semantic.ui.button
 
 import SemanticShorthandCollection
 import SemanticShorthandContent
+import react.RClass
+import react.RProps
 import kotlin.js.*
 
 external interface ButtonGroupProps : StrictButtonGroupProps {
@@ -13,7 +17,7 @@ external interface ButtonGroupProps : StrictButtonGroupProps {
     operator fun set(key: String, value: Any)
 }
 
-external interface StrictButtonGroupProps {
+external interface StrictButtonGroupProps: RProps {
     var `as`: Any?
         get() = definedExternally
         set(value) = definedExternally
@@ -81,3 +85,9 @@ external interface StrictButtonGroupProps {
         get() = definedExternally
         set(value) = definedExternally
 }
+
+
+abstract external class ButtonGroupComponent : RClass<ButtonGroupProps>
+
+@JsName("default")
+external var ButtonGroup: ButtonGroupComponent = definedExternally

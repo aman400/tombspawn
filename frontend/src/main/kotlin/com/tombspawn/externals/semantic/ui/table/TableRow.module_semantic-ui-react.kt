@@ -1,23 +1,32 @@
+@file:JsModule("semantic-ui-react/dist/commonjs/collections/Table/TableRow")
+@file:JsNonModule
 @file:Suppress("INTERFACE_WITH_SUPERCLASS", "OVERRIDING_FINAL_MEMBER", "RETURN_TYPE_MISMATCH_ON_OVERRIDE", "CONFLICTING_OVERLOADS")
 
-package com.tombspawn.externals.semantic.ui.others.dropdown
+package com.tombspawn.externals.semantic.ui.table
 
-import SemanticShorthandContent
+import SemanticShorthandCollection
+import react.RClass
+import react.RProps
 import kotlin.js.*
-import org.w3c.dom.events.*
 
-external interface DropdownItemProps : StrictDropdownItemProps {
+external interface TableRowProps : StrictTableRowProps {
     @nativeGetter
     operator fun get(key: String): Any?
     @nativeSetter
     operator fun set(key: String, value: Any)
 }
 
-external interface StrictDropdownItemProps {
+external interface StrictTableRowProps: RProps {
     var `as`: Any?
         get() = definedExternally
         set(value) = definedExternally
     var active: Boolean?
+        get() = definedExternally
+        set(value) = definedExternally
+    var cellAs: Any?
+        get() = definedExternally
+        set(value) = definedExternally
+    var cells: SemanticShorthandCollection<TableCellProps>?
         get() = definedExternally
         set(value) = definedExternally
     var children: Any?
@@ -26,37 +35,31 @@ external interface StrictDropdownItemProps {
     var className: String?
         get() = definedExternally
         set(value) = definedExternally
-    var content: SemanticShorthandContent?
-        get() = definedExternally
-        set(value) = definedExternally
-    var description: dynamic /* React.ReactNode? | HtmlSpanProps? | SemanticShorthandItemFunc<HtmlSpanProps>? */
-        get() = definedExternally
-        set(value) = definedExternally
     var disabled: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-    var flag: dynamic /* React.ReactNode? | FlagProps? | SemanticShorthandItemFunc<FlagProps>? */
+    var error: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-    var icon: dynamic /* React.ReactNode? | IconProps? | SemanticShorthandItemFunc<IconProps>? */
+    var negative: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-    var image: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.image.ImageProps? | SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.image.ImageProps>? */
+    var positive: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-    var label: dynamic /* React.ReactNode? | LabelProps? | SemanticShorthandItemFunc<LabelProps>? */
+    var textAlign: String? /* 'center' | 'left' | 'right' */
         get() = definedExternally
         set(value) = definedExternally
-    var onClick: ((event: Event, data: DropdownItemProps) -> Unit)?
+    var verticalAlign: String? /* 'top' | 'middle' | 'bottom' */
         get() = definedExternally
         set(value) = definedExternally
-    var selected: Boolean?
-        get() = definedExternally
-        set(value) = definedExternally
-    var text: SemanticShorthandContent?
-        get() = definedExternally
-        set(value) = definedExternally
-    var value: dynamic /* Boolean? | Number? | String? */
+    var warning: Boolean?
         get() = definedExternally
         set(value) = definedExternally
 }
+
+
+external interface TableRowComponent : RClass<TableRowProps>
+
+@JsName("default")
+external var TableRow: TableRowComponent = definedExternally

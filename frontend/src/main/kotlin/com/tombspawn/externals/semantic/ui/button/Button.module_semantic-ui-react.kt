@@ -1,4 +1,4 @@
-@file:JsModule("semantic-ui-react/dist/commonjs/elements/Button")
+@file:JsModule("semantic-ui-react/dist/commonjs/elements/Button/Button")
 @file:JsNonModule
 @file:Suppress("INTERFACE_WITH_SUPERCLASS", "OVERRIDING_FINAL_MEMBER", "RETURN_TYPE_MISMATCH_ON_OVERRIDE", "CONFLICTING_OVERLOADS")
 
@@ -110,9 +110,9 @@ external interface StrictButtonProps: RProps {
 abstract external class ButtonComponent : RClass<ButtonProps> {
     override var displayName: String? = definedExternally
     var focus: () -> Unit
-//    var Content: Any
-//    var Group: Any
-//    var Or: Any
+    var Content: Any
+    var Group: Any
+    var Or: Any
 }
 
 @JsName("default")
