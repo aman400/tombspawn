@@ -1,5 +1,6 @@
 package com.tombspawn.component.login
 
+import com.tombspawn.component.skeleton.skeleton
 import react.*
 import react.dom.div
 import react.dom.h3
@@ -14,9 +15,7 @@ external interface LoginProps: RProps {
 class Login: RComponent<RProps, LoginState>() {
     override fun RBuilder.render() {
         div {
-            h3 {
-                +"Login screen"
-            }
+            skeleton {  }
         }
     }
 }
