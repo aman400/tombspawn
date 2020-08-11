@@ -1,4 +1,4 @@
-package com.tombspawn.ui.appbar
+package com.tombspawn.component.appbar
 
 import com.tombspawn.externals.semantic.ui.button.Button
 import com.tombspawn.externals.semantic.ui.menu.Menu

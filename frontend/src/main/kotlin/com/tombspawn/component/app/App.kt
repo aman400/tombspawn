@@ -1,7 +1,8 @@
-package com.tombspawn.ui.app
+package com.tombspawn.component.app
 
-import com.tombspawn.ui.appbar.appBar
+import com.tombspawn.component.main.main
 import react.*
+import react.router.dom.browserRouter
 
 external interface AppState : RState {
     var loggedIn: Boolean
@@ -13,8 +14,8 @@ external interface AppProps: RProps {
 
 class App: RComponent<AppProps, AppState>() {
     override fun RBuilder.render() {
-        appBar {
-            this.loggedIn = state.loggedIn
+        browserRouter {
+            main {  }
         }
     }
 

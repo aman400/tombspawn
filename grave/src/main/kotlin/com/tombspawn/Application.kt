@@ -17,6 +17,7 @@ import io.ktor.auth.jwt.*
 import io.ktor.features.*
 import io.ktor.gson.gson
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.auth.*
 import io.ktor.locations.KtorExperimentalLocationsAPI
 import io.ktor.locations.Locations
 import io.ktor.request.path
@@ -139,6 +140,16 @@ fun Application.module(applicationService: ApplicationService, jwtConfig: JWTCon
         jwt(Constants.Common.ADMIN_AUTH) {
             realm = jwtConfig.realm
             verifier(makeJwtVerifier(jwtConfig))
+            challenge { scheme, realm ->
+                call.respond(
+                    UnauthorizedResponse(
+                        HttpAuthHeader.Parameterized(
+                            scheme,
+                            mapOf(HttpAuthHeader.Parameters.Realm to realm)
+                        )
+                    )
+                )
+            }
             validate { credential ->
                 if (credential.payload.audience.contains(jwtConfig.audience)) JWTPrincipal(credential.payload) else null
             }

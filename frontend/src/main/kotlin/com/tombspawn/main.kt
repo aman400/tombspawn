@@ -1,8 +1,7 @@
 package com.tombspawn
 
 import com.tombspawn.externals.semantic.ui.button.Button
-import com.tombspawn.ui.app.app
-import com.tombspawn.ui.appbar.appBar
+import com.tombspawn.component.app.app
 import kotlinx.browser.document
 import react.dom.*
 

@@ -95,6 +95,7 @@ object React {
 
     const val react = "org.jetbrains:kotlin-react:$reactVersion"
     const val reactDom = "org.jetbrains:kotlin-react-dom:$reactVersion"
+    const val reactRouterDom = "org.jetbrains:kotlin-react-router-dom:5.1.2-pre.110-kotlin-1.4.0-rc"
     const val css = "org.jetbrains:kotlin-css-js:1.0.0-pre.110-kotlin-1.4.0-rc"
     const val styled = "org.jetbrains:kotlin-styled:1.0.0-pre.110-kotlin-1.4.0-rc"
     const val extensions = "org.jetbrains:kotlin-extensions:$kotlinWrapper"
