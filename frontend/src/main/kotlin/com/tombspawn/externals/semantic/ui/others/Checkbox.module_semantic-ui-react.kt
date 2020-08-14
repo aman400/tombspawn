@@ -45,7 +45,7 @@ external interface StrictCheckboxProps: RProps {
     var indeterminate: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-    var label: dynamic /* React.ReactNode? | HtmlLabelProps? | SemanticShorthandItemFunc<HtmlLabelProps>? */
+    var label: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.HtmlLabelProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.HtmlLabelProps>? */
         get() = definedExternally
         set(value) = definedExternally
     var name: String?
@@ -86,8 +86,7 @@ external interface StrictCheckboxProps: RProps {
         set(value) = definedExternally
 }
 
-external interface CheckboxComponent : RClass<CheckboxProps> {
-}
+external interface CheckboxComponent : RClass<CheckboxProps>
 
 @JsName("default")
 external var Checkbox: CheckboxComponent = definedExternally

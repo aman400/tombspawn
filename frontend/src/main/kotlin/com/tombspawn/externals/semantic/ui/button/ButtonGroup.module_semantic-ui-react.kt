@@ -4,8 +4,8 @@
 
 package com.tombspawn.externals.semantic.ui.button
 
-import SemanticShorthandCollection
-import SemanticShorthandContent
+import com.tombspawn.externals.semantic.ui.SemanticShorthandCollection
+import com.tombspawn.externals.semantic.ui.SemanticShorthandContent
 import react.RClass
 import react.RProps
 import kotlin.js.*

@@ -2,7 +2,7 @@
 
 package com.tombspawn.externals.semantic.ui.others.dropdown
 
-import SemanticShorthandContent
+import com.tombspawn.externals.semantic.ui.SemanticShorthandContent
 import kotlin.js.*
 
 external interface DropdownMenuProps : StrictDropdownMenuProps {

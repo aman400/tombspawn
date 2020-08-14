@@ -1,19 +1,8 @@
 @file:Suppress("INTERFACE_WITH_SUPERCLASS", "OVERRIDING_FINAL_MEMBER", "RETURN_TYPE_MISMATCH_ON_OVERRIDE", "CONFLICTING_OVERLOADS")
 
+package com.tombspawn.externals.semantic.ui
+
 import kotlin.js.*
-import kotlin.js.Json
-import org.khronos.webgl.*
-import org.w3c.dom.*
-import org.w3c.dom.events.*
-import org.w3c.dom.parsing.*
-import org.w3c.dom.svg.*
-import org.w3c.dom.url.*
-import org.w3c.fetch.*
-import org.w3c.files.*
-import org.w3c.notifications.*
-import org.w3c.performance.*
-import org.w3c.workers.*
-import org.w3c.xhr.*
 import react.*
 
 external interface HtmlLabelProps : StrictHtmlLabelProps {
@@ -55,14 +44,14 @@ external interface StrictHtmlImageProps {
         set(value) = definedExternally
 }
 
-external interface HtmlInputrops : StrictHtmlInputrops {
+external interface HtmlInputProps : StrictHtmlInputProps {
     @nativeGetter
     operator fun get(key: String): Any?
     @nativeSetter
     operator fun set(key: String, value: Any)
 }
 
-external interface StrictHtmlInputrops {
+external interface StrictHtmlInputProps {
     var type: String?
         get() = definedExternally
         set(value) = definedExternally
@@ -83,6 +72,6 @@ external interface StrictHtmlSpanProps {
 
 typealias SemanticShorthandItemFunc<TProps> = (component: RComponent<TProps, RState>, props: TProps, children: dynamic /* React.ReactNode | React.ReactNodeArray */) -> ReactElement?
 
-typealias SemanticShorthandCollection<TProps> = Array<dynamic /* React.ReactNode | TProps | SemanticShorthandItemFunc<TProps> */>
+typealias SemanticShorthandCollection<TProps> = Array<dynamic /* React.ReactNode | TProps | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<TProps> */>
 
 typealias SemanticShorthandContent = ReactElement

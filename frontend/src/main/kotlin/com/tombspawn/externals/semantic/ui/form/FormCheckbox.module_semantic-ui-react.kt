@@ -34,7 +34,7 @@ external interface StrictFormCheckboxProps : StrictFormFieldProps, StrictCheckbo
     override var id: dynamic /* Number? | String? */
         get() = definedExternally
         set(value) = definedExternally
-    override var label: dynamic /* React.ReactNode? | HtmlLabelProps? | SemanticShorthandItemFunc<HtmlLabelProps>? */
+    override var label: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.HtmlLabelProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.HtmlLabelProps>? */
         get() = definedExternally
         set(value) = definedExternally
 }
@@ -43,4 +43,4 @@ abstract external class FormCheckboxComponent : RClass<FormCheckboxProps> {
 }
 
 @JsName("default")
-external var FormCheckbox: FormRadioComponent = definedExternally
+external var FormCheckbox: FormCheckboxComponent = definedExternally

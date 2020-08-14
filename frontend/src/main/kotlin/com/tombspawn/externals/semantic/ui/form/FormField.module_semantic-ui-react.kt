@@ -4,10 +4,12 @@
 
 package com.tombspawn.externals.semantic.ui.form
 
-import SemanticShorthandContent
+import com.tombspawn.externals.semantic.ui.HtmlLabelProps
+import com.tombspawn.externals.semantic.ui.SemanticShorthandContent
 import kotlin.js.*
 import react.RClass
 import react.RProps
+import react.ReactElement
 
 external interface FormFieldProps : StrictFormFieldProps {
     @nativeGetter

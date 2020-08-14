@@ -20,9 +20,9 @@ class App: RComponent<AppProps, AppState>() {
     }
 
     override fun AppState.init() {
-        setState {
-            loggedIn = true
-        }
+//        setState {
+//            loggedIn = true
+//        }
     }
 }
 

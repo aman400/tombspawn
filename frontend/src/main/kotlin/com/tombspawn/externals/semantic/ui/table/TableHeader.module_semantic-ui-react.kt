@@ -4,7 +4,7 @@
 
 package com.tombspawn.externals.semantic.ui.table
 
-import SemanticShorthandContent
+import com.tombspawn.externals.semantic.ui.SemanticShorthandContent
 import react.RClass
 import react.RProps
 import kotlin.js.*

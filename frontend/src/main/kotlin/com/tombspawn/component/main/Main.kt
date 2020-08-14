@@ -22,7 +22,7 @@ class Main: RComponent<MainProps, MainState>() {
 
     override fun RBuilder.render() {
         appBar {
-            this.loggedIn = state.loggedIn
+            loggedIn = state.loggedIn
         }
         switch {
             route("/", Login::class, exact = true)

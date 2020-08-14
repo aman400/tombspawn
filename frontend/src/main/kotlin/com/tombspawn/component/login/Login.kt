@@ -1,9 +1,8 @@
 package com.tombspawn.component.login
 
-import com.tombspawn.component.skeleton.skeleton
+import com.tombspawn.component.skeleton.addAppForm
 import react.*
 import react.dom.div
-import react.dom.h3
 
 external interface LoginState : RState {
 }
@@ -15,7 +14,7 @@ external interface LoginProps: RProps {
 class Login: RComponent<RProps, LoginState>() {
     override fun RBuilder.render() {
         div {
-            skeleton {  }
+            addAppForm {  }
         }
     }
 }

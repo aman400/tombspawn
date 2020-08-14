@@ -4,10 +4,8 @@
 
 package com.tombspawn.externals.semantic.ui.menu
 
-import SemanticShorthandCollection
-import com.tombspawn.externals.semantic.ui.button.ButtonProps
+import com.tombspawn.externals.semantic.ui.SemanticShorthandCollection
 import kotlin.js.*
-import org.w3c.dom.events.MouseEvent
 import react.RClass
 import react.RProps
 

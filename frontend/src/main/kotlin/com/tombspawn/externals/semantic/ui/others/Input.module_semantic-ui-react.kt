@@ -4,12 +4,10 @@
 
 package com.tombspawn.externals.semantic.ui.others
 
-import kotlinx.html.DATALIST
 import kotlin.js.*
 import org.w3c.dom.events.*
 import react.RClass
 import react.RProps
-import react.ReactElement
 
 external interface InputProps : StrictInputProps {
     @nativeGetter
@@ -46,13 +44,13 @@ external interface StrictInputProps: RProps {
     var focus: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-    var icon: dynamic /* Any? | React.ReactNode? | com.tombspawn.externals.semantic.ui.others.InputProps? | SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.others.InputProps>? */
+    var icon: dynamic /* Any? | React.ReactNode? | InputProps? | SemanticShorthandItemFunc<InputProps>? */
         get() = definedExternally
         set(value) = definedExternally
     var iconPosition: String? /* 'left' */
         get() = definedExternally
         set(value) = definedExternally
-    var input: dynamic /* React.ReactNode? | HtmlInputrops? | SemanticShorthandItemFunc<HtmlInputrops>? */
+    var input: dynamic /* React.ReactNode? | HtmlInputProps? | SemanticShorthandItemFunc<HtmlInputProps>? */
         get() = definedExternally
         set(value) = definedExternally
     var inverted: Boolean?
@@ -86,6 +84,9 @@ external interface StrictInputProps: RProps {
         get() = definedExternally
         set(value) = definedExternally
     var list: String?
+        get() = definedExternally
+        set(value) = definedExternally
+    var placeholder: String?
         get() = definedExternally
         set(value) = definedExternally
 }

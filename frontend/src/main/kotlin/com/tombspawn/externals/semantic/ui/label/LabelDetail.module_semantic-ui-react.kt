@@ -4,7 +4,7 @@
 
 package com.tombspawn.externals.semantic.ui.label
 
-import SemanticShorthandContent
+import com.tombspawn.externals.semantic.ui.SemanticShorthandContent
 import react.RClass
 import react.RProps
 
@@ -30,8 +30,7 @@ external interface StrictLabelDetailProps: RProps {
         set(value) = definedExternally
 }
 
-external interface LabelDetailComponent : RClass<LabelDetailProps> {
-}
+external interface LabelDetailComponent : RClass<LabelDetailProps>
 
 @JsName("default")
 external var LabelDetail: LabelDetailComponent = definedExternally

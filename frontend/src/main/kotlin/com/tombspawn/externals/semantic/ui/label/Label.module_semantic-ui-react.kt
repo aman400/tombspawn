@@ -4,8 +4,7 @@
 
 package com.tombspawn.externals.semantic.ui.label
 
-import SemanticShorthandContent
-import com.tombspawn.externals.semantic.ui.menu.MenuItemProps
+import com.tombspawn.externals.semantic.ui.SemanticShorthandContent
 import kotlin.js.*
 import org.w3c.dom.events.*
 import react.RClass
@@ -49,7 +48,7 @@ external interface StrictLabelProps: RProps {
     var corner: dynamic /* Boolean? | String | String */
         get() = definedExternally
         set(value) = definedExternally
-    var detail: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.label.LabelDetailProps? | SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.label.LabelDetailProps>? */
+    var detail: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.label.LabelDetailProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.label.LabelDetailProps>? */
         get() = definedExternally
         set(value) = definedExternally
     var empty: Any?
@@ -61,7 +60,7 @@ external interface StrictLabelProps: RProps {
     var horizontal: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-    var icon: dynamic /* React.ReactNode? | IconProps? | SemanticShorthandItemFunc<IconProps>? */
+    var icon: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.others.icon.IconProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.others.icon.IconProps>? */
         get() = definedExternally
         set(value) = definedExternally
     var image: Any?
@@ -79,7 +78,7 @@ external interface StrictLabelProps: RProps {
     var prompt: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-    var removeIcon: dynamic /* React.ReactNode? | IconProps? | SemanticShorthandItemFunc<IconProps>? */
+    var removeIcon: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.others.icon.IconProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.others.icon.IconProps>? */
         get() = definedExternally
         set(value) = definedExternally
     var ribbon: dynamic /* Boolean? | String */

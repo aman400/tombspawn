@@ -4,8 +4,7 @@
 
 package com.tombspawn.externals.semantic.ui.views.item
 
-import SemanticShorthandContent
-import com.tombspawn.externals.semantic.ui.table.TableComponent
+import com.tombspawn.externals.semantic.ui.SemanticShorthandContent
 import react.RClass
 import react.RProps
 import kotlin.js.*
@@ -30,19 +29,19 @@ external interface StrictItemProps: RProps {
     var content: SemanticShorthandContent?
         get() = definedExternally
         set(value) = definedExternally
-    var description: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.views.item.ItemDescriptionProps? | SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.views.item.ItemDescriptionProps>? */
+    var description: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.views.item.ItemDescriptionProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.views.item.ItemDescriptionProps>? */
         get() = definedExternally
         set(value) = definedExternally
-    var extra: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.views.item.ItemExtraProps? | SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.views.item.ItemExtraProps>? */
+    var extra: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.views.item.ItemExtraProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.views.item.ItemExtraProps>? */
         get() = definedExternally
         set(value) = definedExternally
-    var header: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.views.item.ItemHeaderProps? | SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.views.item.ItemHeaderProps>? */
+    var header: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.views.item.ItemHeaderProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.views.item.ItemHeaderProps>? */
         get() = definedExternally
         set(value) = definedExternally
-    var image: dynamic /* React.ReactNode? | ItemImageProps? | SemanticShorthandItemFunc<ItemImageProps>? */
+    var image: dynamic /* React.ReactNode? | ItemImageProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<ItemImageProps>? */
         get() = definedExternally
         set(value) = definedExternally
-    var meta: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.views.item.ItemMetaProps? | SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.views.item.ItemMetaProps>? */
+    var meta: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.views.item.ItemMetaProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.views.item.ItemMetaProps>? */
         get() = definedExternally
         set(value) = definedExternally
 }

@@ -4,7 +4,7 @@
 
 package com.tombspawn.externals.semantic.ui.button
 
-import SemanticShorthandContent
+import com.tombspawn.externals.semantic.ui.SemanticShorthandContent
 import org.w3c.dom.events.MouseEvent
 import react.RClass
 import react.RProps
@@ -60,13 +60,13 @@ external interface StrictButtonProps: RProps {
     var fluid: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-    var icon: dynamic /* Boolean? | React.ReactNode? | IconProps? | SemanticShorthandItemFunc<IconProps>? */
+    var icon: dynamic /* Boolean? | React.ReactNode? | com.tombspawn.externals.semantic.ui.others.icon.IconProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.others.icon.IconProps>? */
         get() = definedExternally
         set(value) = definedExternally
     var inverted: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-    var label: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.label.LabelProps? | SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.label.LabelProps>? */
+    var label: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.label.LabelProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.label.LabelProps>? */
         get() = definedExternally
         set(value) = definedExternally
     var labelPosition: String? /* 'right' | 'left' */

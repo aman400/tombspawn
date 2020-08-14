@@ -4,8 +4,7 @@
 
 package com.tombspawn.externals.semantic.ui.table
 
-import SemanticShorthandCollection
-import com.tombspawn.externals.semantic.ui.grid.GridRowProps
+import com.tombspawn.externals.semantic.ui.SemanticShorthandCollection
 import react.RClass
 import react.RProps
 import kotlin.js.*
@@ -54,10 +53,10 @@ external interface StrictTableProps: RProps {
     var fixed: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-    var footerRow: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.table.TableRowProps? | SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.table.TableRowProps>? */
+    var footerRow: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.table.TableRowProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.table.TableRowProps>? */
         get() = definedExternally
         set(value) = definedExternally
-    var headerRow: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.table.TableRowProps? | SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.table.TableRowProps>? */
+    var headerRow: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.table.TableRowProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.table.TableRowProps>? */
         get() = definedExternally
         set(value) = definedExternally
     var headerRows: SemanticShorthandCollection<TableRowProps>?

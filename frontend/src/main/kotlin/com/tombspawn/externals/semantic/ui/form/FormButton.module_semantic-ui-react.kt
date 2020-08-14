@@ -4,7 +4,7 @@
 
 package com.tombspawn.externals.semantic.ui.form
 
-import SemanticShorthandContent
+import com.tombspawn.externals.semantic.ui.SemanticShorthandContent
 import com.tombspawn.externals.semantic.ui.button.StrictButtonProps
 import react.RClass
 import kotlin.js.*
@@ -23,7 +23,7 @@ external interface StrictFormButtonProps : StrictFormFieldProps, StrictButtonPro
     override var control: Any?
         get() = definedExternally
         set(value) = definedExternally
-    override var label: dynamic /* React.ReactNode? | LabelProps? | SemanticShorthandItemFunc<LabelProps>? */
+    override var label: dynamic /* React.ReactNode? | LabelProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<LabelProps>? */
         get() = definedExternally
         set(value) = definedExternally
     override var children: Any?

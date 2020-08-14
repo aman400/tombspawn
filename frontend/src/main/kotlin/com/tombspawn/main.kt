@@ -1,9 +1,9 @@
 package com.tombspawn
 
-import com.tombspawn.externals.semantic.ui.button.Button
 import com.tombspawn.component.app.app
 import kotlinx.browser.document
-import react.dom.*
+import react.dom.div
+import react.dom.render
 
 fun main() {
     kotlinext.js.require("../../../node_modules/semantic-ui-css/semantic.min.css")
@@ -12,11 +12,6 @@ fun main() {
             app {
 
             }
-        }
-        Button {
-            attrs.color = "red"
-            attrs.active = true
-            div { +"Hello" }
         }
     }
 }

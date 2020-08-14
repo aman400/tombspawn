@@ -4,7 +4,7 @@
 
 package com.tombspawn.externals.semantic.ui.menu
 
-import SemanticShorthandContent
+import com.tombspawn.externals.semantic.ui.SemanticShorthandContent
 import org.w3c.dom.events.MouseEvent
 import kotlin.js.*
 import react.RClass
@@ -45,7 +45,7 @@ external interface StrictMenuItemProps: RProps {
     var header: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-    var icon: dynamic /* Boolean? | React.ReactNode? | IconProps? | SemanticShorthandItemFunc<IconProps>? */
+    var icon: dynamic /* Boolean? | React.ReactNode? | com.tombspawn.externals.semantic.ui.others.icon.IconProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.others.icon.IconProps>? */
         get() = definedExternally
         set(value) = definedExternally
     var index: Number?

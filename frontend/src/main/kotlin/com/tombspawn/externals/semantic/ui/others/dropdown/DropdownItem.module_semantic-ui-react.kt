@@ -2,7 +2,7 @@
 
 package com.tombspawn.externals.semantic.ui.others.dropdown
 
-import SemanticShorthandContent
+import com.tombspawn.externals.semantic.ui.SemanticShorthandContent
 import kotlin.js.*
 import org.w3c.dom.events.*
 
@@ -29,22 +29,22 @@ external interface StrictDropdownItemProps {
     var content: SemanticShorthandContent?
         get() = definedExternally
         set(value) = definedExternally
-    var description: dynamic /* React.ReactNode? | HtmlSpanProps? | SemanticShorthandItemFunc<HtmlSpanProps>? */
+    var description: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.HtmlSpanProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.HtmlSpanProps>? */
         get() = definedExternally
         set(value) = definedExternally
     var disabled: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-    var flag: dynamic /* React.ReactNode? | FlagProps? | SemanticShorthandItemFunc<FlagProps>? */
+    var flag: dynamic /* React.ReactNode? | FlagProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<FlagProps>? */
         get() = definedExternally
         set(value) = definedExternally
-    var icon: dynamic /* React.ReactNode? | IconProps? | SemanticShorthandItemFunc<IconProps>? */
+    var icon: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.others.icon.IconProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.others.icon.IconProps>? */
         get() = definedExternally
         set(value) = definedExternally
-    var image: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.image.ImageProps? | SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.image.ImageProps>? */
+    var image: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.image.ImageProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.image.ImageProps>? */
         get() = definedExternally
         set(value) = definedExternally
-    var label: dynamic /* React.ReactNode? | LabelProps? | SemanticShorthandItemFunc<LabelProps>? */
+    var label: dynamic /* React.ReactNode? | LabelProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<LabelProps>? */
         get() = definedExternally
         set(value) = definedExternally
     var onClick: ((event: Event, data: DropdownItemProps) -> Unit)?

@@ -4,7 +4,11 @@ import com.tombspawn.externals.semantic.ui.button.Button
 import com.tombspawn.externals.semantic.ui.menu.Menu
 import com.tombspawn.externals.semantic.ui.menu.MenuItem
 import com.tombspawn.externals.semantic.ui.menu.MenuMenu
+import kotlinx.html.NAV
+import org.w3c.dom.Navigator
 import react.*
+import react.router.dom.LinkComponent
+import react.router.dom.routeLink
 
 external interface AppBarProps: RProps {
     var loggedIn: Boolean
@@ -19,17 +23,15 @@ class AppBar: RComponent<AppBarProps, AppBarState>() {
             this.attrs.className = "secondary"
             MenuItem {
                 this.attrs.name = "home"
-                this.attrs.onClick = { func, data ->
-                    println("on home button selected")
+                routeLink("/home", true) {
+                    +"Home"
                 }
-                +"Home"
             }
             MenuItem {
-                this.attrs.name = "about"
-                this.attrs.onClick = { func, data ->
-                    println("on about button selected")
+                this.attrs.name = "login"
+                routeLink("/login", true) {
+                    +"Login"
                 }
-                +"About"
             }
             MenuMenu {
                 this.attrs.position = "right"

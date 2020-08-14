@@ -4,7 +4,7 @@
 
 package com.tombspawn.externals.semantic.ui.image
 
-import SemanticShorthandContent
+import com.tombspawn.externals.semantic.ui.SemanticShorthandContent
 import react.RClass
 import react.RProps
 import kotlin.js.*
@@ -44,7 +44,7 @@ external interface StrictImageProps: RProps {
     var disabled: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-    var dimmer: dynamic /* React.ReactNode? | DimmerProps? | SemanticShorthandItemFunc<DimmerProps>? */
+    var dimmer: dynamic /* React.ReactNode? | DimmerProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<DimmerProps>? */
         get() = definedExternally
         set(value) = definedExternally
     var floated: String? /* 'left' | 'right' */
@@ -62,7 +62,7 @@ external interface StrictImageProps: RProps {
     var inline: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-    var label: dynamic /* React.ReactNode? | LabelProps? | SemanticShorthandItemFunc<LabelProps>? */
+    var label: dynamic /* React.ReactNode? | LabelProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<LabelProps>? */
         get() = definedExternally
         set(value) = definedExternally
     var rounded: Boolean?

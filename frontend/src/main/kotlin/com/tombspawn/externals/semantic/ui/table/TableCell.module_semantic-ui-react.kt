@@ -4,7 +4,7 @@
 
 package com.tombspawn.externals.semantic.ui.table
 
-import SemanticShorthandContent
+import com.tombspawn.externals.semantic.ui.SemanticShorthandContent
 import react.RClass
 import react.RProps
 import kotlin.js.*
@@ -41,7 +41,7 @@ external interface StrictTableCellProps: RProps {
     var error: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-    var icon: dynamic /* React.ReactNode? | IconProps? | SemanticShorthandItemFunc<IconProps>? */
+    var icon: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.others.icon.IconProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.others.icon.IconProps>? */
         get() = definedExternally
         set(value) = definedExternally
     var negative: Boolean?
