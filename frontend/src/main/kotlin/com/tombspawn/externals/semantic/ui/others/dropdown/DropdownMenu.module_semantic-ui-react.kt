@@ -1,8 +1,12 @@
+@file:JsModule("semantic-ui-react/dist/commonjs/modules/Dropdown/DropdownMenu")
+@file:JsNonModule
 @file:Suppress("INTERFACE_WITH_SUPERCLASS", "OVERRIDING_FINAL_MEMBER", "RETURN_TYPE_MISMATCH_ON_OVERRIDE", "CONFLICTING_OVERLOADS")
 
 package com.tombspawn.externals.semantic.ui.others.dropdown
 
 import com.tombspawn.externals.semantic.ui.SemanticShorthandContent
+import react.RClass
+import react.RProps
 import kotlin.js.*
 
 external interface DropdownMenuProps : StrictDropdownMenuProps {
@@ -12,7 +16,7 @@ external interface DropdownMenuProps : StrictDropdownMenuProps {
     operator fun set(key: String, value: Any)
 }
 
-external interface StrictDropdownMenuProps {
+external interface StrictDropdownMenuProps: RProps {
     var `as`: Any?
         get() = definedExternally
         set(value) = definedExternally
@@ -35,3 +39,8 @@ external interface StrictDropdownMenuProps {
         get() = definedExternally
         set(value) = definedExternally
 }
+
+external interface DropdownMenuComponent : RClass<DropdownMenuProps>
+
+@JsName("default")
+external var DropdownMenu: DropdownMenuComponent = definedExternally

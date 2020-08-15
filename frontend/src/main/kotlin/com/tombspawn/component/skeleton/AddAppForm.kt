@@ -1,6 +1,7 @@
 package com.tombspawn.component.skeleton
 
 import com.tombspawn.component.extensions.ifNullOrEmpty
+import com.tombspawn.component.utils.toUIError
 import com.tombspawn.externals.semantic.ui.form.*
 import com.tombspawn.externals.semantic.ui.grid.Grid
 import com.tombspawn.externals.semantic.ui.grid.GridColumn
@@ -15,7 +16,6 @@ import org.w3c.dom.events.Event
 import react.*
 import react.dom.h4
 import kotlin.js.Json
-import kotlin.js.json
 
 private const val GIT_USERNAME = "git-username"
 private const val GIT_PASSWORD = "git-password"
@@ -30,8 +30,7 @@ interface FormState : RState {
     var gitPassword: String
     var credentials: String
 
-    var touched: Json
-    var error: Json
+    var configs: MutableList<GitConfig>?
 }
 
 class AddAppForm : RComponent<RProps, FormState>() {
@@ -50,7 +49,6 @@ class AddAppForm : RComponent<RProps, FormState>() {
                 }
             }
         }
-
     }
 
     override fun RBuilder.render() {
@@ -68,6 +66,7 @@ class AddAppForm : RComponent<RProps, FormState>() {
                 appIdInput(this@AddAppForm)
                 addDirElement(state)
                 gitConfig(state, errors, ::onChange)
+                gradleConfigs(state, errors, ::onChange)
                 submitButton()
             }
         }
@@ -77,22 +76,24 @@ class AddAppForm : RComponent<RProps, FormState>() {
         val error = mutableMapOf<String, Json?>()
 
         if (!username.isNullOrEmpty() && username.length < 3) {
-            error[GIT_USERNAME] = error("Enter a valid username")
+            error[GIT_USERNAME] = "Enter a valid username".toUIError()
         }
 
         if (!password.isNullOrEmpty() && password.length < 3) {
-            error[GIT_PASSWORD] = error("Enter a valid password")
+            error[GIT_PASSWORD] = "Enter a valid password".toUIError()
         }
 
         if (!repo.isNullOrEmpty() && repo.length < 3) {
-            error[GIT_REPO] = error("Invalid repo url")
+            error[GIT_REPO] = "Invalid repo url".toUIError()
         }
 
         return error
     }
 
-    private fun error(error: String): Json {
-        return json("content" to error, "pointing" to "above")
+    override fun componentDidMount() {
+        setState {
+            configs = mutableListOf(gitConfig { })
+        }
     }
 }
 
@@ -333,6 +334,71 @@ private fun RBuilder.gitCredential(
             }
             attrs.label = "Password"
             attrs.error = errors[GIT_PASSWORD]
+        }
+    }
+}
+
+private fun RBuilder.gradleConfigs(
+    state: FormState,
+    errors: Map<String, Json?>,
+    onChange: (Event, InputOnChangeData) -> Unit
+): ReactElement {
+    return GridRow {
+        this.attrs.verticalAlign = "middle"
+        GridColumn {
+            attrs.stretched = true
+            SegmentGroup {
+                Segment {
+                    h4 {
+                        +"Gradle Tasks"
+                    }
+                }
+
+                state.configs?.forEach {
+                    addGradleConfig(state, errors, onChange, it)
+                }
+            }
+        }
+    }
+}
+
+fun RBuilder.addGradleConfig(
+    state: FormState,
+    errors: Map<String, Json?>,
+    onChange: (Event, InputOnChangeData) -> Unit,
+    config: GitConfig
+): ReactElement {
+    return SegmentGroup {
+        Segment {
+            FormInput {
+                attrs.input = Input {
+                    attrs["id"] = "task_name_${config.uuid}"
+                    attrs["name"] = "task_name_${config.uuid}"
+                    attrs["autoComplete"] = "on"
+                    attrs["value"] = config.id ?: ""
+                    attrs.placeholder = "assemble debug"
+                    attrs.type = InputType.text.realValue
+                    attrs.labelPosition = "left"
+                    attrs.onChange = onChange
+                }
+                attrs.label = "Task Name"
+                attrs.error = errors["task_name_${config.uuid}"]
+            }
+
+            FormInput {
+                attrs.input = Input {
+                    attrs["autoComplete"] = "on"
+                    attrs["id"] = config.uuid
+                    attrs["name"] = config.uuid
+                    attrs["value"] = state.gitPassword
+                    attrs.type = InputType.text.realValue
+                    attrs.placeholder = "Output dir"
+                    attrs.labelPosition = "left"
+                    attrs.onChange = onChange
+                }
+                attrs.label = "Output dir"
+                attrs.error = errors[GIT_PASSWORD]
+            }
         }
     }
 }

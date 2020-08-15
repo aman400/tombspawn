@@ -4,7 +4,7 @@ object Versions {
     const val ktorVersion = "1.3.2-1.4.0-rc"
     const val shadowJar = "5.2.0"
     const val daggerVersion = "2.28.3"
-    const val exposed = "0.26.1"
+    const val exposed = "0.26.2"
     const val mockito = "3.2.4"
     const val grpc = "1.30.2"
 }
@@ -24,6 +24,7 @@ object Kotlin {
     const val stdlib = "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${version}"
     const val html = "org.jetbrains.kotlinx:kotlinx-html-jvm:0.7.1-1.4.0-rc"
     const val coroutines = "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.8-1.4.0-rc"
+    const val serialization = "org.jetbrains.kotlinx:kotlinx-serialization-runtime:1.0-M1-1.4.0-rc"
 }
 
 object Auth {

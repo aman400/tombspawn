@@ -93,7 +93,7 @@ external interface StrictPopupProps : StrictPortalProps {
 
 external interface PopupComponent : RClass<PopupProps> {
 //    var Content: PopupContentComponent
-//    var Header: PopupHeaderComponent
+//    var com.tombspawn.externals.semantic.ui.others.header.getHeader: PopupHeaderComponent
 }
 
 @JsName("default")

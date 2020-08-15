@@ -40,13 +40,55 @@ class UserType(id: EntityID<Int>) : IntEntity(id) {
 
 object Apps : IntIdTable() {
     val name = varchar("app_name", 100).uniqueIndex()
+//    val appId = varchar("app_id", 100).uniqueIndex()
+//    val type = varchar("output_dir", 200)
+//    val useCache = bool("use_cache").default(false)
+//    val outputDir = varchar("output_dir", 200)
+//    val gitUsername = varchar("git_username", 200).nullable()
+//    val gitPassword = varchar("git_password", 200).nullable()
+//    val tagConfig = reference("tag_config", GitRefConfig, ReferenceOption.CASCADE, ReferenceOption.RESTRICT).nullable()
+//    val branchConfig = reference("branch_config", GitRefConfig, ReferenceOption.CASCADE, ReferenceOption.RESTRICT).nullable()
 }
 
 class App(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<App>(Apps)
 
     var name by Apps.name
+//    var appId by Apps.appId
+//    var type by Apps.type
+//    var useCache by Apps.useCache
+//    var outputDir by Apps.outputDir
+//    var gitUsername by Apps.gitUsername
+//    var gitPassword by Apps.gitPassword
+//    var tagConfig by Apps.tagConfig
+//    var branchConfig by Apps.branchConfig
 }
+//
+//object GitRefConfig: IntIdTable() {
+//    val count = integer("count").default(50)
+//    val regex = varchar("ref_regex", 200).default("\\p{ASCII}*\$")
+//}
+//
+//object Tasks: IntIdTable() {
+//    val taskName = varchar("task_name", 200)
+//}
+//
+//class Task(id: EntityID<Int>): IntEntity(id) {
+//    companion object: IntEntityClass<Task>(Tasks)
+//
+//    var taskName by Tasks.taskName
+//}
+//
+//object TaskMappings: IntIdTable() {
+//    val appID = reference("app_id", Apps, ReferenceOption.CASCADE, ReferenceOption.RESTRICT)
+//    val taskID = reference("task_id", Tasks, ReferenceOption.CASCADE, ReferenceOption.RESTRICT)
+//}
+//
+//class TaskMapping(id: EntityID<Int>): IntEntity(id) {
+//    companion object: IntEntityClass<TaskMapping>(TaskMappings)
+//    var appId by App referencedOn TaskMappings.appID
+//    var taskId by Task referencedOn TaskMappings.taskID
+//}
 
 object Refs: IntIdTable() {
     val name = varchar("name", 100)

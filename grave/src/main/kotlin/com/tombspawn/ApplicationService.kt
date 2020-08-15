@@ -50,7 +50,7 @@ class ApplicationService @Inject constructor(
     internal val gson: Gson,
     internal val databaseService: DatabaseService,
     internal val apps: List<App>,
-    private val dockerService: DockerService,
+    internal val dockerService: DockerService,
     internal val slackService: SlackService,
     @UploadDir
     internal val uploadDir: File,
@@ -83,7 +83,7 @@ class ApplicationService @Inject constructor(
         }
         apps.forEachIndexed { index, app ->
             val callbackUri = baseUri.get().path("apps", app.id, "init").build().toString()
-            dockerService.createContainer(app, common.basePort + index, SKELETON_DEBUG_PORT + index, callbackUri)
+//            dockerService.createContainer(app, common.basePort + index, SKELETON_DEBUG_PORT + index, callbackUri)
         }
 
         updateUserData()

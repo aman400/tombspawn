@@ -1,5 +1,8 @@
+import org.jetbrains.kotlin.config.KotlinCompilerVersion
+
 plugins {
     id("org.jetbrains.kotlin.js")
+    kotlin("plugin.serialization") version Kotlin.version
 }
 
 group = "com.tombspawn"
@@ -15,11 +18,13 @@ repositories {
 }
 
 dependencies {
-    implementation(kotlin("stdlib-js", "1.4.0-rc"))
+    implementation(kotlin("stdlib-js", KotlinCompilerVersion.VERSION))
+    implementation(Kotlin.serialization)
     implementation(React.css)
 
     implementation(React.react)
     implementation(npm("react", "16.13.1"))
+    implementation(npm("uuid", "8.3.0"))
 
     implementation(React.reactDom)
     implementation(npm("react-dom", "16.13.1"))

@@ -31,8 +31,7 @@ external interface StrictCommentTextProps: RProps {
         set(value) = definedExternally
 }
 
-external interface CommentTextComponent : RClass<CommentTextProps> {
-}
+external interface CommentTextComponent : RClass<CommentTextProps>
 
 @JsName("default")
 external var CommentText: CommentTextComponent = definedExternally

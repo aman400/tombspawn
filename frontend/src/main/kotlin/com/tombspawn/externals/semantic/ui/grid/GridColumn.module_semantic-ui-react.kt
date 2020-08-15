@@ -6,6 +6,7 @@ package com.tombspawn.externals.semantic.ui.grid
 
 import react.RClass
 import react.RProps
+import styled.StyledProps
 import kotlin.js.*
 
 external interface GridColumnProps : StrictGridColumnProps {
@@ -15,14 +16,14 @@ external interface GridColumnProps : StrictGridColumnProps {
     operator fun set(key: String, value: Any)
 }
 
-external interface StrictGridColumnProps: RProps {
+external interface StrictGridColumnProps: StyledProps {
     var `as`: Any?
         get() = definedExternally
         set(value) = definedExternally
     var children: Any?
         get() = definedExternally
         set(value) = definedExternally
-    var className: String?
+    override var className: String?
         get() = definedExternally
         set(value) = definedExternally
     var color: String? /* 'red' | 'orange' | 'yellow' | 'olive' | 'green' | 'teal' | 'blue' | 'violet' | 'purple' | 'pink' | 'brown' | 'grey' | 'black' */

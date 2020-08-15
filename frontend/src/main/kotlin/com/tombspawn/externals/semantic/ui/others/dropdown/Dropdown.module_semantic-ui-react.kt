@@ -156,7 +156,7 @@ external interface StrictDropdownProps: RProps {
     var openOnFocus: Boolean?
         get() = definedExternally
         set(value) = definedExternally
-    var options: Array<DropdownItemProps>?
+    var options: dynamic // Array<DropdownItemProps>?
         get() = definedExternally
         set(value) = definedExternally
     var placeholder: String?

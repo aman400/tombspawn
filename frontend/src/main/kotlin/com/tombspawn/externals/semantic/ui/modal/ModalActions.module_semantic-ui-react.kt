@@ -1,23 +1,30 @@
-@file:JsModule("semantic-ui-react/dist/commonjs/modules/Dropdown/DropdownHeader")
+@file:JsModule("semantic-ui-react/dist/commonjs/modules/Modal/ModalActions")
 @file:JsNonModule
 @file:Suppress("INTERFACE_WITH_SUPERCLASS", "OVERRIDING_FINAL_MEMBER", "RETURN_TYPE_MISMATCH_ON_OVERRIDE", "CONFLICTING_OVERLOADS")
 
-package com.tombspawn.externals.semantic.ui.others.dropdown
+package com.tombspawn.externals.semantic.ui.modal
 
+import com.tombspawn.externals.semantic.ui.SemanticShorthandCollection
 import com.tombspawn.externals.semantic.ui.SemanticShorthandContent
+import com.tombspawn.externals.semantic.ui.button.ButtonProps
+import com.tombspawn.externals.semantic.ui.others.CommentTextProps
+import kotlin.js.*
+import org.w3c.dom.events.*
 import react.RClass
 import react.RProps
-import kotlin.js.*
 
-external interface DropdownHeaderProps : StrictDropdownHeaderProps {
+external interface ModalActionsProps : StrictModalActionsProps {
     @nativeGetter
     operator fun get(key: String): Any?
     @nativeSetter
     operator fun set(key: String, value: Any)
 }
 
-external interface StrictDropdownHeaderProps: RProps {
+external interface StrictModalActionsProps: RProps {
     var `as`: Any?
+        get() = definedExternally
+        set(value) = definedExternally
+    var actions: SemanticShorthandCollection<ButtonProps>?
         get() = definedExternally
         set(value) = definedExternally
     var children: Any?
@@ -29,12 +36,12 @@ external interface StrictDropdownHeaderProps: RProps {
     var content: SemanticShorthandContent?
         get() = definedExternally
         set(value) = definedExternally
-    var icon: dynamic /* React.ReactNode? | com.tombspawn.externals.semantic.ui.others.icon.IconProps? | com.tombspawn.externals.semantic.ui.SemanticShorthandItemFunc<com.tombspawn.externals.semantic.ui.others.icon.IconProps>? */
+    var onActionClick: ((event: Event, data: ButtonProps) -> Unit)?
         get() = definedExternally
         set(value) = definedExternally
 }
 
-external interface DropdownHeaderComponent : RClass<DropdownHeaderProps>
+external interface ModalActionsComponent : RClass<ModalActionsProps>
 
 @JsName("default")
-external var DropdownHeader: DropdownHeaderComponent = definedExternally
+external var ModalActions: ModalActionsComponent = definedExternally

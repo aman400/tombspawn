@@ -95,7 +95,7 @@ external interface StrictMenuProps: RProps {
 }
 
 external interface MenuComponent : RClass<MenuProps> {
-//    var Header: Any
+//    var com.tombspawn.externals.semantic.ui.others.header.getHeader: Any
 //    var Item: Any
 //    var menuItems: List<MenuItemComponent>
 }

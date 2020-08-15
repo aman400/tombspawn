@@ -51,12 +51,6 @@ class AppBar: RComponent<AppBarProps, AppBarState>() {
             }
         }
     }
-
-    override fun AppBarState.init() {
-        setState {
-
-        }
-    }
 }
 
 fun RBuilder.appBar(handler: AppBarProps.() -> Unit): ReactElement {
