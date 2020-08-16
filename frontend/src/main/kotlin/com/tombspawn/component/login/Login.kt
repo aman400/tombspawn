@@ -104,7 +104,7 @@ class Login : RComponent<RProps, LoginState>() {
                 Message {
                     +"New to us? "
                     a {
-                        attrs.href = "#"
+                        attrs.href = "/signup"
                         +"Signup"
                     }
                 }

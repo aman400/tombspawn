@@ -4,6 +4,7 @@ import com.tombspawn.component.appbar.appBar
 import com.tombspawn.component.home.Home
 import com.tombspawn.component.login.Login
 import com.tombspawn.component.login.LoginProps
+import com.tombspawn.component.signup.Signup
 import react.*
 import react.dom.div
 import react.router.dom.redirect
@@ -25,15 +26,15 @@ class Main: RComponent<MainProps, MainState>() {
             loggedIn = state.loggedIn
         }
         switch {
-            route("/", Login::class, exact = true)
             route("/login", Login::class, exact = true)
+            route("/signup", Signup::class, exact = true)
             route<LoginProps>("/login/:id") { props ->
                 div {
                     +"User id: ${props.match.params.id}"
                 }
             }
             route("/home", Home::class)
-            redirect(to = "/home")
+            redirect(to = "/login")
         }
     }
 }
