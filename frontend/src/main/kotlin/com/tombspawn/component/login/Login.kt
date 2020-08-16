@@ -1,5 +1,6 @@
 package com.tombspawn.component.login
 
+import com.tombspawn.component.extensions.isJsNullOrEmpty
 import com.tombspawn.component.utils.toUIError
 import com.tombspawn.externals.semantic.ui.button.Button
 import com.tombspawn.externals.semantic.ui.form.Form
@@ -33,6 +34,7 @@ external interface LoginProps : RProps {
 }
 
 private val EMAIL_REGEX = Regex("[-0-9a-zA-Z.+_]+@[-0-9a-zA-Z.+_]+\\.[a-zA-Z]{2,4}")
+private val PASSWORD_REGEX = Regex("^(?=.*[0-9a-zA-Z@\$!%*?&])([a-zA-Z0-9@\$!%*?&]{8,})\$")
 
 private const val EMAIL = "e-mail"
 private const val PASSWORD = "password"
@@ -65,8 +67,12 @@ class Login : RComponent<RProps, LoginState>() {
             error[EMAIL] = "Enter a valid email address".toUIError(FormError.Pointing.below)
         }
 
-        if (!password.isNullOrEmpty() && password.length < 3) {
-            error[PASSWORD] = "Enter a valid password".toUIError()
+        if (!password.isNullOrEmpty()) {
+            if(password.length < 3) {
+                error[PASSWORD] = "Enter a valid password".toUIError()
+            } else if(!PASSWORD_REGEX.matches(password)) {
+                error[PASSWORD] = "Password must be atleast 8 characters long and only contain [A-Z][a-z][0-9]@\$!%*?&".toUIError()
+            }
         }
 
         return error
@@ -157,6 +163,7 @@ fun RBuilder.loginForm(
                         fluid = true
                         color = "blue"
                         size = "large"
+                        disabled = errors.isNotEmpty() || state.email.isJsNullOrEmpty() || state.password.isJsNullOrEmpty()
                     }
                     +"Login"
                 }
