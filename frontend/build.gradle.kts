@@ -32,6 +32,11 @@ dependencies {
     implementation(React.reactRouterDom)
     implementation(npm("react-router-dom", "5.2.0"))
 
+    implementation(React.redux)
+    implementation(npm("redux", "4.0.5"))
+    implementation(React.reactRedux)
+    implementation(npm("react-redux", "7.2.1"))
+
     implementation(React.styled)
     implementation(npm("styled-components", "5.1.1"))
     implementation(npm("inline-style-prefixer", "6.0.0"))

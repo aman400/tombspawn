@@ -138,7 +138,7 @@ class Signup : RComponent<RProps, SignupState>() {
                     +"Already signed up? "
                     a {
                         attrs.href = "/login"
-                        +"Login here"
+                        +"com.tombspawn.component.login.Login here"
                     }
                     +" instead."
                 }
@@ -246,7 +246,7 @@ fun RBuilder.loginForm(
                         disabled =
                             errors.isNotEmpty() || state.email.isJsNullOrEmpty() || state.password.isJsNullOrEmpty()
                     }
-                    +"Login"
+                    +"com.tombspawn.component.login.Login"
                 }
             }
         }

@@ -9,7 +9,6 @@ import com.tombspawn.externals.semantic.ui.form.FormInput
 import com.tombspawn.externals.semantic.ui.form.FormProps
 import com.tombspawn.externals.semantic.ui.grid.Grid
 import com.tombspawn.externals.semantic.ui.grid.GridColumn
-import com.tombspawn.externals.semantic.ui.message.Message
 import com.tombspawn.externals.semantic.ui.others.InputOnChangeData
 import com.tombspawn.externals.semantic.ui.others.header.Header
 import com.tombspawn.externals.semantic.ui.others.icon.Icon
@@ -21,12 +20,12 @@ import kotlinx.html.InputType
 import org.w3c.dom.HTMLInputElement
 import org.w3c.dom.events.Event
 import react.*
-import react.dom.a
 import kotlin.js.Json
 
 external interface LoginState : RState {
     var email: String
     var password: String
+    val user: User
 }
 
 external interface LoginProps : RProps {
@@ -101,13 +100,13 @@ class Login : RComponent<RProps, LoginState>() {
                     +"Log-in to your account"
                 }
                 loginForm(state, errors, ::onChange, ::onSubmit)
-                Message {
-                    +"New to us? "
-                    a {
-                        attrs.href = "/signup"
-                        +"Signup"
-                    }
-                }
+//                Message {
+//                    +"New to us? "
+//                    a {
+//                        attrs.href = "/signup"
+//                        +"Signup"
+//                    }
+//                }
             }
         }
     }
@@ -165,7 +164,7 @@ fun RBuilder.loginForm(
                         size = "large"
                         disabled = errors.isNotEmpty() || state.email.isJsNullOrEmpty() || state.password.isJsNullOrEmpty()
                     }
-                    +"Login"
+                    +"com.tombspawn.component.login.Login"
                 }
             }
         }

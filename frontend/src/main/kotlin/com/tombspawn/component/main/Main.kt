@@ -22,12 +22,9 @@ external interface MainProps: RProps {
 class Main: RComponent<MainProps, MainState>() {
 
     override fun RBuilder.render() {
-        appBar {
-            loggedIn = state.loggedIn
-        }
         switch {
             route("/login", Login::class, exact = true)
-            route("/signup", Signup::class, exact = true)
+//            route("/signup", Signup::class, exact = true)
             route<LoginProps>("/login/:id") { props ->
                 div {
                     +"User id: ${props.match.params.id}"
