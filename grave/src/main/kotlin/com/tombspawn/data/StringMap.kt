@@ -16,7 +16,7 @@ class StringMap constructor(val key: String, redisClient: RedissonClient): Redis
         cachingOptions.evictionPolicy(LocalCachedMapOptions.EvictionPolicy.NONE)
         cachingOptions.reconnectionStrategy(LocalCachedMapOptions.ReconnectionStrategy.NONE)
         cachingOptions.syncStrategy(LocalCachedMapOptions.SyncStrategy.NONE)
-        stringMap = redisClient.getLocalCachedMap<String, String>(key, cachingOptions)
+        stringMap = redisClient.getLocalCachedMap(key, cachingOptions)
     }
 
     override fun getData(key: String): String? {

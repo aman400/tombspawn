@@ -9,7 +9,6 @@ import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.distribution.DistributionGrpc
 import com.tombspawn.base.distribution.UploadRequest
 import com.tombspawn.base.distribution.UploadResponse
-import com.tombspawn.base.distribution.UploadResponseOrBuilder
 import com.tombspawn.base.network.Common
 import com.tombspawn.models.config.Distribution
 import io.grpc.stub.StreamObserver
@@ -26,7 +25,7 @@ import javax.inject.Inject
 
 @AppScope
 class DistributionService @Inject constructor(
-    val distribution: Distribution
+    private val distribution: Distribution
 ) {
 
     @OptIn(ExperimentalCoroutinesApi::class)

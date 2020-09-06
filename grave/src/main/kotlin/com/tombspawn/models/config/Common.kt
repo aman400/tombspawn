@@ -3,13 +3,15 @@ package com.tombspawn.models.config
 import com.google.gson.annotations.SerializedName
 import org.slf4j.LoggerFactory
 
-data class Common constructor(@SerializedName("gradle_path") val gradlePath: String?,
-                  @SerializedName("base_port") private val _basePort: Int? = 11110,
-                  @SerializedName("parallel_threads") private val _parallelThreads: Int? = 2) {
+data class Common constructor(
+    @SerializedName("gradle_path") val gradlePath: String?,
+    @SerializedName("base_port") private val _basePort: Int? = 11110,
+    @SerializedName("parallel_threads") private val _parallelThreads: Int? = 2
+) {
 
     val basePort: Int
         get() {
-            return if(_basePort in 1024..65535) {
+            return if (_basePort in 1024..65535) {
                 _basePort!!
             } else {
                 LOGGER.warn("Base port must be in range from 1024 to 65535")
@@ -19,7 +21,7 @@ data class Common constructor(@SerializedName("gradle_path") val gradlePath: Str
 
     val parallelThreads: Int
         get() {
-            return if(_parallelThreads in 0..10) {
+            return if (_parallelThreads in 0..10) {
                 _parallelThreads!!
             } else {
                 DEFAULT_PARALLEL_THREADS

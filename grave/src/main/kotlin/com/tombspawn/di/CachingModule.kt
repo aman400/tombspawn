@@ -3,7 +3,10 @@ package com.tombspawn.di
 import com.tombspawn.data.StringMap
 import com.tombspawn.di.qualifiers.ApkCacheMap
 import com.tombspawn.di.qualifiers.AppCacheMap
+import com.tombspawn.di.qualifiers.SessionMapKey
 import com.tombspawn.models.config.Redis
+import com.tombspawn.session.RedisSessionStorage
+import com.tombspawn.session.SessionMap
 import com.tombspawn.utils.Constants
 import dagger.Module
 import dagger.Provides
@@ -34,5 +37,16 @@ class CachingModule {
     @ApkCacheMap
     fun provideRedisApkCacheMap(redissonClient: RedissonClient): StringMap {
         return StringMap("ApkCache", redissonClient)
+    }
+
+    @Provides
+    @SessionMapKey
+    fun providesRedisSession(redissonClient: RedissonClient): SessionMap {
+        return SessionMap("SessionStorage", redissonClient)
+    }
+
+    @Provides
+    fun provideRedisSessionStorage(@SessionMapKey sessionMap: SessionMap): RedisSessionStorage {
+        return RedisSessionStorage(sessionMap)
     }
 }

@@ -9,6 +9,9 @@ import com.tombspawn.models.config.ServerConf
 import com.tombspawn.network.githubWebhook
 import com.tombspawn.network.health
 import com.tombspawn.network.status
+import com.tombspawn.session.GsonSessionSerializer
+import com.tombspawn.session.RedisSessionStorage
+import com.tombspawn.session.models.LoginSession
 import com.tombspawn.slackbot.*
 import com.tombspawn.utils.Constants
 import io.ktor.application.*
@@ -16,7 +19,7 @@ import io.ktor.auth.*
 import io.ktor.auth.jwt.*
 import io.ktor.features.*
 import io.ktor.gson.gson
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.*
 import io.ktor.http.auth.*
 import io.ktor.locations.KtorExperimentalLocationsAPI
 import io.ktor.locations.Locations
@@ -27,13 +30,18 @@ import io.ktor.server.engine.applicationEngineEnvironment
 import io.ktor.server.engine.connector
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
-import io.ktor.util.error
+import io.ktor.sessions.*
+import io.ktor.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import java.io.File
 import javax.inject.Inject
+import kotlin.time.Duration
+import kotlin.time.DurationUnit
+import kotlin.time.ExperimentalTime
+import kotlin.time.toDuration
 
 class Grave(val args: Array<String>) {
     private val LOGGER = LoggerFactory.getLogger("com.tombspawn.Grave")
@@ -44,6 +52,9 @@ class Grave(val args: Array<String>) {
     @Inject
     lateinit var jwtConfig: JWTConfig
 
+    @Inject
+    lateinit var sessionStorage: RedisSessionStorage
+
     @ExperimentalStdlibApi
     fun startServer() {
         val coreComponent = DaggerCoreComponent.create()
@@ -53,7 +64,7 @@ class Grave(val args: Array<String>) {
                     .factory()
                     .create(this, coreComponent)
                     .inject(this@Grave)
-                module(applicationService, jwtConfig)
+                module(applicationService, jwtConfig, sessionStorage)
             }
 
             var host = Constants.Common.DEFAULT_HOST
@@ -100,10 +111,14 @@ class Grave(val args: Array<String>) {
     }
 }
 
+@OptIn(ExperimentalTime::class, KtorExperimentalAPI::class, KtorExperimentalLocationsAPI::class)
 @ExperimentalStdlibApi
-@KtorExperimentalLocationsAPI
 @Suppress("unused") // Referenced in application.conf
-fun Application.module(applicationService: ApplicationService, jwtConfig: JWTConfig) {
+fun Application.module(
+    applicationService: ApplicationService,
+    jwtConfig: JWTConfig,
+    sessionStorage: RedisSessionStorage
+) {
     val LOGGER = LoggerFactory.getLogger("com.tombspawn.grave.Application")
 
     launch(Dispatchers.IO) {
@@ -134,6 +149,39 @@ fun Application.module(applicationService: ApplicationService, jwtConfig: JWTCon
             priority = 10.0
             minimumSize(1024) // condition
         }
+    }
+
+    install(Sessions) {
+        cookie<LoginSession>("LOGIN_COOKIE", sessionStorage) {
+            cookie.path = "/"
+            cookie.httpOnly = false
+            serializer = GsonSessionSerializer(LoginSession::class.java)
+            val secretSignKey = hex("62533132736d4f324c6d6e78")
+            transform(SessionTransportTransformerMessageAuthentication(secretSignKey))
+        }
+    }
+
+    install(CORS) {
+        allowCredentials = true
+        allowSameOrigin = true
+        allowNonSimpleContentTypes = true
+        method(HttpMethod.Options)
+        method(HttpMethod.Get)
+        method(HttpMethod.Post)
+        method(HttpMethod.Put)
+        method(HttpMethod.Delete)
+        method(HttpMethod.Patch)
+        header(HttpHeaders.Authorization)
+        header(HttpHeaders.XForwardedProto)
+        header(HttpHeaders.AccessControlAllowHeaders)
+        header(HttpHeaders.ContentType)
+        header(HttpHeaders.SetCookie)
+        header(HttpHeaders.AccessControlAllowOrigin)
+        anyHost()
+        host("localhost:8081", listOf("http", "https"))
+        host("127.0.0.1:8081", listOf("http", "https"))
+        host("0.0.0.0:8081", listOf("http", "https"))
+        maxAgeDuration = 1.toDuration(DurationUnit.DAYS)
     }
 
     install(Authentication) {

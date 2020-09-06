@@ -30,7 +30,7 @@ class AppBar: RComponent<AppBarProps, AppBarState>() {
             MenuItem {
                 this.attrs.name = "login"
                 routeLink("/login", true) {
-                    +"com.tombspawn.component.login.Login"
+                    +"Login"
                 }
             }
             MenuMenu {
@@ -39,7 +39,7 @@ class AppBar: RComponent<AppBarProps, AppBarState>() {
                     if (props.loggedIn) {
                         Button {
                             this.attrs.className = "positive"
-                            +"com.tombspawn.component.login.Login"
+                            +"Login"
                         }
                     } else {
                         Button {

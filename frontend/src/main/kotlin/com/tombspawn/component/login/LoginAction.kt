@@ -2,8 +2,9 @@ package com.tombspawn.component.login
 
 import redux.RAction
 
-class LoginAction(val email: String, val password: String): RAction
-class LogoutAction(val email: String): RAction
+sealed class UserAction: RAction
+class LoginAction(val email: String, val password: String): UserAction()
+object LogoutAction : UserAction()
 
 data class User(val email: String? = null, val isLoggedIn: Boolean = false)
 

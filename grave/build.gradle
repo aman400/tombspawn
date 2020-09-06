@@ -64,6 +64,7 @@ dependencies {
     implementation Ktor.core
     implementation Ktor.locations
     implementation Ktor.ktorGson
+    implementation Ktor.sessions
 
     implementation Ktor.jwt
 

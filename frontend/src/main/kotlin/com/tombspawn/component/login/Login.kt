@@ -1,7 +1,9 @@
 package com.tombspawn.component.login
 
+import com.tombspawn.component.app.Message
 import com.tombspawn.component.extensions.isJsNullOrEmpty
 import com.tombspawn.component.utils.toUIError
+import com.tombspawn.externals.axios.Axios
 import com.tombspawn.externals.semantic.ui.button.Button
 import com.tombspawn.externals.semantic.ui.form.Form
 import com.tombspawn.externals.semantic.ui.form.FormError
@@ -14,18 +16,25 @@ import com.tombspawn.externals.semantic.ui.others.header.Header
 import com.tombspawn.externals.semantic.ui.others.icon.Icon
 import com.tombspawn.externals.semantic.ui.others.segment.Segment
 import kotlinext.js.js
+import kotlinext.js.jsObject
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 import kotlinx.css.px
 import kotlinx.css.vh
 import kotlinx.html.InputType
 import org.w3c.dom.HTMLInputElement
 import org.w3c.dom.events.Event
 import react.*
+import kotlin.collections.Map
+import kotlin.collections.MutableMap
+import kotlin.collections.isNotEmpty
+import kotlin.collections.mutableMapOf
+import kotlin.collections.set
 import kotlin.js.Json
 
 external interface LoginState : RState {
     var email: String
     var password: String
-    val user: User
 }
 
 external interface LoginProps : RProps {
@@ -67,14 +76,25 @@ class Login : RComponent<RProps, LoginState>() {
         }
 
         if (!password.isNullOrEmpty()) {
-            if(password.length < 3) {
+            if (password.length < 3) {
                 error[PASSWORD] = "Enter a valid password".toUIError()
-            } else if(!PASSWORD_REGEX.matches(password)) {
-                error[PASSWORD] = "Password must be atleast 8 characters long and only contain [A-Z][a-z][0-9]@\$!%*?&".toUIError()
+            } else if (!PASSWORD_REGEX.matches(password)) {
+                error[PASSWORD] =
+                    "Password must be atleast 8 characters long and only contain [A-Z][a-z][0-9]@\$!%*?&".toUIError()
             }
         }
 
         return error
+    }
+
+    override fun componentDidMount() {
+        val mainScope = MainScope()
+
+        mainScope.launch {
+            Axios.get<Message>("http://localhost:8080?email=amandeep400@gmail.com", jsObject {
+                withCredentials = true
+            })
+        }
     }
 
     override fun RBuilder.render() {
@@ -162,9 +182,10 @@ fun RBuilder.loginForm(
                         fluid = true
                         color = "blue"
                         size = "large"
-                        disabled = errors.isNotEmpty() || state.email.isJsNullOrEmpty() || state.password.isJsNullOrEmpty()
+                        disabled =
+                            errors.isNotEmpty() || state.email.isJsNullOrEmpty() || state.password.isJsNullOrEmpty()
                     }
-                    +"com.tombspawn.component.login.Login"
+                    +"Login"
                 }
             }
         }

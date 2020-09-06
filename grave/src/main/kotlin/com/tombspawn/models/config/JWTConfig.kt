@@ -9,7 +9,6 @@ data class JWTConfig(
     @SerializedName("realm") val realm: String,
     @SerializedName("secret") val secret: String
 ) {
-    val algorithm by lazy {
-        Algorithm.HMAC256(secret)
-    }
+    val algorithm: Algorithm
+        get() = Algorithm.HMAC256(secret)
 }

@@ -1,7 +1,7 @@
 object Versions {
     const val jgitVersion = "5.7.0.202003110725-r"
     const val junitVersion = "4.13"
-    const val ktorVersion = "1.3.2-1.4.0-rc"
+    const val ktorVersion = "1.4.0"
     const val shadowJar = "5.2.0"
     const val daggerVersion = "2.28.3"
     const val exposed = "0.26.2"
@@ -18,13 +18,14 @@ object Jgit {
 }
 
 object Kotlin {
-    const val version = "1.4.0-rc"
+    const val version = "1.4.0"
 
     const val classpath = "org.jetbrains.kotlin:kotlin-gradle-plugin:${version}"
     const val stdlib = "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${version}"
-    const val html = "org.jetbrains.kotlinx:kotlinx-html-jvm:0.7.1-1.4.0-rc"
-    const val coroutines = "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.8-1.4.0-rc"
-    const val serialization = "org.jetbrains.kotlinx:kotlinx-serialization-runtime:1.0-M1-1.4.0-rc"
+    const val html = "org.jetbrains.kotlinx:kotlinx-html-jvm:0.7.2"
+    const val coroutines = "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.9"
+    const val coroutinesJs = "org.jetbrains.kotlinx:kotlinx-coroutines-core-js:1.3.9"
+    const val serialization = "org.jetbrains.kotlinx:kotlinx-serialization-core:1.0.0-RC"
 }
 
 object Auth {
@@ -91,19 +92,26 @@ object GRPC {
 }
 
 object React {
-    private const val reactVersion = "16.13.1-pre.110-kotlin-1.4.0-rc"
-    private const val kotlinWrapper = "1.0.1-pre.110-kotlin-1.4.0-rc"
+    private const val reactVersion = "16.13.1-pre.112-kotlin-1.4.0"
+    private const val kotlinWrapper = "1.0.1-pre.112-kotlin-1.4.0"
 
     const val react = "org.jetbrains:kotlin-react:$reactVersion"
     const val reactDom = "org.jetbrains:kotlin-react-dom:$reactVersion"
-    const val reactRouterDom = "org.jetbrains:kotlin-react-router-dom:5.1.2-pre.110-kotlin-1.4.0-rc"
-    const val reactRedux = "org.jetbrains:kotlin-react-redux:5.0.7-pre.110-kotlin-1.4.0-rc"
-    const val redux = "org.jetbrains:kotlin-redux:4.0.0-pre.110-kotlin-1.4.0-rc"
-    const val css = "org.jetbrains:kotlin-css-js:1.0.0-pre.110-kotlin-1.4.0-rc"
-    const val styled = "org.jetbrains:kotlin-styled:1.0.0-pre.110-kotlin-1.4.0-rc"
+    const val reactRouterDom = "org.jetbrains:kotlin-react-router-dom:5.1.2-pre.112-kotlin-1.4.0"
+    const val reactRedux = "org.jetbrains:kotlin-react-redux:5.0.7-pre.112-kotlin-1.4.0"
+    const val redux = "org.jetbrains:kotlin-redux:4.0.0-pre.112-kotlin-1.4.0"
+    const val css = "org.jetbrains:kotlin-css-js:1.0.0-pre.112-kotlin-1.4.0"
+    const val styled = "org.jetbrains:kotlin-styled:1.0.0-pre.112-kotlin-1.4.0"
     const val extensions = "org.jetbrains:kotlin-extensions:$kotlinWrapper"
-    const val html = "org.jetbrains.kotlinx:kotlinx-html-js:0.7.1-1.4.0-rc"
-    const val common = "org.jetbrains.kotlinx:kotlinx-html-common:0.7.1-1.4.0-rc"
+    const val html = "org.jetbrains.kotlinx:kotlinx-html-js:0.7.2"
+    const val common = "org.jetbrains.kotlinx:kotlinx-html-common:0.7.2"
+}
+
+object Js {
+    const val httpClient = "io.ktor:ktor-client-js:${Versions.ktorVersion}"
+    const val json = "io.ktor:ktor-client-json-js:${Versions.ktorVersion}"
+    const val serialization = "io.ktor:ktor-client-serialization-js:${Versions.ktorVersion}"
+    const val logging = "io.ktor:ktor-client-logging-js:${Versions.ktorVersion}"
 }
 
 object Testing {

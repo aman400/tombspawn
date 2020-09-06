@@ -43,6 +43,13 @@ dependencies {
 
     implementation(React.extensions)
     implementation(Kotlin.coroutines)
+    implementation(Kotlin.coroutinesJs)
+    implementation(Js.httpClient)
+    implementation(Js.json)
+    implementation(Js.serialization)
+    implementation(Js.logging)
+
+    implementation(npm("axios", "0.20.0"))
 
     implementation(npm("semantic-ui-react", "1.1.1", generateExternals = false))
     implementation(npm("semantic-ui-css", "2.4.1", generateExternals = false))
