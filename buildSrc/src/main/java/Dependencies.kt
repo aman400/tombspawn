@@ -63,6 +63,13 @@ object Dagger {
     const val assistedInjectProcessor = "com.squareup.inject:assisted-inject-processor-dagger2:0.5.1"
 }
 
+object Arrow {
+    private const val ArrowVersion = "0.10.5-SNAPSHOT"
+    const val core = "io.arrow-kt:arrow-core:$ArrowVersion"
+    const val syntax = "io.arrow-kt:arrow-syntax:$ArrowVersion"
+    const val meta = "io.arrow-kt:arrow-meta:$ArrowVersion"
+}
+
 object Apache {
     const val commonIO = "commons-io:commons-io:2.6"
     const val zip = "org.apache.commons:commons-compress:1.19"

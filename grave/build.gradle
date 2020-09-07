@@ -76,6 +76,10 @@ dependencies {
     implementation GRPC.protobuf
     implementation GRPC.stub
 
+    implementation Arrow.core
+    implementation Arrow.syntax
+    kapt Arrow.meta
+
     api Dagger.lib
     kapt Dagger.annotationProcessor
     api Dagger.assistedInjectLib
