@@ -1,6 +1,8 @@
 package com.tombspawn
 
-import com.tombspawn.auth.makeJwtVerifier
+import arrow.core.left
+import arrow.core.right
+import com.tombspawn.auth.*
 import com.tombspawn.base.config.JsonApplicationConfig
 import com.tombspawn.base.di.DaggerCoreComponent
 import com.tombspawn.di.DaggerAppComponent
@@ -204,6 +206,16 @@ fun Application.module(
         }
     }
 
+    install(RoleAuthorization) {
+        validate { roles ->
+            if(roles.contains(Role.ADMIN)) {
+                RolePrincipal().left()
+            } else {
+                Unit.right()
+            }
+        }
+    }
+
     install(CallLogging) {
         level = Level.TRACE
         filter { call -> call.request.path().startsWith("/slack/app") }
@@ -249,8 +261,9 @@ fun Application.module(
     }
 
     routing {
-        status()
+        trace { application.log.trace(it.buildText()) }
         health()
+        status()
         buildApp(applicationService)
         apkCallback(applicationService)
         slackEvent(applicationService)

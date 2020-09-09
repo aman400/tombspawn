@@ -3,6 +3,7 @@ package com.tombspawn.auth
 import arrow.core.Either
 import arrow.core.right
 import io.ktor.application.*
+import io.ktor.auth.*
 import io.ktor.http.*
 import io.ktor.response.*
 import io.ktor.routing.*
@@ -24,11 +25,11 @@ class RoleAuthorization internal constructor(config: Configuration) {
 
 
     class RoleBasedAuthorizer {
-        internal var authorizationFunction: suspend ApplicationCall.(Set<Role>) -> Either<String, Unit> = {
+        internal var authorizationFunction: suspend ApplicationCall.(Set<Role>) -> Either<Principal, Unit> = {
             Unit.right()
         }
 
-        fun validate(body: suspend ApplicationCall.(Set<Role>) -> Either<String, Unit>) {
+        fun validate(body: suspend ApplicationCall.(Set<Role>) -> Either<Principal, Unit>) {
             authorizationFunction = body
         }
     }
@@ -53,7 +54,7 @@ class RoleAuthorization internal constructor(config: Configuration) {
     companion object Feature : ApplicationFeature<ApplicationCallPipeline, RoleBasedAuthorizer, RoleAuthorization> {
         private val authorizationPhase = PipelinePhase("authorization")
 
-        override val key: AttributeKey<RoleAuthorization> = AttributeKey("RoleAuthorization")
+        override val key: AttributeKey<RoleAuthorization> = AttributeKey("Roles")
 
         override fun install(
             pipeline: ApplicationCallPipeline,
@@ -66,14 +67,19 @@ class RoleAuthorization internal constructor(config: Configuration) {
     }
 }
 
-class AuthorisedRouteSelector(): RouteSelector(RouteSelectorEvaluation.qualityConstant) {
+class AuthorisedRouteSelector(val roles: List<Role>): RouteSelector(RouteSelectorEvaluation.qualityConstant) {
     override fun evaluate(context: RoutingResolveContext, segmentIndex: Int): RouteSelectorEvaluation =
         RouteSelectorEvaluation.Constant
+
+    override fun toString(): String = "(roles ${roles.joinToString { it.name }})"
 }
 
 fun Route.rolesAllowed(vararg roles: Role, build: Route.() -> Unit): Route {
-    val authorisedRoute = createChild(AuthorisedRouteSelector())
-    application.feature(RoleAuthorization).interceptPipeline(this.application, roles.toSet())
+    require(roles.isNotEmpty()) { "At least one role need to specified" }
+    val configurationNames = roles.distinct()
+    val authorisedRoute = createChild(AuthorisedRouteSelector(roles.toList()))
+
+    application.featureOrNull(RoleAuthorization)?.interceptPipeline(authorisedRoute, configurationNames.toSet())
 
     authorisedRoute.build()
     return authorisedRoute
