@@ -1,13 +1,13 @@
 object Versions {
-    const val jgitVersion = "5.7.0.202003110725-r"
+    const val jgitVersion = "5.11.0.202103091610-r"
     const val junitVersion = "4.12"
-    const val kotlin = "1.3.70"
-    const val ktorVersion = "1.3.2"
-    const val shadowJar = "5.2.0"
-    const val daggerVersion = "2.27"
-    const val exposed = "0.23.1"
+    const val kotlin = "1.4.32"
+    const val ktorVersion = "1.5.3"
+    const val shadowJar = "6.1.0"
+    const val daggerVersion = "2.34"
+    const val exposed = "0.30.1"
     const val mockito = "3.2.4"
-    const val grpc = "1.28.0"
+    const val grpc = "1.37.0"
 }
 
 object Classpaths {
