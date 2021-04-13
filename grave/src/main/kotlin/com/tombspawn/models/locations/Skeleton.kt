@@ -6,33 +6,23 @@ import io.ktor.locations.Location
 class Apps {
     @Location("/{id}")
     data class App(val id: String) {
-        @Location("/callback/{callbackId}")
-        data class Callback(val app: App, val callbackId: String) {
-            @Location("/success")
-            class Success(val callback: Callback)
-            @Location("/failure")
-            class Failure(val callback: Callback)
-        }
 
-        @Location("/build-variants")
-        data class BuildVariants(val app: App)
+        @Location("/github/payload")
+        class GithubWebhook(val app: App)
+
+        @Location("/bitbucket/payload")
+        class BitbucketWebhook(val app: App)
 
         @Location("/init")
         data class Init(val app: App)
 
-        @Location("/generate")
-        data class CreateApp(val app: App)
-
-        @Location("/refs")
-        data class References(val app: App)
-
         @Location("/clean")
         data class Clean(val app: App)
-
-        @Location("/flavours")
-        data class Flavours(val app: App)
-
-        @Location("/generate")
-        data class APK(val app: App)
     }
+
+    @Location("/subscribe")
+    class Subscribe
+
+    @Location("/unsubscribe")
+    class Unsubscribe
 }

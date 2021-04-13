@@ -1,6 +1,6 @@
 object Versions {
     const val jgitVersion = "5.11.0.202103091610-r"
-    const val junitVersion = "4.12"
+    const val junitVersion = "4.13"
     const val kotlin = "1.4.32"
     const val ktorVersion = "1.5.3"
     const val shadowJar = "6.1.0"
@@ -91,6 +91,8 @@ object Testing {
     const val mockitoInline = "org.mockito:mockito-inline:${Versions.mockito}"
     const val ktor = "io.ktor:ktor-server-tests:${Versions.ktorVersion}"
     const val junit = "junit:junit:${Versions.junitVersion}"
+    const val hamcrest = "org.hamcrest:hamcrest-all:1.3"
+    const val javaHamcrest = "org.hamcrest:java-hamcrest:2.0.0.0"
 
     const val clientMock = "io.ktor:ktor-client-mock:${Versions.ktorVersion}"
     const val clientMockJvm = "io.ktor:ktor-client-mock-jvm:${Versions.ktorVersion}"

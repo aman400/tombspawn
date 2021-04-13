@@ -2,8 +2,8 @@ package com.tombspawn.models.slack
 
 import com.google.gson.annotations.SerializedName
 
-class GenerateCallback(
-    @SerializedName("generate") var generate: Boolean = false,
+class GenerateCallback constructor(
+    @SerializedName("action") var action: Action = Action.UNSUBSCRIBE,
     @SerializedName("") var data: MutableMap<String, String>? = null
 ) : ActionCallback() {
     operator fun Pair<String, String>.unaryPlus() {
@@ -15,6 +15,15 @@ class GenerateCallback(
 
     operator fun MutableMap<String, String>?.invoke(block: MutableMap<String, String>?.() -> Unit) {
         block()
+    }
+
+    enum class Action {
+        @SerializedName("unsubscribe")
+        UNSUBSCRIBE,
+        @SerializedName("generate")
+        GENERATE,
+        @SerializedName("do_nothing")
+        DO_NOTHING
     }
 }
 

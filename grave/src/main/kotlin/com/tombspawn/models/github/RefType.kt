@@ -12,10 +12,10 @@ enum class RefType(val type: String) {
     REPOSITORY("repository");
 
     companion object {
-        fun from(key: String?): RefType {
+        fun from(key: String?): RefType? {
             return values().firstOrNull {
                 key?.equals(it.type, true) == true
-            } ?: BRANCH
+            }
         }
 
         fun from(key: Ref): RefType {

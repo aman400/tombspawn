@@ -4,8 +4,8 @@ class Constants {
     object Common {
         const val DEFAULT_HOST = "0.0.0.0"
         const val DEFAULT_PORT = 8662
+        const val SKELETON_DEBUG_PORT = 5006
         const val DEFAULT_SCHEME = "http"
-
         // Redis default config
         const val DEFAULT_REDIS_PORT = 6379
         const val DEFAULT_REDIS_HOST = "redis://127.0.0.1"
@@ -20,6 +20,7 @@ class Constants {
 
         const val CALLBACK_GENERATE_APK = "generate_apk_"
         const val CALLBACK_CONFIRM_GENERATE_APK = "confirm_generate_apk_"
+        const val CALLBACK_SUBSCRIBE_BRANCH = "subscribe_branch_"
 
         const val TOKEN = "token"
         const val CHANNEL = "channel"
@@ -32,14 +33,20 @@ class Constants {
         const val LIMIT = "limit"
 
         const val CALLBACK_SUBSCRIBE_CONSUMER = "subscribe_consumer_"
+        const val CALLBACK_UNSUBSCRIBE_CONSUMER = "unsubscribe_consumer_"
+        const val NAME_SEPARATOR = "$#---#$"
 
         const val TYPE_SUBSCRIBE_CONSUMER = "subscribe-consumer"
         const val TYPE_SUBSCRIBE_FLEET = "subscribe-fleet"
         const val TRIGGER_ID: String = "trigger_id"
         const val CHANNEL_ID: String = "channel_id"
-
-        const val TYPE_SELECT_VERB = "VERB"
-        const val TYPE_SELECT_RESPONSE = "RESPONSE"
+        const val TEAM_ID = "team_id"
+        const val TEAM_DOMAIN = "team_domain"
+        const val CHANNEL_NAME = "channel_name"
+        const val USER_ID = "user_id"
+        const val USER_NAME = "user_name"
+        const val COMMAND = "command"
+        const val RESPONSE_URL = "response_url"
     }
 
     class Github {

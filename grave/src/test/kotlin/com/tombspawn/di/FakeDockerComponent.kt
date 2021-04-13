@@ -7,6 +7,8 @@ interface FakeDockerComponent {
 
     @Component.Factory
     interface Factory {
-        fun create(): FakeDockerComponent
+        fun create(
+            fakeDockerModule: FakeDockerModule
+        ): FakeDockerComponent
     }
 }

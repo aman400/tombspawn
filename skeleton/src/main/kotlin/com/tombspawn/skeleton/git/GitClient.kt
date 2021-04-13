@@ -1,9 +1,10 @@
 package com.tombspawn.skeleton.git
 
+import com.tombspawn.base.extensions.moveToDirectory
 import com.tombspawn.skeleton.extensions.authenticate
 import com.tombspawn.skeleton.extensions.checkout
+import com.tombspawn.skeleton.models.App
 import kotlinx.coroutines.*
-import org.apache.commons.io.FileUtils
 import org.eclipse.jgit.api.CloneCommand
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.api.ListBranchCommand
@@ -16,10 +17,11 @@ import org.eclipse.jgit.transport.FetchResult
 import org.eclipse.jgit.transport.TagOpt
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.util.*
 import javax.inject.Inject
 import kotlin.coroutines.resume
 
-class GitClient @Inject constructor(private val provider: CredentialProvider) {
+class GitClient @Inject constructor(private val gitConfig: Optional<App.GitConfig>) {
     suspend fun clone(appId: String, dir: String, gitUri: String) = suspendCancellableCoroutine<Boolean> { continuation ->
         if (!try {
                 LOGGER.debug("Generating app")
@@ -55,7 +57,7 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
                     }?.forEach {
                         try {
                             LOGGER.info("Moving ${it.absolutePath} to ${tempDir.absolutePath}")
-                            FileUtils.moveFileToDirectory(it, tempDir, false)
+                            it.moveToDirectory(tempDir)
                         } catch (exception: Exception) {
                             LOGGER.error("Unable to move file ${it.absolutePath} to temp directory", exception)
                         }
@@ -67,6 +69,14 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
             Git.cloneRepository()
                 .setURI(gitUri)
                 .setDirectory(directory)
+                .apply {
+                    gitConfig.get().branchConfig?.default?.let {
+                        "refs/heads/$it"
+                    }?.let {
+                        setBranchesToClone(listOf(it))
+                        setBranch(it)
+                    }
+                }
                 .setProgressMonitor(object : ProgressMonitor {
                     override fun update(completed: Int) {
                         LOGGER.trace("Progress $completed%")
@@ -103,7 +113,7 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
                     }
 
                 })
-                .authenticate(provider)
+                .authenticate(gitConfig.get().credentialProvider)
                 .call()
             LOGGER.debug("Clone completed")
 
@@ -117,7 +127,7 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
                         }?.forEach {
                             try {
                                 LOGGER.info("Moving ${it.absolutePath} to ${directory.absolutePath}")
-                                FileUtils.moveFileToDirectory(it, directory, false)
+                                it.moveToDirectory(directory)
                             } catch (exception: Exception) {
                                 LOGGER.error("Unable to move file ${it.absolutePath} back to original directory", exception)
                             }
@@ -158,7 +168,7 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
                 git.fetch().setRemote(origin)
                     .setRemoveDeletedRefs(true)
                     .setTagOpt(TagOpt.FETCH_TAGS)
-                    .authenticate(provider).call()
+                    .authenticate(gitConfig.get().credentialProvider).call()
             }
         }
     }
@@ -310,7 +320,7 @@ class GitClient @Inject constructor(private val provider: CredentialProvider) {
         async {
             return@async Git(initRepository(dir)).use {git ->
                 if (git.pull().setRemoteBranchName(branch)
-                        .authenticate(provider).call().isSuccessful
+                        .authenticate(gitConfig.get().credentialProvider).call().isSuccessful
                 ) {
                     LOGGER.info("Pulled latest code")
                     true
