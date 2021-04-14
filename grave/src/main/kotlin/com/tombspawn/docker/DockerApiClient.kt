@@ -1,11 +1,9 @@
 package com.tombspawn.docker
 
 import com.github.dockerjava.api.DockerClient
-import com.github.dockerjava.api.async.ResultCallbackTemplate
+import com.github.dockerjava.api.async.ResultCallback
+import com.github.dockerjava.api.command.BuildImageResultCallback
 import com.github.dockerjava.api.model.*
-import com.github.dockerjava.core.command.BuildImageResultCallback
-import com.github.dockerjava.core.command.EventsResultCallback
-import com.github.dockerjava.core.command.LogContainerResultCallback
 import com.google.protobuf.ByteString
 import com.tombspawn.base.*
 import com.tombspawn.base.di.scopes.AppScope
@@ -14,8 +12,10 @@ import com.tombspawn.models.config.App
 import com.tombspawn.utils.Constants
 import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.slf4j.LoggerFactory
+import java.io.Closeable
 import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -178,28 +178,28 @@ class DockerApiClient @Inject constructor(
             }
     }
 
-    suspend fun createImage(file: File, tag: String) {
-        coroutineScope {
-            @Suppress("BlockingMethodInNonBlockingContext")
-            dockerClient.listImagesCmd().withImageNameFilter(tag).exec().firstOrNull() ?: dockerClient.buildImageCmd(
-                    file
-                )
-                .withTags(setOf(tag))
-                .withQuiet(false)
-                .exec(object : BuildImageResultCallback() {
-                    override fun onNext(item: BuildResponseItem?) {
-                        super.onNext(item)
-                        item?.let { buildResponse ->
-                            buildResponse.stream?.let {
-                                LOGGER.trace(it)
-                            }
-                            buildResponse.errorDetail?.let { error ->
-                                LOGGER.error("${error.code} : ${error.message}")
-                            }
+    suspend fun createImage(file: File, tag: String) = suspendCancellableCoroutine<Unit> { continuation ->
+        dockerClient.listImagesCmd().apply {
+            filters?.put("reference", listOf(tag))
+        }.exec().firstOrNull() ?: dockerClient.buildImageCmd(
+                file
+            )
+            .withTags(setOf(tag))
+            .withQuiet(false)
+            .exec(object: BuildImageResultCallback() {
+                override fun onNext(item: BuildResponseItem?) {
+                    super.onNext(item)
+                    item?.let { buildResponse ->
+                        buildResponse.stream?.let {
+                            LOGGER.trace(it)
+                        }
+                        buildResponse.errorDetail?.let { error ->
+                            LOGGER.error("${error.code} : ${error.message}")
                         }
                     }
-                }).awaitCompletion()
-        }
+                }
+            }).awaitCompletion()
+        continuation.resume(Unit)
     }
 
     suspend fun createNetwork(name: String, driver: String = "bridge"): String {
@@ -232,7 +232,7 @@ class DockerApiClient @Inject constructor(
                 .withFollowStream(true)
                 .withStdErr(true)
                 .withStdOut(true)
-                .exec(object : ResultCallbackTemplate<LogContainerResultCallback, Frame>() {
+                .exec(object : ResultCallback.Adapter<Frame>() {
                     override fun onNext(frame: Frame?) {
                         frame?.payload?.let {
                             LOGGER.trace(String(it))
@@ -244,7 +244,7 @@ class DockerApiClient @Inject constructor(
 
     suspend fun logEvents(onEvent: ((event: Event) -> Unit)? = null) {
         coroutineScope {
-            val callback = object : EventsResultCallback() {
+            val callback = object : ResultCallback.Adapter<Event>() {
                 override fun onNext(event: Event) {
                     onEvent?.invoke(event) ?: LOGGER.trace("Event: $event")
                     super.onNext(event)

@@ -1,5 +1,5 @@
 object Versions {
-    const val jgitVersion = "5.11.0.202103091610-r"
+    const val jgitVersion = "5.7.0.202003110725-r"
     const val junitVersion = "4.13"
     const val kotlin = "1.4.32"
     const val ktorVersion = "1.5.3"
@@ -37,7 +37,7 @@ object Log {
 }
 
 object Docker {
-    const val lib = "com.github.docker-java:docker-java:3.2.1"
+    const val lib = "com.github.docker-java:docker-java:3.2.8"
 }
 
 object Database {

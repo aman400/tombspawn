@@ -7,7 +7,6 @@ import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.network.Common.createHttpClient
 import com.tombspawn.data.DatabaseService
 import com.tombspawn.di.qualifiers.*
-import com.tombspawn.git.CredentialProvider
 import com.tombspawn.models.config.*
 import com.tombspawn.utils.Constants
 import dagger.Module
@@ -56,12 +55,6 @@ class AppModule {
     @AppScope
     fun provideRedisConfig(config: JsonApplicationConfig): Redis {
         return config.property("redis").getAs(Redis::class.java)
-    }
-
-    @Provides
-    @AppScope
-    fun provideCredentialProvider(config: JsonApplicationConfig): CredentialProvider {
-        return config.property("git").getAs(CredentialProvider::class.java)
     }
 
     @Provides

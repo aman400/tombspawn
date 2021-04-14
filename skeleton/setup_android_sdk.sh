@@ -7,7 +7,7 @@ VERSION=1.0.0
 # SDK_INSTALLATION = 0 = Basic
 # SDK_INSTALLATION = 1 = Full
 
-# SDK_UPDATE = 0 = Force Installtion if exists and not --none
+# SDK_UPDATE = 0 = Force Installation if exists and not --none
 # SDK_UPDATE = 1 = Update if SDK exists
 
 # NO_JAVA = 0 = With Java Installation
@@ -54,6 +54,8 @@ fullPackages=("add-ons;addon-google_apis-google-15"
   "build-tools;29.0.3"
   "build-tools;30.0.0"
   "build-tools;30.0.1"
+  "build-tools;30.0.2"
+  "build-tools;30.0.3"
   "cmake;3.6.3155560"
   "extras;android;gapid;1"
   "extras;android;gapid;3"
@@ -72,15 +74,13 @@ fullPackages=("add-ons;addon-google_apis-google-15"
   "lldb;2.2"
   "lldb;2.3"
   "patcher;v4"
-  "platforms;android-21"
-  "platforms;android-22"
-  "platforms;android-23"
   "platforms;android-24"
   "platforms;android-25"
   "platforms;android-26"
   "platforms;android-27"
   "platforms;android-28"
   "platforms;android-29"
+  "platforms;android-30"
   )
 
 basicPackages=(
@@ -90,9 +90,12 @@ basicPackages=(
   "build-tools;29.0.3"
   "build-tools;30.0.0"
   "build-tools;30.0.1"
+  "build-tools;30.0.2"
+  "build-tools;30.0.3"
   "platform-tools"
   "platforms;android-28"
   "platforms;android-29"
+  "platforms;android-30"
   "extras;google;google_play_services"
   "extras;google;m2repository"
   "extras;android;m2repository"
@@ -100,8 +103,6 @@ basicPackages=(
   "extras;android;gapid;3"
   "extras;google;instantapps"
   "extras;google;webdriver"
-  "extras;m2repository;com;android;support;constraint;constraint-layout-solver;1.0.2"
-  "extras;m2repository;com;android;support;constraint;constraint-layout;1.0.2"
   "patcher;v4")
 
 function printAndSleep() {

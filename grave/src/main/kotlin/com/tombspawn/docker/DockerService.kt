@@ -6,7 +6,6 @@ import com.tombspawn.base.Ref
 import com.tombspawn.base.common.exhaustive
 import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.di.qualifiers.Debuggable
-import com.tombspawn.git.CredentialProvider
 import com.tombspawn.models.AppContainerRequest
 import com.tombspawn.models.AppResponse
 import com.tombspawn.models.config.App
@@ -30,7 +29,6 @@ import kotlin.text.StringBuilder
 class DockerService @Inject constructor(
     private val dockerClient: DockerApiClient,
     private val common: Common,
-    private val credentialProvider: CredentialProvider,
     private val gson: Gson,
     @Debuggable
     private val debug: Boolean
@@ -128,26 +126,32 @@ class DockerService @Inject constructor(
     }
 
     @Suppress("BlockingMethodInNonBlockingContext")
-    private suspend fun createBaseImage() = withContext(Dispatchers.IO) {
+    private fun createBaseImage() {
         LOGGER.debug("${System.getProperty("user.dir")}/skeleton/Dockerfile")
         // Base docker file which installs Android SDK
         // This base Android docker file is to separate out android SDK installation from application initialization
         // Base AndroidDockerfile is inherited by all the skeleton docker images.
-        dockerClient.createImage(
-            File("${System.getProperty("user.dir")}/skeleton/AndroidDockerfile"),
-            "android-sdk"
-        )
+        runBlocking {
+            dockerClient.createImage(
+                File("${System.getProperty("user.dir")}/skeleton/AndroidDockerfile"),
+                "android-sdk"
+            )
+        }
+        LOGGER.debug("Created android image")
 
         // Skeleton application docker file
         File("${System.getProperty("user.dir")}/skeleton/Dockerfile").takeIf {
             it.exists()
         }?.let {
-            dockerClient.createImage(it, "skeleton")
+            LOGGER.debug("Creating skeleton image")
+            runBlocking {
+                dockerClient.createImage(it, "skeleton")
+            }
         }
-        Unit
     }
 
     private suspend fun createAppImage(app: App) = coroutineScope {
+        LOGGER.debug("Creating App image")
         val scriptsDir = File(
             "${System.getProperty("user.dir")}/skeleton/apps/${app.id}/${com.tombspawn.base.common.Constants.APP_INIT_SCRIPTS_DIR}/"
         )
@@ -190,7 +194,7 @@ class DockerService @Inject constructor(
                         FileUtils.listFiles(
                             scriptsDir, arrayOf("sh"), true
                         ).forEach { file ->
-                            initScriptBuilder.appendln(
+                            initScriptBuilder.appendLine(
                                 "COPY ${com.tombspawn.base.common.Constants.APP_INIT_SCRIPTS_DIR}/${file.name} /app/git/${app.id}/${com.tombspawn.base.common.Constants.APP_INIT_SCRIPTS_DIR}/"
                             )
                         }
@@ -208,7 +212,9 @@ class DockerService @Inject constructor(
                 it
             }.let {
                 // create the dockerfile
+                LOGGER.debug("Started creating skeleton image")
                 dockerClient.createImage(it, app.id)
+                LOGGER.debug("Created skeleton image")
             }
         } catch (exception: Exception) {
             LOGGER.error("Unable to create image for $app", exception)
@@ -234,7 +240,7 @@ class DockerService @Inject constructor(
             val request = gson.toJson(
                 AppContainerRequest(
                     AppContainerRequest.KtorConfig(serverConfig),
-                    app, common, credentialProvider, callbackUri
+                    app, common, callbackUri
                 ), AppContainerRequest::class.java
             )
 
@@ -247,10 +253,10 @@ class DockerService @Inject constructor(
                 PortBinding(Ports.Binding.bindPort(debugPort), exposedDebugPort)
             )
             val environmentVariables = mutableListOf<String>().apply {
-                if (debug) {
-                    // Use this to debug skeleton application
-                    add("JAVA_TOOL_OPTIONS=-agentlib:jdwp=transport=dt_socket,address=${exposedDebugPort.port},server=y,suspend=n")
-                }
+//                if (debug) {
+//                    // Use this to debug skeleton application
+//                    add("JAVA_TOOL_OPTIONS=-agentlib:jdwp=transport=dt_socket,address=${exposedDebugPort.port + 100},server=y,suspend=n")
+//                }
             }
 
             dockerClient.createContainer(
@@ -284,7 +290,6 @@ class DockerService @Inject constructor(
                 dockerClient.startContainer(containerId)
             }
             LOGGER.debug("Created ${app.name}")
-            Unit
         }
 
     suspend fun appInitialized(app: App) = coroutineScope {

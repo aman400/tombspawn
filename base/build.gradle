@@ -11,7 +11,7 @@ plugins {
     // Apply the java-library plugin for API and implementation separation.
     id 'java-library'
     id "org.jetbrains.kotlin.kapt"
-    id 'com.google.protobuf' version '0.8.8'
+    id 'com.google.protobuf' version '0.8.15'
 }
 
 sourceCompatibility = 1.8

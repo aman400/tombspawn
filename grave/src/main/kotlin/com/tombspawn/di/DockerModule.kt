@@ -3,6 +3,7 @@ package com.tombspawn.di
 import com.github.dockerjava.api.DockerClient
 import com.github.dockerjava.core.DefaultDockerClientConfig
 import com.github.dockerjava.core.DockerClientBuilder
+import com.github.dockerjava.jaxrs.JerseyDockerHttpClient
 import com.github.dockerjava.netty.NettyDockerCmdExecFactory
 import com.tombspawn.base.di.scopes.AppScope
 import com.tombspawn.base.network.Common
@@ -15,6 +16,9 @@ import dagger.Provides
 import io.ktor.client.HttpClient
 import io.ktor.client.features.json.GsonSerializer
 import io.ktor.http.URLProtocol
+import com.github.dockerjava.core.DockerClientConfig
+import java.net.URI
+
 
 @Module
 class DockerModule {
@@ -24,9 +28,12 @@ class DockerModule {
     fun provideDockerClient(): DockerClient {
         val config = DefaultDockerClientConfig.createDefaultConfigBuilder()
             .build()
-        return DockerClientBuilder.getInstance(config).withDockerCmdExecFactory(
-            NettyDockerCmdExecFactory()
-        ).build()
+        return DockerClientBuilder.getInstance(config)
+            .withDockerHttpClient(
+                JerseyDockerHttpClient.Builder()
+                    .dockerHost(URI("unix:///var/run/docker.sock"))
+                    .build()
+            ).build()
     }
 
     @Provides
